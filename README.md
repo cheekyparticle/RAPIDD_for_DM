@@ -1,5 +1,11 @@
 # RAPIDD_for_DM
 
+Things you need for the code to compile 
+
+- gsl libraries
+- pkg-config
+- even cython
+
 1) Go to parent directory and type 
 
 $ sh instructions_cmake.sh
