@@ -2,7 +2,7 @@
 
 1) Go to parent directory and type 
 
-$ sh instructions_cmake
+$ sh instructions_cmake.sh
 
 Then these lines 
 export PYTHONPATH="<path_to_directory_of_RAPIDD.so_file>:$PYTHONPATH"
