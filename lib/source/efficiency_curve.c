@@ -53,19 +53,19 @@ void read_efficiency(char* path){
   int j;
   int check_length;
   length = countlines(path);
-  printf("%s\n", path );
+  //printf("%s\n", path );
   if (access(path, F_OK) == -1){
-    printf("Incorrect path to efficiency, taking as 1\n");
+    //printf("Incorrect path to efficiency, taking as 1\n");
     snprintf(eff_path_true, sizeof(eff_path_true), "False");
-    printf("%s\n", eff_path_true );
+    //printf("%s\n", eff_path_true );
   }
   else{
     snprintf(eff_path_true, sizeof(eff_path_true), "True");
-    printf("Reading pre-calculated table from file %s...\n", path);
+    //printf("Reading pre-calculated table from file %s...\n", path);
     table = fopen(path, "r");
 
-    printf("Getting table format...\n");
-    printf("Done! %i\n", length);
+    //printf("Getting table format...\n");
+    //printf("Done! %i\n", length);
 
     //printf("Reading data table...\n");
       for (j = 0; j < length; j++){
@@ -74,7 +74,7 @@ void read_efficiency(char* path){
       }
 
       fclose(table);
-      printf("printing here %i\n",length );
+      //printf("printing here %i\n",length );
 
   //printf("Done!\n");
 }
@@ -141,7 +141,7 @@ void write_efficiency ( char* path, char* eff_path){
   FILE* resultsfile;
 
   if (!(resultsfile = fopen(path, "w+"))){
-    printf("opening file failed...\n");
+    //printf("opening file failed...\n");
   }
 
   for (j = 0; j<100; j++){

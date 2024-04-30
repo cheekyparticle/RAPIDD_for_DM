@@ -272,19 +272,19 @@ void read_DS50_LEFF(char* path){
   int j;
   int check_length;
   leff_length = countlines(path);
-  printf("%s\n", path );
+  //printf("%s\n", path );
   if (access(path, F_OK) == -1){
-    printf("Incorrect path to efficiency, taking as 1\n");
+    //printf("Incorrect path to efficiency, taking as 1\n");
     snprintf(leff_path_true, sizeof(leff_path_true), "False");
-    printf("%s\n", leff_path_true );
+    //printf("%s\n", leff_path_true );
   }
   else{
     snprintf(leff_path_true, sizeof(leff_path_true), "True");
-    printf("Reading pre-calculated table from file %s...\n", path);
+    //printf("Reading pre-calculated table from file %s...\n", path);
     table = fopen(path, "r");
 
-    printf("Getting table format...\n");
-    printf("Done! %i\n", leff_length);
+    //printf("Getting table format...\n");
+    //printf("Done! %i\n", leff_length);
 
     //printf("Reading data table...\n");
       for (j = 0; j < leff_length; j++){
@@ -293,7 +293,7 @@ void read_DS50_LEFF(char* path){
       }
 
       fclose(table);
-      printf("printing here %i\n",leff_length );
+      //printf("printing here %i\n",leff_length );
 
   //printf("Done!\n");
 }

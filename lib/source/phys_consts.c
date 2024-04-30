@@ -70,6 +70,6 @@ int countlines(char *filename){
   }
 
   fclose(fp);
-	printf("attempt %i\n", lines );
+	//printf("attempt %i\n", lines );
   return lines;
 }
