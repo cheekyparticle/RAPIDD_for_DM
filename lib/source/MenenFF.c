@@ -1126,13 +1126,13 @@ double FFMen_136_v2(int i, int j, char * N1, char * N2, double Er, double mchi, 
     double Cj = 4.*jchi*(jchi+1.)/3.;
 
 if (i == 5 && j == i){
-return Cj/4.*pow(q,2.)/(mN*mN)*FF136( "M", N1, Er)*FF136( "M", N2, Er);
+return Cj/4.*pow(q,2.)/(mN*mN)*FF136_Men( "M", N1, Er)*FF136_Men( "M", N2, Er);
 
 }
 
 
 if (i == 8 && j == i){
-return Cj/4.*FF136( "M", N1, Er)*FF136( "M", N2, Er);
+return Cj/4.*FF136_Men( "M", N1, Er)*FF136_Men( "M", N2, Er);
 
 }
 

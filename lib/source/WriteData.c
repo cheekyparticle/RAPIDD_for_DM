@@ -303,7 +303,6 @@ void write_difrate (char* coefficients, char* path, char* halo_path, double rhoc
 		fprintf(resultsfile, "%s \r\n", header_fin);
 		fclose(resultsfile);
 		for(i=startpoint;i<endpoint;i+=interval){
-			printf("here bro %i\n", i);
 			write_difrate_line(binned_data, rhochi, val_difcros, i, model);
 		}
 	}
@@ -317,7 +316,6 @@ void write_difrate (char* coefficients, char* path, char* halo_path, double rhoc
 		fprintf(resultsfile, "%s \r\n", header_fin);
 		fclose(resultsfile);
 		for(i=startpoint;i<endpoint;i+=interval){
-			printf("here bro %lf\n", i);
 			write_difrate_line(binned_data, rhochi, val_difcros, i, model);
 		}
 	}
@@ -330,7 +328,6 @@ void write_difrate (char* coefficients, char* path, char* halo_path, double rhoc
 		fprintf(resultsfile, "%s \r\n", header_fin);
 		fclose(resultsfile);
 		for(i=startpoint;i<endpoint;i+=interval){
-			printf("here bro %lf\n", i);
 			write_difrate_line(binned_data, rhochi, val_difcros, i, model);
 		}
 	}
@@ -343,7 +340,6 @@ void write_difrate (char* coefficients, char* path, char* halo_path, double rhoc
 		fprintf(resultsfile, "%s \r\n", header_fin);
 		fclose(resultsfile);
 		for(i=startpoint;i<endpoint;i+=interval){
-			printf("here bro %lf\n", i);
 			write_difrate_line(binned_data, rhochi, val_difcros, i, model);
 		}
 	}
