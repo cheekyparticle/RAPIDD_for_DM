@@ -9,8 +9,6 @@ Things you need for the code to compile
 
 $ sh instructions_cmake.sh
 
-Then these lines 
-export PYTHONPATH="<path_to_directory_of_RAPIDD.so_file>:$PYTHONPATH"
-export LD_LIBRARY_PATH=<path_to_directory_of_RAPIDD.so_file>:$LD_LIBRARY_PATH
+2) Then to pip install the python version of the code, type 
 
-or put them in your ~/.bashrc file.
+$ pip install -e .
