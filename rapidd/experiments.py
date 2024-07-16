@@ -64,8 +64,63 @@ def read_Xe1T_eff(path = Xe1T_eff_path):
     read_efficiency(path)
     return 
 
+_counts_bin_Xe1T = _crapidd.bin_Xenon1T
+
+_counts_bin_Xe1T.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p]
+
+_counts_bin_Xe1T.restype = ctypes.c_double
+
+def counts_bin_Xe1T(rhoDM, mDM, E1, E2, effpath=Xe1T_eff_path, model="None", basis="ISO"):
+    read_efficiency(effpath)
+    return _counts_bin_Xe1T(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
 
 
+############### DS50 ##############
+
+DS50_eff_path = os.path.join(base_dir, '..', 'lib', 'build', 'efficiency_tables','DS50.dat')
+
+
+def read_DS50_eff(path = DS50_eff_path):
+    read_efficiency(path)
+    return 
+
+
+
+_read_DS50_LEFF = _crapidd.read_DS50_LEFF
+
+_read_DS50_LEFF.argtypes = [ctypes.c_char_p]
+
+_read_DS50_LEFF.restype = ctypes.c_void_p 
+
+
+DS50_LEFF_path = os.path.join(base_dir, '..', 'lib', 'build', 'efficiency_tables','LeffDS50.dat')
+
+
+def read_DS50_LEFF(path = DS50_LEFF_path):
+    _read_DS50_LEFF(path.encode())
+    return
+
+_DS50_LEFF = _crapidd.DS50_LEFF
+
+_DS50_LEFF.argtypes = [ctypes.c_double]
+
+_DS50_LEFF.restype = ctypes.c_double
+
+def DS50_LEFF(Er):
+    return _DS50_LEFF(Er)
+
+
+
+_counts_bin_DS50 = _crapidd.counts_effres_bin_DS50
+
+_counts_bin_DS50.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p]
+
+_counts_bin_DS50.restype = ctypes.c_double
+
+def counts_bin_DS50(rhoDM, mDM, E1, E2, effpath=DS50_eff_path, LEFFpath=DS50_LEFF_path, model="None", basis="ISO"):
+    read_efficiency(effpath)
+    read_DS50_LEFF(LEFFpath)
+    return _counts_bin_DS50(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
 

@@ -13,6 +13,16 @@ def get_simple_limit (coeff,mchi,counts) :
         return np.sqrt(coeff* 2.3/counts)
 
 
+
+def poisson_likelihood_limit (coeff,mchi,counts,bkgrd,observed) :
+    if counts==0:
+        return np.inf
+    else:
+        #crosssec = calc_xsec(mchi,coeff)
+        
+        N_90 = float(optimize.root(lambda mu: poisson.cdf(observed, mu) - 0.1, 5).x)-bkgrd
+        return np.sqrt(coeff**2* (N_90/counts))
+
 def test_statistic(c,dm,bkgrd,obs) :
     #print(dm, bkgrd, obs)
     return np.sum( -2 * obs * np.log(((dm*c)+bkgrd)/bkgrd) + 2 * (dm * c) )

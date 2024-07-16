@@ -91,7 +91,7 @@ def cp_diracDM_SD(alphas, mchi, q=0.0):
     #return result* vev**2 /(4*mchi*mneutron)
     return result
 
-alphas = {
+alphasSI = {
     "d_even": 0.0,
     "d_odd": 0.0,
     "u_even": 0.0,
@@ -108,14 +108,32 @@ alphas = {
     "tau_odd":0.0
 }
 
-def set_alphas_rpd(alphas, mchi, q=0.0):
-    cp = cp_diracDM_SI(alphas, mchi, q) + cp_diracDM_SD(alphas, mchi, q)
-    cn = cn_diracDM_SI(alphas, mchi, q) + cn_diracDM_SD(alphas, mchi, q)
+alphasSD = {
+    "d_even": 0.0,
+    "d_odd": 0.0,
+    "u_even": 0.0,
+    "u_odd": 0.0,
+    "s_even": 0.0,
+    "s_odd": 0.0,
+    "c_even": 0.0,
+    "c_odd": 0.0,
+    "b_odd": 0.0, 
+    "b_even": 0.0, 
+    "e_even": 0.0,
+    "e_odd" : 0.0, 
+    "mu_odd": 0.0,
+    "tau_odd":0.0
+}
+
+def set_alphas_rpd(alphasSI, alphasSD, mchi, q=0.0):
+    #print(alphasSI)
+    cp = cp_diracDM_SI(alphasSI, mchi, q) + cp_diracDM_SD(alphasSD, mchi, q)
+    cn = cn_diracDM_SI(alphasSI, mchi, q) + cn_diracDM_SD(alphasSD, mchi, q)
 
     c0,c1=isofromneuc(cp,cn)
     
     #print(c0)
-    
+    #print(c1)
     for i in range(15):
         set_any_Ncoeff(c0[i], i+1, "p")
         set_any_Ncoeff(c1[i], i+1, "n")
@@ -127,10 +145,10 @@ if __name__== '__main__':
 
     rhochi_p = 0.3
     mchi_p = 50
-    alphas["u_odd"]=(1e-20)**(1/4)
-    alphas["d_odd"]=(1e-20)**(1/4)
+    alphasSI["u_odd"]=(1e-20)**(1/4)
+    alphasSI["d_odd"]=(1e-20)**(1/4)
 
-    set_alphas_rpd(alphas, mchi_p) 
+    set_alphas_rpd(alphasSI, alphasSD, mchi_p) 
     
     read_halo()
   

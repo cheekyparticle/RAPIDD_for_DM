@@ -7,8 +7,8 @@ from scipy.interpolate import interp1d
 
 
 from rapidd.core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo
-from rapidd.experiments import counts_bin_LZ, lindhard, LZ22_eff_path
-from rapidd.stats import binned_poisson_likelihood_limit
+from rapidd.experiments import counts_bin_LZ, lindhard, LZ22_eff_path, counts_bin_Xe1T, counts_bin_DS50, DS50_LEFF
+from rapidd.stats import poisson_likelihood_limit, binned_poisson_likelihood_limit, get_simple_limit
 
 
 
@@ -60,7 +60,7 @@ def lzlimit22(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3, e_kevee=e_kevee22, data=da
     return lim
 
 
-def lzlimitproj(mchi, op=1, fnfp=1., coeff=1e-3, eff_file=LZ22_eff_path,
+def lzlimitproj(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3, eff_file=LZ22_eff_path,
                e_kevee=e_kevee22, bkgrd=bkgrd22) :
     reset_coefficients()
     
@@ -96,13 +96,56 @@ def lzlimitproj(mchi, op=1, fnfp=1., coeff=1e-3, eff_file=LZ22_eff_path,
     ## calculate the dm
     limarray = []
     #for mchi in masses: 
-    dm=(np.vectorize(counts_bin_LZ)(rhoDM,mchi,E1_lind,E2_lind,eff_file)  ) #(60/1000)*2 )   #### Check with Ellen
-    lim=(binned_poisson_likelihood_limit(coeff, mchi, dm , totalbkgrd*scaling*1000/60, totalbkgrd*scaling*1000/60) ) ### check!
+    dm=(np.vectorize(counts_bin_LZ)(rhoDM,mchi,E1_lind,E2_lind,eff_file)  )    #### 
+    lim=(binned_poisson_likelihood_limit(coeff, mchi, dm , totalbkgrd*scaling*1000/60, totalbkgrd*scaling*1000/60) ) ### 
         
     return lim
 
 
 
+
+
+############ Xenon-1T ############
+def Xe1TLimits (rhoDM, masses, op=1, fnfp=1., coeff=1e-3) :
+    reset_coefficients()
+    
+    cp = coeff; cn = fnfp*coeff
+    c0,c1=isofromneuc(cp,cn)
+    
+    set_any_Ncoeff(c0, op, "p") # ci, i (operator number), p: proton and n:neutron  
+    set_any_Ncoeff(c1, op, "n") # ci, i (operator number), p: proton and n:neutron
+    totalcounts = counts_bin_Xe1T(rhoDM, masses, 1, 100)
+    bkgrd = 1.62
+    observed = 2.
+    xe1tlimit = poisson_likelihood_limit(cp,masses,totalcounts,bkgrd,observed) 
+
+    return xe1tlimit
+
+
+
+
+######### DS50 ################
+
+def DS50Limits_res(rhoDM, mass, op=1, fnfp=1., coeff=1e-3) :
+    reset_coefficients()
+    
+    cp = coeff; cn = fnfp*coeff
+    c0,c1=isofromneuc(cp,cn)
+
+    set_any_Ncoeff(c0, op, "p") # ci, i (operator number), p: proton and n:neutron  
+    set_any_Ncoeff(c1, op, "n") # ci, i (operator number), p: proton and n:neutron
+    
+    totalcounts = counts_bin_DS50(rhoDM, mass, 40, 200)
+    print(totalcounts, mass)
+    ds50limit = get_simple_limit(cp,mass,totalcounts)
+    return ds50limit
+
+
+
+
+###############################################################################
+#                                 MAIN                                       ##
+###############################################################################
 
 
 if __name__== '__main__':
@@ -118,24 +161,38 @@ if __name__== '__main__':
     LZprojSI = np.zeros(np.shape(mspace))
     LZprojSD = np.zeros(np.shape(mspace))
 
+    Xe1TresultSI = np.zeros(np.shape(mspace))
+    Xe1TresultSD = np.zeros(np.shape(mspace))
+
+
+    DS50resSI = np.zeros(np.shape(mspace))
+    
+    
+
 
     for i in range(len(mspace)):
-        LZresultSI[i] = calc_xsec_SI(mspace[i], lzlimit22(rhoDM, mspace[i], op=1))
-        LZresultSD[i] = calc_xsec_SD(mspace[i], lzlimit22(rhoDM, mspace[i], op=4, coeff=1e1))
+        # LZresultSI[i] = calc_xsec_SI(mspace[i], lzlimit22(rhoDM, mspace[i], op=1))
+        # LZresultSD[i] = calc_xsec_SD(mspace[i], lzlimit22(rhoDM, mspace[i], op=4, coeff=1e1))
         
-        LZprojSI[i] = calc_xsec_SI(mspace[i], lzlimitproj(mspace[i], op=1))
-        LZprojSD[i] = calc_xsec_SD(mspace[i], lzlimitproj(mspace[i], op=4, coeff=1e1))
+        # LZprojSI[i] = calc_xsec_SI(mspace[i], lzlimitproj(rhoDM, mspace[i], op=1))
+        # LZprojSD[i] = calc_xsec_SD(mspace[i], lzlimitproj(rhoDM, mspace[i], op=4, coeff=1e1))
             
+        # Xe1TresultSI[i] = calc_xsec_SI(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=1))
+        # Xe1TresultSD[i] = calc_xsec_SD(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=4, coeff=1e1))
 
+        DS50resSI[i] = calc_xsec_SI(mspace[i], DS50Limits_res(rhoDM, mspace[i], op=1)) 
+        
         
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))  # 1 row, 2 columns
 
-    ax1.loglog(mspace, LZresultSI, label='LZ-2022')
+    # ax1.loglog(mspace, LZresultSI, label='LZ-2022')
+    # ax1.loglog(mspace, Xe1TresultSI, label='Xenon1T')
 
-    ax1.loglog(mspace, LZprojSI, ls='--', label='LZ future')
+    # ax1.loglog(mspace, LZprojSI, ls='--', label='LZ future')
 
+    ax1.loglog(mspace, DS50resSI, label='DS50')
 
-    
+    print(DS50resSI)
     
     
     ax1.set_xlabel(r'$m_{\rm DM}\,\,\left[{\rm GeV}\right]$')
@@ -143,9 +200,11 @@ if __name__== '__main__':
 
     
     
-    ax2.loglog(mspace, LZresultSD)
-    ax2.loglog(mspace, LZprojSD, ls='--')
+    # ax2.loglog(mspace, LZresultSD)
+    
+    # ax2.loglog(mspace, Xe1TresultSD)
 
+    # ax2.loglog(mspace, LZprojSD, ls='--')
 
     ax2.set_xlabel(r'$m_{\rm DM}\,\,\left[{\rm GeV}\right]$')
     ax2.set_ylabel(r'$\sigma_{N}^{\rm SD}\,\,\left[{\rm cm}^2\right]$')
