@@ -7,10 +7,9 @@ from scipy.interpolate import interp1d
 
 
 from rapidd.core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo
-from rapidd.experiments import counts_bin_LZ, lindhard, LZ22_eff_path, counts_bin_Xe1T, counts_bin_DS50, DS50_LEFF
+from rapidd.experiments import counts_bin_LZ, lindhard, LZ22_eff_path, counts_bin_Xe1T, counts_bin_DS50, DS50_LEFF, counts_bin_DS20k
 from rapidd.stats import poisson_likelihood_limit, binned_poisson_likelihood_limit, get_simple_limit
-
-
+from rapidd.neutrino_background import get_neutrino_background_DS20K
 
 ########### LZ DATA + Background ##########
 
@@ -136,11 +135,29 @@ def DS50Limits_res(rhoDM, mass, op=1, fnfp=1., coeff=1e-3) :
     set_any_Ncoeff(c1, op, "n") # ci, i (operator number), p: proton and n:neutron
     
     totalcounts = counts_bin_DS50(rhoDM, mass, 40, 200)
-    print(totalcounts, mass)
+    #print(totalcounts, mass)
     ds50limit = get_simple_limit(cp,mass,totalcounts)
     return ds50limit
 
 
+
+######### DS20k ########
+
+def DS20kLimit_res (rhodm, mchi, op=1, fnfp=1., coeff=1e-3) :
+    reset_coefficients()
+    cp = coeff; cn = fnfp*coeff
+    c0,c1=isofromneuc(cp,cn)
+
+    set_any_Ncoeff(c0, op, "p") # ci, i (operator number), p: proton and n:neutron  
+    set_any_Ncoeff(c1, op, "n") # ci, i (operator number), p: proton and n:neutron
+
+    E1, E2 = np.linspace(20.0, 199.0, 180), np.linspace(21.0, 200.0, 180)
+    Width = E2 - E1
+    #ds20klimit = []
+    counts = ( counts_bin_DS20k(rhodm,mchi, E1, E2) ) 
+    nubkd = get_neutrino_background_DS20K()
+    ds20klimit = (binned_poisson_likelihood_limit(cp,mchi,counts,nubkd,nubkd) )
+    return ds20klimit
 
 
 ###############################################################################
@@ -166,33 +183,37 @@ if __name__== '__main__':
 
 
     DS50resSI = np.zeros(np.shape(mspace))
-    
+    DS20kprojSI = np.zeros(np.shape(mspace))
+
     
 
 
     for i in range(len(mspace)):
-        # LZresultSI[i] = calc_xsec_SI(mspace[i], lzlimit22(rhoDM, mspace[i], op=1))
-        # LZresultSD[i] = calc_xsec_SD(mspace[i], lzlimit22(rhoDM, mspace[i], op=4, coeff=1e1))
+        LZresultSI[i] = calc_xsec_SI(mspace[i], lzlimit22(rhoDM, mspace[i], op=1))
+        LZresultSD[i] = calc_xsec_SD(mspace[i], lzlimit22(rhoDM, mspace[i], op=4, coeff=1e1))
         
-        # LZprojSI[i] = calc_xsec_SI(mspace[i], lzlimitproj(rhoDM, mspace[i], op=1))
-        # LZprojSD[i] = calc_xsec_SD(mspace[i], lzlimitproj(rhoDM, mspace[i], op=4, coeff=1e1))
+        LZprojSI[i] = calc_xsec_SI(mspace[i], lzlimitproj(rhoDM, mspace[i], op=1))
+        LZprojSD[i] = calc_xsec_SD(mspace[i], lzlimitproj(rhoDM, mspace[i], op=4, coeff=1e1))
             
-        # Xe1TresultSI[i] = calc_xsec_SI(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=1))
-        # Xe1TresultSD[i] = calc_xsec_SD(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=4, coeff=1e1))
+        Xe1TresultSI[i] = calc_xsec_SI(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=1))
+        Xe1TresultSD[i] = calc_xsec_SD(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=4, coeff=1e1))
 
         DS50resSI[i] = calc_xsec_SI(mspace[i], DS50Limits_res(rhoDM, mspace[i], op=1)) 
+        DS20kprojSI[i] = calc_xsec_SI(mspace[i], DS20kLimit_res(rhoDM, mspace[i], op=1))
         
         
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))  # 1 row, 2 columns
 
-    # ax1.loglog(mspace, LZresultSI, label='LZ-2022')
-    # ax1.loglog(mspace, Xe1TresultSI, label='Xenon1T')
+    ax1.loglog(mspace, LZresultSI, label='LZ-2022')
+    ax1.loglog(mspace, Xe1TresultSI, label='Xenon1T')
 
-    # ax1.loglog(mspace, LZprojSI, ls='--', label='LZ future')
+    ax1.loglog(mspace, LZprojSI, ls='--', label='LZ future')
 
     ax1.loglog(mspace, DS50resSI, label='DS50')
+    ax1.loglog(mspace, DS20kprojSI, label='DS50')
 
-    print(DS50resSI)
+
+    #print(DS50resSI)
     
     
     ax1.set_xlabel(r'$m_{\rm DM}\,\,\left[{\rm GeV}\right]$')
@@ -200,11 +221,11 @@ if __name__== '__main__':
 
     
     
-    # ax2.loglog(mspace, LZresultSD)
+    ax2.loglog(mspace, LZresultSD)
     
-    # ax2.loglog(mspace, Xe1TresultSD)
+    ax2.loglog(mspace, Xe1TresultSD)
 
-    # ax2.loglog(mspace, LZprojSD, ls='--')
+    ax2.loglog(mspace, LZprojSD, ls='--')
 
     ax2.set_xlabel(r'$m_{\rm DM}\,\,\left[{\rm GeV}\right]$')
     ax2.set_ylabel(r'$\sigma_{N}^{\rm SD}\,\,\left[{\rm cm}^2\right]$')

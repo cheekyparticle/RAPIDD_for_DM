@@ -32,7 +32,7 @@ def lindhard (Er) :
 
 ########## LZ experiment ##########
 
-LZ22_eff_path = os.path.join(base_dir, '..', 'lib', 'build', 'efficiency_tables','LZ_NR_2022.csv')
+LZ22_eff_path = os.path.join(base_dir, '..', 'lib', 'efficiency_tables','LZ_NR_2022.csv')
 
 def read_LZ_eff(path = LZ22_eff_path):
     read_efficiency(path)
@@ -57,7 +57,7 @@ def counts_bin_LZ(rhoDM, mDM, E1, E2, effpath = LZ22_eff_path, model="None", bas
 
 ######### Xenon1T ############### 
 
-Xe1T_eff_path = os.path.join(base_dir, '..', 'lib', 'build', 'efficiency_tables','Xenon1t.dat')
+Xe1T_eff_path = os.path.join(base_dir, '..', 'lib', 'efficiency_tables','Xenon1t.dat')
 
 
 def read_Xe1T_eff(path = Xe1T_eff_path):
@@ -78,7 +78,7 @@ def counts_bin_Xe1T(rhoDM, mDM, E1, E2, effpath=Xe1T_eff_path, model="None", bas
 
 ############### DS50 ##############
 
-DS50_eff_path = os.path.join(base_dir, '..', 'lib', 'build', 'efficiency_tables','DS50.dat')
+DS50_eff_path = os.path.join(base_dir, '..', 'lib', 'efficiency_tables','DS50.dat')
 
 
 def read_DS50_eff(path = DS50_eff_path):
@@ -94,7 +94,7 @@ _read_DS50_LEFF.argtypes = [ctypes.c_char_p]
 _read_DS50_LEFF.restype = ctypes.c_void_p 
 
 
-DS50_LEFF_path = os.path.join(base_dir, '..', 'lib', 'build', 'efficiency_tables','LeffDS50.dat')
+DS50_LEFF_path = os.path.join(base_dir, '..', 'lib', 'efficiency_tables','LeffDS50.dat')
 
 
 def read_DS50_LEFF(path = DS50_LEFF_path):
@@ -124,3 +124,19 @@ def counts_bin_DS50(rhoDM, mDM, E1, E2, effpath=DS50_eff_path, LEFFpath=DS50_LEF
     return _counts_bin_DS50(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
 
+
+
+DS20k_eff_path = os.path.join(base_dir, '..', 'lib', 'efficiency_tables','DS20k_NR.dat')
+
+
+_counts_bin_DS20k = _crapidd.counts_effres_bin_DS20k
+
+_counts_bin_DS20k.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p]
+
+_counts_bin_DS20k.restype = ctypes.c_double
+
+@np.vectorize
+def counts_bin_DS20k(rhoDM, mDM, E1, E2, effpath=DS20k_eff_path, LEFFpath=DS50_LEFF_path, model="None", basis="ISO"):
+    read_efficiency(effpath)
+    read_DS50_LEFF(LEFFpath)
+    return _counts_bin_DS20k( rhoDM, mDM, E1, E2, model.encode(), basis.encode())
