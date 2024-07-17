@@ -19,6 +19,14 @@ def read_efficiency(path):
     _read_efficiency(path.encode())
     return 
 
+_efficiency_fn = _crapidd.efficiency
+_efficiency_fn.argtypes = [ctypes.c_double]
+
+_efficiency_fn.restype = ctypes.c_double
+
+def efficiency_fn(Er):
+
+    return _efficiency_fn(Er)
 
 ######## response ######
 
@@ -46,8 +54,7 @@ _counts_effres_bin_LZ.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_dou
 _counts_effres_bin_LZ.restype = ctypes.c_double
 
 
-def counts_bin_LZ(rhoDM, mDM, E1, E2, effpath = LZ22_eff_path, model="None", basis="ISO"):
-    read_efficiency(effpath)
+def counts_bin_LZ(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
     return _counts_effres_bin_LZ(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
  
@@ -70,9 +77,19 @@ _counts_bin_Xe1T.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, 
 
 _counts_bin_Xe1T.restype = ctypes.c_double
 
-def counts_bin_Xe1T(rhoDM, mDM, E1, E2, effpath=Xe1T_eff_path, model="None", basis="ISO"):
-    read_efficiency(effpath)
+def counts_bin_Xe1T(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
     return _counts_bin_Xe1T(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
+
+
+_counts_bin_Xe1T_effres = _crapidd.counts_effres_bin_Xenon1T
+
+_counts_bin_Xe1T_effres.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p]
+
+_counts_bin_Xe1T_effres.restype = ctypes.c_double
+
+def counts_effrss_Xe1T(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
+    return _counts_bin_Xe1T_effres(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
+
 
 
 
@@ -118,9 +135,8 @@ _counts_bin_DS50.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, 
 
 _counts_bin_DS50.restype = ctypes.c_double
 
-def counts_bin_DS50(rhoDM, mDM, E1, E2, effpath=DS50_eff_path, LEFFpath=DS50_LEFF_path, model="None", basis="ISO"):
-    read_efficiency(effpath)
-    read_DS50_LEFF(LEFFpath)
+def counts_bin_DS50(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
+
     return _counts_bin_DS50(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
 
@@ -135,8 +151,10 @@ _counts_bin_DS20k.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double,
 
 _counts_bin_DS20k.restype = ctypes.c_double
 
+def read_DS20k_eff(path = DS20k_eff_path):
+    read_efficiency(path)
+    return 
+
 @np.vectorize
-def counts_bin_DS20k(rhoDM, mDM, E1, E2, effpath=DS20k_eff_path, LEFFpath=DS50_LEFF_path, model="None", basis="ISO"):
-    read_efficiency(effpath)
-    read_DS50_LEFF(LEFFpath)
+def counts_bin_DS20k(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
     return _counts_bin_DS20k( rhoDM, mDM, E1, E2, model.encode(), basis.encode())

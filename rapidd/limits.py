@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 
 
 from rapidd.core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo
-from rapidd.experiments import counts_bin_LZ, lindhard, LZ22_eff_path, counts_bin_Xe1T, counts_bin_DS50, DS50_LEFF, counts_bin_DS20k
+from rapidd.experiments import counts_bin_LZ, lindhard, LZ22_eff_path, counts_bin_Xe1T, counts_bin_DS50, DS50_LEFF, counts_bin_DS20k, read_DS50_eff, read_DS50_LEFF, read_LZ_eff, read_Xe1T_eff, read_DS20k_eff
 from rapidd.stats import poisson_likelihood_limit, binned_poisson_likelihood_limit, get_simple_limit
 from rapidd.neutrino_background import get_neutrino_background_DS20K
 
@@ -189,16 +189,28 @@ if __name__== '__main__':
 
 
     for i in range(len(mspace)):
+        read_LZ_eff()
         LZresultSI[i] = calc_xsec_SI(mspace[i], lzlimit22(rhoDM, mspace[i], op=1))
         LZresultSD[i] = calc_xsec_SD(mspace[i], lzlimit22(rhoDM, mspace[i], op=4, coeff=1e1))
         
         LZprojSI[i] = calc_xsec_SI(mspace[i], lzlimitproj(rhoDM, mspace[i], op=1))
         LZprojSD[i] = calc_xsec_SD(mspace[i], lzlimitproj(rhoDM, mspace[i], op=4, coeff=1e1))
-            
+
+
+    for i in range(len(mspace)):  
+        read_Xe1T_eff()         
         Xe1TresultSI[i] = calc_xsec_SI(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=1))
         Xe1TresultSD[i] = calc_xsec_SD(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=4, coeff=1e1))
 
+
+    for i in range(len(mspace)):
+        read_DS50_eff()
+        read_DS50_LEFF()
+
         DS50resSI[i] = calc_xsec_SI(mspace[i], DS50Limits_res(rhoDM, mspace[i], op=1)) 
+
+    for i in range(len(mspace)):
+        read_DS20k_eff()
         DS20kprojSI[i] = calc_xsec_SI(mspace[i], DS20kLimit_res(rhoDM, mspace[i], op=1))
         
         

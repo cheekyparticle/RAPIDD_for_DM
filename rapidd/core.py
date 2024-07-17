@@ -51,6 +51,16 @@ def read_halo(path = halo_path):
 ###### Setting coefficients ######
 
 
+
+
+_set_any_coeffs = _crapidd.set_any_coeffs
+
+_set_any_coeffs.argtypes = [ctypes.c_double, ctypes.c_int]
+
+def set_any_coeffs(C, i):
+    return _set_any_coeffs(C, i)
+
+
 _set_any_Ncoeff = _crapidd.set_any_Ncoeff
 _set_any_Ncoeff.argtypes= [ ctypes.c_double, ctypes.c_int, ctypes.c_char_p]
 _set_any_Ncoeff.restype = ctypes.c_void_p
@@ -80,8 +90,8 @@ def reset_coefficients() :
 def Cp_val(op):
     return _Cp(op)
 
-def Cp_val(op):
-    return _Cp(op)
+def Cn_val(op):
+    return _Cn(op)
 
 
 def isofromneuc(cp, cn):
