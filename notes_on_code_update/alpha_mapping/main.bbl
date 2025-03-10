@@ -1,0 +1,14 @@
+\providecommand{\href}[2]{#2}\begingroup\raggedright\begin{thebibliography}{1}
+
+\bibitem{Backovic:2015cra}
+M.~Backovi\'c, A.~Martini, O.~Mattelaer, K.~Kong, and G.~Mohlabeng, {\it
+  {Direct Detection of Dark Matter with MadDM v.2.0}},  {\em Phys. Dark Univ.}
+  {\bf 9-10} (5, 2015) 37--50, [\href{http://arxiv.org/abs/1505.04190}{{\tt
+  arXiv:1505.04190}}].
+
+\bibitem{Bishara:2017nnn}
+F.~Bishara, J.~Brod, B.~Grinstein, and J.~Zupan, {\it {DirectDM: a tool for
+  dark matter direct detection}},  \href{http://arxiv.org/abs/1708.02678}{{\tt
+  arXiv:1708.02678}}.
+
+\end{thebibliography}\endgroup

@@ -1,0 +1,122 @@
+\documentclass[a4paper,11pt]{article}
+\pdfoutput=1 % if your are submitting a pdflatex (i.e. if you have
+             % images in pdf, png or jpg format)
+
+\usepackage{jheppub} % for details on the use of the package, please
+                     % see the JHEP-author-manual
+
+
+
+
+\usepackage[T1]{fontenc} % if needed
+
+\usepackage{mdframed}
+\usepackage{tcolorbox}
+\usepackage{braket}
+
+
+\graphicspath{{img/}} % set images path
+
+
+
+\title{\boldmath Coefficient mapping for MadDM}
+
+
+%% %simple case: 2 authors, same institution
+%% \author{A. Uthor}
+%% \author{and A. Nother Author}
+%% \affiliation{Institution,\\Address, Country}
+
+% more complex case: 4 authors, 3 institutions, 2 footnotes
+\author[a]{Andrew Cheek}
+
+% The "\note" macro will give a warning: "Ignoring empty anchor..."
+% you can safely ignore it.
+\affiliation[a]{Tsung-Dao Lee Institute \& School of Physics and Astronomy, Shanghai Jiao Tong University, Shanghai 201210, China}
+
+% e-mail addresses: one for each author, in the same order as the authors
+\emailAdd{acheek@sjtu.edu.cn}
+
+\abstract{In this note I discuss the python script called ``alpha\_map.py''. It is a functionality that takes the effective coefficients that MadDM can already determine, and maps them onto the non-relativistic operators for direct detection.} 
+
+
+
+\begin{document} 
+\maketitle
+\flushbottom
+
+
+
+\section{Background}
+In the MadDM code~\cite{Backovic:2015cra} there is an algorithm that determines the coefficients to the effective interactions that are relevant for direct detection experiments. Expressed in terms of a Lagrangian, this is 
+$$\mathcal{L}_{\rm eff}=\sum_{q,s} \hat{\mathcal{O}}_{q,s}(x)+ \hat{\mathcal{O}}^{\prime}_{q,s}(x)$$
+where $q$ and $s$ are labels tell you what quarks are being considered and whether the operator is even ($e$) or odd ($o$) under a $q\rightarrow\overline{q}$ transformation. 
+
+\section{Fermion dark matter}
+In MadDM, one defines the dark matter particle that their considering so the spin of the particle is set. From that, we can list the operators for fermion dark matter as outlined in Ref.~\cite{Backovic:2015cra}\footnote{there are more, but I think they are in principle subdominant. Perhaps we should include them later on. }  
+\[
+\begin{array}{|c|c|c|}
+\hline
+ & \textbf{Even} & \textbf{Odd} \\
+\hline
+\textbf{SI} & \bar{\psi}_x \psi_x \bar{\psi}_q \psi_q & \left(\bar{\psi}_x \gamma^\mu \psi_x\right) \left(\bar{\psi}_q \gamma_\mu \psi_q \right)\\
+\hline
+\textbf{SD} & 
+\begin{array}{c}
+\left(\bar{\psi}_x \gamma^{\mu}\gamma^5  \psi_x \right)\left(\bar{\psi}_q \gamma_\mu\gamma_5 \psi_q \right)
+\end{array} & 
+\begin{array}{c}
+-\frac{1}{2} \left(\bar{\psi}_x \sigma^{\mu \nu} \psi_x \right)
+\left(\bar{\psi}_q \sigma_{\mu \nu} \psi_q\right)
+\end{array} \\
+\hline
+\end{array}
+\]
+These operators are can be related to the operators in Ref.~\cite{Bishara:2017nnn} which is meant to be a direct detection relevant Standard Model Effective field theory (SMEFT) basis, 
+\begin{align*}
+\mathcal{O}^{\rm SI}_{e} &= \frac{1}{m_f} Q^{(7)}_{s,f}, \quad Q^{(7)}_{s,f} = (\bar{\chi} \chi)(\bar{f} f), \\
+\mathcal{O}^{\rm SI}_{o}&= Q^{(5)}_{1,f} = (\bar{\chi} \gamma^\mu \chi)(\bar{f} \gamma_\mu  f), \\
+\mathcal{O}^{\rm SD}_{e}&= Q^{(5)}_{4,f} = (\bar{\chi} \gamma^{\mu }\gamma_5 \chi)(\bar{f} \gamma_{\mu }\gamma_5 f), \\
+\mathcal{O}^{\rm SD}_{o} &= \frac{1}{m_f} Q^{(7)}_{q,f}, \quad Q^{(7)}_{q,f} = m_f (\bar{\chi} \sigma^{\mu \nu} \chi)(\bar{f} \sigma_{\mu \nu} f).
+\end{align*}
+where I've separated the spin-independent (SI) and spin-dependent (SD) operators because the MadDM algorithm is able to do that. 
+
+
+
+
+% BIBLIOGRAPHY
+% use BIBTEX if you want
+\bibliographystyle{JHEP}
+\bibliography{main}
+
+% The bibliography will probably be heavily edited during typesetting.
+% We'll parse it and, using the arxiv number or the journal data, will
+% query inspire, trying to verify the data (this will probalby spot
+% eventual typos) and retrive the document DOI and eventual errata.
+% We however suggest to always provide author, title and journal data:
+% in short all the informations that clearly identify a document.
+
+% \begin{thebibliography}{99}
+% 
+% \bibitem{a}
+% Author, \emph{Title}, \emph{J. Abbrev.} {\bf vol} (year) pg.
+% 
+% \bibitem{b}
+% Author, \emph{Title},
+% arxiv:1234.5678.
+% 
+% \bibitem{c}
+% Author, \emph{Title},
+% Publisher (year).
+
+% Please avoid comments such as "For a review'', "For some examples",
+% "and references therein" or move them in the text. In general,
+% please leave only references in the bibliography and move all
+% accessory text in footnotes.
+
+% Also, please have only one work for each \bibitem.
+
+% \end{thebibliography}
+
+
+\end{document}

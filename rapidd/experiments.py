@@ -42,6 +42,9 @@ def lindhard (Er) :
 
 LZ22_eff_path = os.path.join(base_dir, '..', 'lib', 'efficiency_tables','LZ_NR_2022.csv')
 
+
+LZ24_eff_path = os.path.join(base_dir, '..', 'lib', 'efficiency_tables','LZ_NR_2024.dat')
+
 def read_LZ_eff(path = LZ22_eff_path):
     read_efficiency(path)
     return 
@@ -54,8 +57,15 @@ _counts_effres_bin_LZ.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_dou
 _counts_effres_bin_LZ.restype = ctypes.c_double
 
 
-def counts_bin_LZ(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
-    return _counts_effres_bin_LZ(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
+def counts_bin_LZ(rhoDM, mDM, E1, E2, model="None", basis="ISO",
+ eff_file = 'NO'):
+    
+    if eff_file == 'NO':
+        return _counts_effres_bin_LZ(rhoDM, mDM, E1, E2, model.encode(),basis.encode())
+    else:
+        read_LZ_eff(eff_file)
+        #print('just read', eff_file)
+        return _counts_effres_bin_LZ(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
  
 
@@ -87,7 +97,7 @@ _counts_bin_Xe1T_effres.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_d
 
 _counts_bin_Xe1T_effres.restype = ctypes.c_double
 
-def counts_effrss_Xe1T(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
+def counts_effres_Xe1T(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
     return _counts_bin_Xe1T_effres(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
 

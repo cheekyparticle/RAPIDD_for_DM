@@ -134,7 +134,7 @@ double counts_bin( char* halo_path, double rhochi, void * input_difcros, double 
 	double Eright = E2;
 	size_t nevals;
 	gsl_integration_cquad_workspace * v = gsl_integration_cquad_workspace_alloc (100); 
-	gsl_integration_cquad (&F, Eleft, Eright, 1.e-1, 1.e-1, v, &result, &abserr, &nevals);
+	gsl_integration_cquad (&F, Eleft, Eright, 1.e-10, 1.e-10, v, &result, &abserr, &nevals);
     gsl_integration_cquad_workspace_free(v);
 	
     return result;

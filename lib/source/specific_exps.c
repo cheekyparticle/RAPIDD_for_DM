@@ -54,7 +54,7 @@ char leff_path_true[26];
 struct binning_params      { double rhochi; double exposure; void * input_difcros; double E1; double E2; char* model;};
 
 
-
+// change the name!
 double bin_Xenon1T( double rhochi, double mass, double E1, double E2, char* model, char* basis){
   double exposure = 0.9*1e3 * 278.8 * 0.475;
 
@@ -141,7 +141,7 @@ double counts_effres_bin_Xenon1T( double rhochi, double mass, double E1, double 
     result = 0.0;
   }
   else{
-    double Eth = 1.0;
+    double Eth = 0.1;
     double Emax = 50.0;
     size_t nevals;
     gsl_integration_cquad_workspace * v = gsl_integration_cquad_workspace_alloc (100); 
