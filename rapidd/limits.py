@@ -157,6 +157,7 @@ def DS20kLimit_res (rhodm, mchi, op=1, fnfp=1., coeff=1e-3) :
     #ds20klimit = []
     counts = ( counts_bin_DS20k(rhodm,mchi, E1, E2) ) 
     nubkd = get_neutrino_background_DS20K()
+
     ds20klimit = (binned_poisson_likelihood_limit(cp,mchi,counts,nubkd,nubkd) )
     return ds20klimit
 
@@ -210,10 +211,9 @@ if __name__== '__main__':
 
     #     DS50resSI[i] = calc_xsec_SI(mspace[i], DS50Limits_res(rhoDM, mspace[i], op=1)) 
 
-    # for i in range(len(mspace)):
-    #     read_DS20k_eff()
-    #     DS20kprojSI[i] = calc_xsec_SI(mspace[i], DS20kLimit_res(rhoDM, mspace[i], op=1))
-        
+    for i in range(len(mspace)):
+        read_DS20k_eff()
+        DS20kprojSI[i] = calc_xsec_SI(mspace[i], DS20kLimit_res(rhoDM, mspace[i], op=1))
         
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))  # 1 row, 2 columns
 
@@ -223,7 +223,7 @@ if __name__== '__main__':
     ax1.loglog(mspace, LZprojSI, ls='--', label='LZ future')
 
     ax1.loglog(mspace, DS50resSI, label='DS50')
-    ax1.loglog(mspace, DS20kprojSI, label='DS50')
+    ax1.loglog(mspace, DS20kprojSI, label='DS20k')
 
 
     #print(DS50resSI)

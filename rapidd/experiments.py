@@ -56,7 +56,7 @@ _counts_effres_bin_LZ = _crapidd.counts_effres_bin_LZ
 _counts_effres_bin_LZ.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p]
 _counts_effres_bin_LZ.restype = ctypes.c_double
 
-
+@np.vectorize
 def counts_bin_LZ(rhoDM, mDM, E1, E2, model="None", basis="ISO",
  eff_file = 'NO'):
     
@@ -167,4 +167,6 @@ def read_DS20k_eff(path = DS20k_eff_path):
 
 @np.vectorize
 def counts_bin_DS20k(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
+    read_DS20k_eff()
+    read_DS50_LEFF()
     return _counts_bin_DS20k( rhoDM, mDM, E1, E2, model.encode(), basis.encode())

@@ -2,6 +2,7 @@
 
 Things you need for the code to compile 
 
+- cmake
 - gsl libraries
 - pkg-config
 

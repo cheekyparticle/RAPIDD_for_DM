@@ -60,7 +60,7 @@ def lzlimit22(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3, e_kevee=e_kevee22, data=da
 
 
 
-def lzlimit24(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3, eff_file=LZ22_eff_path,
+def lzlimit24(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3, eff_file=LZ24_eff_path,
                e_kevee=e_kevee22, bkgrd=bkgrd22) :
     reset_coefficients()
     
@@ -91,13 +91,13 @@ def lzlimit24(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3, eff_file=LZ22_eff_path,
     ## scale the bkgrds and data down so that there are 11 bkgrd events
     #totaldata = data*spacing
     totalbkgrd = bkgrd*spacing
-    scaling = 11/(np.sum(totalbkgrd))
+    scaling = 3/(np.sum(totalbkgrd))
     
     ## calculate the dm
     limarray = []
     #for mchi in masses: 
-    dm=(np.vectorize(counts_bin_LZ)(rhoDM,mchi,E1_lind,E2_lind,eff_file=eff_file)  )    #### 
-    lim=(binned_poisson_likelihood_limit(coeff, mchi, dm , totalbkgrd*scaling*1000/60 * 280/1000, totalbkgrd*scaling*1000/60 * 280/1000) ) ### 
+    dm=(np.vectorize(counts_bin_LZ)(rhoDM,mchi,E1_lind,E2_lind,eff_file=eff_file) * (1607/5600) )    #### 
+    lim=(binned_poisson_likelihood_limit(coeff, mchi, dm , totalbkgrd*scaling, totalbkgrd*scaling) ) ### 
         
     return lim
 
@@ -138,12 +138,12 @@ def lzlimitproj24(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3, eff_file=LZ24_eff_path
     ## calculate the dm
     limarray = []
     #for mchi in masses: 
-    dm=(np.vectorize(counts_bin_LZ)(rhoDM,mchi,E1_lind,E2_lind,eff_file=eff_file)  )    #### 
+    dm=(np.vectorize(counts_bin_LZ)(rhoDM,mchi,E1_lind,E2_lind,eff_file=eff_file) * (280/1000) *0.9 )    #### 
     lim=(binned_poisson_likelihood_limit(coeff, mchi, dm , totalbkgrd*scaling*1000/60* 280/1000, totalbkgrd*scaling*1000/60* 280/1000) ) ### 
         
     return lim
 
-def lzlimit24_simple(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3,eff_file=LZ24_eff_path) :
+def lzlimit24_simple(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3,eff_file=LZ22_eff_path) :
 
     reset_coefficients()
     
@@ -153,7 +153,7 @@ def lzlimit24_simple(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3,eff_file=LZ24_eff_pa
     set_any_Ncoeff(c0, op, "p") # ci, i (operator number), p: proton and n:neutron  
     set_any_Ncoeff(c1, op, "n") # ci, i (operator number), p: proton and n:neutron 
     #np.vectorize(counts_bin_LZ)(rhoDM,mchi,E1_lind,E2_lind,eff_file=eff_file)
-    totalcounts = counts_bin_LZ(rhoDM, mchi, 1.0, 25)
+    totalcounts = counts_bin_LZ(rhoDM, mchi, 0.0, 25.0, eff_file=eff_file) * ( 1607/5600) 
     #totalcounts = counts_effres_Xe1T(rhoDM, masses, 1, 100)
     #E1, E2 = np.array([0.1, 15.0]), np.array([15.0, 25.0])
     #Width = E2 - E1
@@ -162,9 +162,10 @@ def lzlimit24_simple(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3,eff_file=LZ24_eff_pa
 
     bkgrd = 0.0
     observed = 0.0
-    LZlimit = poisson_likelihood_limit(cp,mchi,totalcounts,bkgrd,observed) 
+    #LZlimit = poisson_likelihood_limit(cp,mchi,totalcounts,bkgrd,observed) 
 
-    return LZlimit
+    #return LZlimit
+    return get_simple_limit(c0, mchi, totalcounts)
 
 def lzlimitproj(rhoDM, mchi, op=1, fnfp=1., coeff=1e-3, eff_file=LZ22_eff_path,
                e_kevee=e_kevee22, bkgrd=bkgrd22) :
@@ -276,101 +277,98 @@ def DS20kLimit_res (rhodm, mchi, op=1, fnfp=1., coeff=1e-3) :
 if __name__== '__main__':
     import matplotlib.pyplot as plt 
     from rapidd.core import calc_xsec_SI, calc_xsec_SD 
-    mspace= np.geomspace(3e0,6e2,100)
 
     rhoDM = 0.3 
     read_halo()
 
-    LZresultSI = np.zeros(np.shape(mspace))
-    LZresultSD = np.zeros(np.shape(mspace))
-
-    LZ24SI = np.zeros(np.shape(mspace))
-    LZ24SD = np.zeros(np.shape(mspace))
-
-    LZprojSI = np.zeros(np.shape(mspace))
-    LZprojSD = np.zeros(np.shape(mspace))
-
-    Xe1TresultSI = np.zeros(np.shape(mspace))
-    Xe1TresultSD = np.zeros(np.shape(mspace))
 
 
-    DS50resSI = np.zeros(np.shape(mspace))
-    DS20kprojSI = np.zeros(np.shape(mspace))
+
+ 
+
 
     
     LZmdm, LZsig = np.genfromtxt("testoutput/LZ2024_SI.dat", unpack=True)
+    mspace= np.geomspace(min(LZmdm),max(LZmdm),100)
+
+    LZ24SI = np.zeros(np.shape(mspace))
+
+    LZprojSI = np.zeros(np.shape(mspace))
+
 
 
     for i in range(len(mspace)):
 
 
         read_LZ_eff()
-        #LZresultSI[i] = calc_xsec_SI(mspace[i], lzlimitproj24(rhoDM, mspace[i], op=1))
-        #LZresultSD[i] = calc_xsec_SD(mspace[i], lzlimitproj24(rhoDM, mspace[i], op=4, coeff=1e1))
 
-    
-        #LZ24SI[i] = calc_xsec_SI(mspace[i], lzlimit24(rhoDM, mspace[i], op=1))
-        #LZ24SD[i] = calc_xsec_SD(mspace[i], lzlimit24(rhoDM, mspace[i], op=4, coeff=1e1))
         
-        LZprojSI[i] = calc_xsec_SI(mspace[i], lzlimit24_simple(rhoDM, mspace[i], op=1))
-        LZprojSD[i] = calc_xsec_SD(mspace[i], lzlimit24_simple(rhoDM, mspace[i], op=4, coeff=1e1))
-
-    print(LZprojSI)
-
-    # for i in range(len(mspace)):  
-    #     read_Xe1T_eff()         
-    #     Xe1TresultSI[i] = calc_xsec_SI(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=1))
-    #     Xe1TresultSD[i] = calc_xsec_SD(mspace[i], Xe1TLimits(rhoDM, mspace[i], op=4, coeff=1e1))
+        LZprojSI[i] = calc_xsec_SI(mspace[i], lzlimit24(rhoDM, mspace[i], op=1))
+        LZ24SI[i] = calc_xsec_SI(mspace[i], lzlimit24_simple(rhoDM, mspace[i], op=1))
 
 
-    # for i in range(len(mspace)):
-    #     read_DS50_eff()
-    #     read_DS50_LEFF()
 
-    #     DS50resSI[i] = calc_xsec_SI(mspace[i], DS50Limits_res(rhoDM, mspace[i], op=1)) 
-
-    # for i in range(len(mspace)):
-    #     read_DS20k_eff()
-    #     DS20kprojSI[i] = calc_xsec_SI(mspace[i], DS20kLimit_res(rhoDM, mspace[i], op=1))
-
-    # read_DS20k_eff()
-
-    #print("check DS20k", calc_xsec_SI(100.0, DS20kLimit_res(rhoDM, 100.0, op=1)))
     
-    
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))  # 1 row, 2 columns
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 4))  # 1 row, 2 columns
 
-    #ax1.loglog(mspace, LZresultSI, label='LZ 22 scaled 24 eff')
-    # ax1.loglog(mspace, Xe1TresultSI, label='Xenon1T')
-    #ax1.loglog(mspace, LZ24SI)
-    ax1.loglog(LZmdm, LZsig, ls=':', color='k', label='LZ 22 scaled')
 
-    ax1.loglog(mspace, LZprojSI, ls='--', label='LZ 24 simple')
+
+    ax1.loglog(mspace, LZ24SI, ls='--', label='LZ 24 simple')
+    ax1.loglog(mspace, LZprojSI, ls='--', label='LZ projected')
+
+    mdm1 = mspace[50]
+    LZ24SI1 = LZ24SI[50]
+    cN_simple = lzlimit24_simple(rhoDM, mdm1, op=1)
+    reset_coefficients()
+    c0_simple,c1_simple=isofromneuc(cN_simple,cN_simple)
+
+    set_any_Ncoeff(c0_simple, 1, "p") # ci, i (operator number), p: proton and n:neutron  
+    set_any_Ncoeff(c1_simple, 1, "n") # ci, i (operator number), p: proton and n:neutron
+    counts_simp = counts_bin_LZ(rhoDM, mdm1, 0.0, 25.0, eff_file=LZ24_eff_path)*(280/1000)
+
+    LZprojSI1 = LZprojSI[50]
+    cN_proj = lzlimit24(rhoDM, mdm1, op=1)
+    reset_coefficients()
+    c0_proj,c1_proj=isofromneuc(cN_proj,cN_proj)
+
+    set_any_Ncoeff(c0_proj, 1, "p") # ci, i (operator number), p: proton and n:neutron
+    set_any_Ncoeff(c1_proj, 1, "n") # ci, i (operator number), p: proton and n:neutron
+
+    counts_proj = counts_bin_LZ(rhoDM, mdm1, 0.0, 25.0, eff_file=LZ24_eff_path) * (280/1000) 
+
+    print("Test the limit counts values")
+    print("#############################\n")
+    print("mass = %e"% mdm1)
+    print("LZ 24 simple %e, coeff %e, counts: %e" % (LZ24SI1, cN_simple, counts_simp))
+    print("LZ 24 scaled with LZ22 method = %e, coeff : %e, counts: %e" % (LZprojSI1, cN_proj, counts_proj))
+    print("#############################\n")
+
+    #ax1.loglog(mspace, np.interp(mspace, LZmdm, LZsig), ls = '-', color='cyan')
+
+    ax1.loglog(LZmdm, LZsig, ls=':', color='k', label='LZ paper')
+    ax1.legend()
 
     # ax1.loglog(mspace, DS50resSI, label='DS50')
     #ax1.loglog(mspace, DS20kprojSI, label='DS20k')
 
 
     #print(DS50resSI)
-    
+
+    # Bottom panel: difference plot
+    difference = np.interp(mspace, LZmdm, LZsig)/LZ24SI
+    ax2.plot(mspace, difference, ls='-', color='b')
+    ax2.set_xscale('log')
+    ax2.set_yscale('log')
+    ax2.set_xlabel(r'$m_{\rm DM}\,\,\left[{\rm GeV}\right]$')
+    ax2.set_ylabel(r'${\rm LZ}_{\rm rep}/{\rm LZ}_{\rm calc}$')
+    ax2.legend()
+    ax2.axhline(1, color='k', ls='--')
     
     ax1.set_xlabel(r'$m_{\rm DM}\,\,\left[{\rm GeV}\right]$')
     ax1.set_ylabel(r'$\sigma_{N}^{\rm SI}\,\,\left[{\rm cm}^2\right]$')
 
     
     
-#    ax2.loglog(mspace, LZresultSD)
-    #ax2.loglog(mspace, LZ24SD)
-
-    
-    # ax2.loglog(mspace, Xe1TresultSD)
-
-    #ax2.loglog(mspace, LZprojSD, ls='--')
-
-    ax2.set_xlabel(r'$m_{\rm DM}\,\,\left[{\rm GeV}\right]$')
-    ax2.set_ylabel(r'$\sigma_{N}^{\rm SD}\,\,\left[{\rm cm}^2\right]$')
-
-    ax1.legend()
 
 
     plt.show()

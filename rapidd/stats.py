@@ -10,7 +10,7 @@ def get_simple_limit (coeff,mchi,counts) :
         return np.inf
     else:
         #crosssec = calc_xsec(mchi,coeff)
-        return np.sqrt(coeff* 2.3/counts)
+        return coeff * np.sqrt(2.3/counts)
 
 
 
