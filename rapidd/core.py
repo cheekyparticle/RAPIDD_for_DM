@@ -116,7 +116,12 @@ def calc_xsec_SD(mchi, coeff):
     u  = (mchi*mN)/(mchi+mN)
     return (float(3.0*u**2 * coeff**2 * 0.0389e-26 / (16* pi * mv**4 )))
 
-
+def calc_coeff_SI(mchi, xsec):
+    mN = 0.938
+    mv = 246
+    pi = 3.14159
+    u  = (mchi*mN)/(mchi+mN)
+    return (float(np.sqrt(xsec * pi * mv**4 / (0.0389e-26) )/u))
 
 ####### differential rate #########
 _difrate_dER_python = _crapidd.difrate_dER_python
