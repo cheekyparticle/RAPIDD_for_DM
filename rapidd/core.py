@@ -40,7 +40,12 @@ _define_and_write_halo_path.argtypes = [ctypes.c_char_p, ctypes.c_char_p,ctypes.
 
 _define_and_write_halo_path.restype = ctypes.c_void_p
 
-def calc_new_halo(path, profile="SHM", vesc=544, v0=238, beta=1, vt=230, vc=238, ve=30, k=1.0, i=2 ):
+### Vsolar = v0 + vpec which we put that to ve ignoring earths orbit for now 
+#  https://arxiv.org/pdf/2105.00599 use table 
+
+vearth_ref = np.sqrt(11.1**2 + (238.0+12.2)**2 + 7.3**2) 
+
+def calc_new_halo(path, profile="SHM", vesc=544, v0=238, beta=0, vt=90., vc=245, ve=vearth_ref, k=0.0, i=2 ):
     _define_and_write_halo_path(path.encode(), profile.encode(), vesc, v0, beta, vt, vc, ve, k, i)
     return
 
