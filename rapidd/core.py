@@ -34,6 +34,16 @@ mproton = 0.938272
 
 ########## Halo related stuff ################
 
+_define_and_write_halo_path = _crapidd.define_and_write_halo_path
+
+_define_and_write_halo_path.argtypes = [ctypes.c_char_p, ctypes.c_char_p,ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double ,ctypes.c_double, ctypes.c_double ,ctypes.c_int ]
+
+_define_and_write_halo_path.restype = ctypes.c_void_p
+
+def calc_new_halo(path, profile="SHM", vesc=544, v0=238, beta=1, vt=230, vc=238, ve=30, k=1.0, i=2 ):
+    _define_and_write_halo_path(path.encode(), profile.encode(), vesc, v0, beta, vt, vc, ve, k, i)
+    return
+
 _read_halo = _crapidd.read_halo
 
 _read_halo.argtypes = [ctypes.c_char_p]
