@@ -6,10 +6,10 @@ import os
 from scipy.interpolate import interp1d
 
 
-from rapidd.core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo
-from rapidd.experiments import counts_bin_LZ, lindhard, LZ22_eff_path, LZ24_eff_path, counts_bin_Xe1T, counts_effres_Xe1T, counts_bin_DS50, DS50_LEFF, counts_bin_DS20k, read_DS50_eff, read_DS50_LEFF, read_LZ_eff, read_Xe1T_eff, read_DS20k_eff
-from rapidd.stats import poisson_likelihood_limit, binned_poisson_likelihood_limit, get_simple_limit
-from rapidd.neutrino_background import get_neutrino_background_DS20K
+from core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo
+from experiments import counts_bin_LZ, lindhard, LZ22_eff_path, LZ24_eff_path, counts_bin_Xe1T, counts_effres_Xe1T, counts_bin_DS50, DS50_LEFF, counts_bin_DS20k, read_DS50_eff, read_DS50_LEFF, read_LZ_eff, read_Xe1T_eff, read_DS20k_eff
+from stats import poisson_likelihood_limit, binned_poisson_likelihood_limit, get_simple_limit
+from neutrino_background import get_neutrino_background_DS20K
 
 ########### LZ DATA + Background ##########
 
@@ -275,7 +275,7 @@ def DS20kLimit_res (rhodm, mchi, op=1, fnfp=1., coeff=1e-3) :
 
 if __name__== '__main__':
     import matplotlib.pyplot as plt 
-    from rapidd.core import calc_xsec_SI, calc_xsec_SD 
+    from core import calc_xsec_SI, calc_xsec_SD 
     mspace= np.geomspace(3e0,6e2,100)
 
     rhoDM = 0.3 

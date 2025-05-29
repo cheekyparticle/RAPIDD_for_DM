@@ -1,6 +1,6 @@
 import numpy as np 
 
-from rapidd.core import base_dir
+from core import base_dir
 import os
 import csv
 from scipy.interpolate import interp1d
