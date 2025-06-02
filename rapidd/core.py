@@ -113,31 +113,6 @@ def isofromneuc(cp, cn):
     ''' Simply takes coeffs from p n basis to 0 1 basis '''
     return (cp+cn)/2, (cp-cn)/2
 
-
-####### Some cross-section ##############
-
-
-def calc_xsec_SI(mchi,coeff) :
-    mN = 0.938
-    mv = 246
-    pi = 3.14159
-    u  = (mchi*mN)/(mchi+mN)
-    return (float(u**2 * coeff**2 * 0.0389e-26/ (pi * mv**4)))
-
-def calc_xsec_SD(mchi, coeff): 
-    mN = 0.938
-    mv = 246
-    pi = 3.14159
-    u  = (mchi*mN)/(mchi+mN)
-    return (float(3.0*u**2 * coeff**2 * 0.0389e-26 / (16* pi * mv**4 )))
-
-def calc_coeff_SI(mchi, xsec):
-    mN = 0.938
-    mv = 246
-    pi = 3.14159
-    u  = (mchi*mN)/(mchi+mN)
-    return (float(np.sqrt(xsec * pi * mv**4 / (0.0389e-26) )/u))
-
 ####### differential rate #########
 _difrate_dER_python = _crapidd.difrate_dER_python
 _difrate_dER_python.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
