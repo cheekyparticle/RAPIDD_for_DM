@@ -26,12 +26,12 @@ def gen_shm_table(path, card):
 
     # --- Read this from updated maddm_card --- 
 
-    vE_HC = [29.2, -0.1, 5.9] # Earth velocity realtive to the Sun (heliocentric) at March 9 in km/s
+    vE_HC = [29.2, -0.1, 5.9] # Earth velocity relative to the Sun (heliocentric) at March 9 in km/s
     vS = [11.1, 12.2, 7.3] # Solar peculiar velocity in km/s
 
     v0_vec = [0, v0, 0]
 
-    # Calculate the module of Earth velocity relative to the galatic center
+    # Calculate the module of Earth velocity relative to the galactic center
     vE_GC = sqrt(
         (vE_HC[0] + vS[0] + v0_vec[0])**2 +
         (vE_HC[1] + vS[1] + v0_vec[1])**2 +
