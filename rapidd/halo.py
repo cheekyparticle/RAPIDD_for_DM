@@ -26,8 +26,12 @@ def gen_shm_table(path, card):
 
     # --- Read this from updated maddm_card --- 
 
-    vE_HC = [29.2, -0.1, 5.9] # Earth velocity relative to the Sun (heliocentric) at March 9 in km/s
-    vS = [11.1, 12.2, 7.3] # Solar peculiar velocity in km/s
+    #vE_HC = [29.2, -0.1, 5.9] # Earth velocity relative to the Sun (heliocentric) at March 9 in km/s
+    #vS = [11.1, 12.2, 7.3] # Solar peculiar velocity in km/s
+
+    vE_HC = card['vEarth_mod']*[0.97986577, - 0.0033557 ,  0.19798658] # Earth velocity relative to the Sun (heliocentric) at March 9 in km/s 
+    
+    vS = [card['vSun_r'], card['vSun_phi'], card['cSun_theta']] # Solar peculiar velocity in km/s
 
     v0_vec = [0, v0, 0]
 
