@@ -312,6 +312,25 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 
 		}
 	}
+	if (strncmp(target, "Na", 10) == 0){
+		num_isos = 1;
+		znum = 11; 
+		for (int l = 0; l < num_isos; l++){
+			znumarr[l]=znum;
+			isotopes[l]=1.0;
+			atomic_numbers[l]=23;
+		}
+	}
+
+		if (strncmp(target, "I", 10) == 0){
+		num_isos = 1;
+		znum = 53; 
+		for (int l = 0; l < num_isos; l++){
+			znumarr[l]=znum;
+			isotopes[l]=1.0;
+			atomic_numbers[l]=127;
+		}
+	}
 	double counts=0.0;
 	double energy = pow(10., logenergy);
 	val_difcros->Er = energy;
