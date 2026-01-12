@@ -2,19 +2,39 @@ from numpy import pi, sqrt, exp, piecewise, linspace
 from scipy.special import erf
 
 
+def eta_shm(vmin, v0, vesc, vearth):
+    """
+    Calculate the dark matter integrated velocity distribution eta.
 
-def eta_shm(vmin, v0, vesc, vE):
+    Parameters:
+    vmin   : float - minimum velocity
+    vesc   : float - escape velocity
+    vearth : float - velocity of the Earth
+    v0     : float - parameter related to the velocity distribution
+    kNorm  : float - normalization constant
 
-    '''analytic SHM eta arXiv:1509.01598'''
+    Returns:
+    eta    : float - integrated velocity distribution [cm^(-1) sec]
+    """
 
-    K = v0**3 * pi * (sqrt(pi) * erf(vesc/v0) - 2 * (vesc/v0)* exp(-(vesc/v0)**2))
+    kNorm = (v0**3) * pi * (sqrt(pi) * erf(vesc / v0) - 2 * (vesc / v0) * exp(-(vesc / v0)**2))
 
-    def eta1(vmin): return ((v0**2 *pi )/(2*vE*K)) * ( -4 * vE * exp(-(vesc/v0)**2) + sqrt(pi) * v0 *( erf((vmin + vE)/v0) - erf((vmin-vE)/v0) ) )
-    def eta2(vmin): return ((v0**2 *pi )/(2*vE*K)) * (  -2 * (vesc - vmin + vE) * exp(-(vesc/v0)**2) + sqrt(pi) * v0*( erf(vE/v0) - erf((vmin-vE)/v0) )  )
+    if vmin <= (vesc - vearth):
+        eta = (v0**2 * pi) / (2 * vearth * kNorm) * (
+            (-4) * exp(-(vesc / v0)**2) * vearth +
+            sqrt(pi) * v0 * (erf((vmin + vearth) / v0) - erf((vmin - vearth) / v0))
+        )
+    elif (vesc - vearth) <= vmin <= (vesc + vearth):
+        eta = (v0**2 * pi) / (2 * vearth * kNorm) * (
+            (-2) * exp(-(vesc / v0)**2) * (vesc - vmin + vearth) +
+            sqrt(pi) * v0 * (erf(vesc / v0) - erf((vmin - vearth) / v0))
+        )
+    else:
+        eta = 0.0
 
-    conds = [vmin < vesc - vE , (vesc - vE < vmin) & (vmin < vesc + vE)]
+    return eta
 
-    return piecewise(vmin, conds, [eta1, eta2])
+
 
 
 def gen_shm_table(path, card):
