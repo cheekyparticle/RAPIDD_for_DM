@@ -2,8 +2,8 @@ import ctypes
 import numpy as np
 import os
 
-from core import _crapidd
-from core import base_dir
+from .core import _crapidd
+from .core import base_dir
 from scipy.interpolate import interp1d
 
 

@@ -6,8 +6,8 @@ import os
 
 
 
-from core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo
-from experiments import counts_bin_LZ
+from .core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo
+from .experiments import counts_bin_LZ
 
 # madDM values, maybe we can get them from the card? 
 
