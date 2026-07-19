@@ -184,7 +184,6 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 		//printf("CN %.5E CP %.5E \r\n", Cp(i), Cn(i));
 		//printf("Op number %i \n", i);
 		rate += difrate_isotope_dEr(A, Z, rhochi, val_difcros, i, i);
-		//printf("here %.5E \n", rate);
           }
         }
 
@@ -205,15 +204,7 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 
 	}
 
-        // FIXME fabs?
-	if (rate >= 0.0){
-
-		return rate;
-        }
-	if (rate < 0.0){
-		return -rate;
-	}
- //printf("here %.5E \n", rate);
+    return fabs(rate);
 }
 
 double total_difrate_isotope_dEr_w(int A, int Z, double rhochi, void * input_difcros, gsl_interp_accel *ga0, gsl_spline * gs0, gsl_interp_accel *ga2, gsl_spline * gs2){
@@ -230,7 +221,6 @@ double total_difrate_isotope_dEr_w(int A, int Z, double rhochi, void * input_dif
 		//printf("CN %.5E CP %.5E \r\n", Cp(i), Cn(i));
 		//printf("Op number %i \n", i);
 		rate += difrate_isotope_dEr_w(A, Z, rhochi, val_difcros, i, i, ga0,gs0,ga2,gs2);
-		//printf("here %.5E \n", rate);
           }
 	}
 
@@ -252,7 +242,6 @@ double total_difrate_isotope_dEr_w(int A, int Z, double rhochi, void * input_dif
 	}
 
         return fabs(rate);
- //printf("here %.5E \n", rate);
 }
 
 

@@ -333,11 +333,9 @@ double DS50_LEFF ( double E_r){
       if (E_r > x[leff_length-1]) {  // eff(E_r) data out of the range
         return y[leff_length-1];
       }
-
     }
-  else{
-    return 0.0;
-  }
+  printf("ERROR: could not read leff_path, taking Leff = 0\n");
+  return 0.0;
 }
 
 double lindhard_DS(int A, int Z, double ER){
