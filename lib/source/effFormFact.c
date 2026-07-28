@@ -1018,6 +1018,27 @@ double FF_ISO_GCN5082(int A, char* Symbol1, char * Symbol2, char*N1, char * N2, 
 	131 Xenon  (prefact = 16.*M_PI/(2.*(3./2.) + 1.))
 	########################################################################################*/
 
+	/* Phi' - Phi' */
+	{131, 54, "Pp", "Pp", "+", "+", 16.*M_PI/(2.*(3./2.) + 1.),
+	0.04768970, -0.1474880, 0.1747790, -0.1027900,
+	0.03326120, -0.005982810, 0.0005520300, -0.00002050000,
+	0.0000002560000, 0.0, 0.0},
+
+	{131, 54, "Pp", "Pp", "-", "-", 16.*M_PI/(2.*(3./2.) + 1.),
+	0.08893970, -0.1907200, 0.1573550, -0.06710510,
+	0.01743300, -0.002806920, 0.0002740990, -0.00001360000,
+	0.0000002560000, 0.0, 0.0},
+
+	{131, 54, "Pp", "Pp", "-", "+", 16.*M_PI/(2.*(3./2.) + 1.),
+	-0.06512690, 0.1705360, -0.1696340, 0.08465680,
+	-0.02413470, 0.004075470, -0.0003896610, 0.00001710000,
+	-0.0000002560000, 0.0, 0.0},
+
+	{131, 54, "Pp", "Pp", "+", "-", 16.*M_PI/(2.*(3./2.) + 1.),
+	-0.06512690, 0.1705360, -0.1696340, 0.08465680,
+	-0.02413470, 0.004075470, -0.0003896610, 0.00001710000,
+	-0.0000002560000, 0.0, 0.0},
+
 	/* D - D */
 	{131, 54, "D", "D", "+", "+", 16.*M_PI/(2.*(3./2.) + 1.),
 	0.06411286031263148, -0.1629545548505601, 0.19709458160535825, -0.1325758204184924,
@@ -1105,6 +1126,7 @@ double FF_ISO_GCN5082(int A, char* Symbol1, char * Symbol2, char*N1, char * N2, 
 	{0, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	};
 
+	//data_Men only describes one FF for one nucleon, so we need to multiply the two FFs for the two nucleons together.
 	//search for the first nucleon
 	for (int i = 0; data_Men[i].A != 0; i++) {
         if (data_Men[i].A == A && 
@@ -1168,7 +1190,7 @@ General form factors
 
 /*The following form factors are those with zeroth order dependence on the velocity.
 Other dependences should be included separately like FormFact_v2 function which depends on v^2.
-The expressions for the prefactors have been extrapolated from eq. 38 of arXiv:1308.6288v1.*/
+The expressions for the prefactors have been extrapolated from eq. 37 and 38 of arXiv:1308.6288v1.*/
 
 double FormFact_v0(char* NR_framework, int A, int Z, int i, int j, char* N1, char* N2, double Er, double mchi, double jchi) {
     
@@ -1178,63 +1200,68 @@ double FormFact_v0(char* NR_framework, int A, int Z, int i, int j, char* N1, cha
 	double q2 = 2. * mnucleus * Er * 1.e-6;
 	double q4 = q2 * q2;
     double mN = mproton;
+	double mN2 = mN * mN;
+	double mN4 = mN2 * mN2;
     double muT = mnucleus * mchi / (mnucleus + mchi);
-    double Cj = 4. * jchi * (jchi + 1.) / 3.;
+    double Cj = jchi * (jchi + 1.) / 12.;
 
     if (i == 1 && j == i) {
         return FF(NR_framework, A, "M", "M", N1, N2, Er);
     }
     if (i == 3 && j == i) {
-        return q4 / (4. * mN * mN * mN * mN) * FF(NR_framework, A, "Ppp", "Ppp", N1, N2, Er) - 
-               q4 / (4. * muT * muT * mN * mN) * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
-    }
+        return q4 / (4. * mN4) * FF(NR_framework, A, "Ppp", "Ppp", N1, N2, Er);
+	}
     if (i == 4 && j == i) {
-        return Cj / 16. * (FF(NR_framework, A, "Spp", "Spp", N1, N2, Er) + FF(NR_framework, A, "Sp", "Sp", N1, N2, Er));
+        return Cj * (FF(NR_framework, A, "Spp", "Spp", N1, N2, Er) + FF(NR_framework, A, "Sp", "Sp", N1, N2, Er));
     }
     if (i == 5 && j == i) {
-        return Cj / 4. * (-q4 / (4. * muT * muT * mN * mN) * FF(NR_framework, A, "M", "M", N1, N2, Er) + 
-                q4 / (mN * mN * mN * mN) * FF(NR_framework, A, "D", "D", N1, N2, Er));
+        return 4. * Cj * q4 / mN4 * FF(NR_framework, A, "D", "D", N1, N2, Er);
     }
     if (i == 6 && j == i) {
-        return Cj / 16. * q4 / pow(mN, 4.) * FF(NR_framework, A, "Spp", "Spp", N1, N2, Er);
-    }
-    if (i == 7 && j == i) {
-        return 1. / 8. * (-q2 / (4. * muT * muT) * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er));
+        return Cj * q4 / mN4 * FF(NR_framework, A, "Spp", "Spp", N1, N2, Er);
     }
     if (i == 8 && j == i) {
-        return Cj / 4. * (-q2 / (4. * muT * muT) * FF(NR_framework, A, "M", "M", N1, N2, Er) + 
-                q2 / (mN * mN) * FF(NR_framework, A, "D", "D", N1, N2, Er));
+        return 4 * Cj * q2 / mN2 * FF(NR_framework, A, "D", "D", N1, N2, Er);
     }
     if (i == 9 && j == i) {
-        return Cj / 16. * q2 / (mN * mN) * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
+        return Cj * q2 / mN2 * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
     }
     if (i == 10 && j == i) {
-        return 1. / 4. * q2 / (mN * mN) * FF(NR_framework, A, "Spp", "Spp", N1, N2, Er);
+        return  q2 / (4. * mN2) * FF(NR_framework, A, "Spp", "Spp", N1, N2, Er);
     }
     if (i == 11 && j == i) {
-        return Cj / 4. * q2 / (mN * mN) * FF(NR_framework, A, "M", "M", N1, N2, Er);
+        return 4 * Cj * q2 / mN2 * FF(NR_framework, A, "M", "M", N1, N2, Er);
     }
 	if (i == 12 && j == i) {
-		return Cj / 16. * FF(NR_framework, A, "Ppp", "Ppp", N1, N2, Er);
+		return Cj * (q2 / mN2) * (FF(NR_framework, A, "Ppp", "Ppp", N1, N2, Er) + FF(NR_framework, A, "Pp", "Pp", N1, N2, Er));
 	}
 	if (i == 13 && j == i) {
-		return Cj / 16. * q2 / (mN * mN) * FF(NR_framework, A, "Spp", "Spp", N1, N2, Er);
+		return Cj * q4 / mN4 * FF(NR_framework, A, "Pp", "Pp", N1, N2, Er);
 	}
     if (i == 15 && j == i) {
-        return Cj / 16. * q4 / (mN * mN * mN * mN) * FF(NR_framework, A, "Ppp", "Ppp", N1, N2, Er);
+        return Cj * (q2/mN2)*(q4/mN4) * FF(NR_framework, A, "Ppp", "Ppp", N1, N2, Er);
     }
     if (i == 1 && j == 3) {
-        return q2 / (2. * mN * mN) * FF(NR_framework, A, "M", "Ppp", N1, N2, Er);
+        return q2 / mN2 * FF(NR_framework, A, "M", "Ppp", N1, N2, Er);
     }
     if (i == 4 && j == 5) {
-        return -Cj * q2 / (8. * mN * mN) * FF(NR_framework, A, "Sp", "D", N1, N2, Er);
+        return 4. * Cj * q2 / mN2 * FF(NR_framework, A, "Sp", "D", N1, N2, Er);
     }
-    if (i == 4 && j == 6) {
-        return Cj * q2 / (16. * mN * mN) * FF(NR_framework, A, "Spp", "Spp", N1, N2, Er);
+    if ((i == 4 && j == 6) || (i == 6 && j == 4)) {
+        return Cj * q2 / mN2 * FF(NR_framework, A, "Spp", "Spp", N1, N2, Er);
     }
     if (i == 8 && j == 9) {
-        return Cj * q2 / (8. * mN * mN) * FF(NR_framework, A, "Sp", "D", N1, N2, Er);
+        return -4. * Cj * q2 / mN2 * FF(NR_framework, A, "Sp", "D", N1, N2, Er);
     }
+	if (i == 11 && j == 12) {
+		return 4. * Cj * q2 / mN2 * FF(NR_framework, A, "M", "Ppp", N1, N2, Er);
+	}
+	if (i == 11 && j == 15) {
+		return -4. * Cj * q4 / mN4 * FF(NR_framework, A, "M", "Ppp", N1, N2, Er);
+	}
+	if (i == 12 && j == 15) {
+		return -2 * Cj * q4 / mN4 * FF(NR_framework, A, "Ppp", "Ppp", N1, N2, Er);
+	}
     return 0.0;
 }
 
@@ -1244,33 +1271,38 @@ double FormFact_v2(char* NR_framework, int A, int Z, int i, int j, char* N1, cha
     double mneutron = 0.940;
     double mnucleus = Z * mproton + (A - Z) * mneutron;
     double mN = mproton;
+	double mN2 = mN * mN;
+	double mN4 = mN2 * mN2;
     double q2 = 2. * mnucleus * Er * 1.e-6;
     double q4 = q2 * q2;
-    double Cj = 4. * jchi * (jchi + 1.) / 3.;
+    double Cj = jchi * (jchi + 1.) / 12.;
 
     if (i == 3 && j == i) {
-        return q2 / (mN * mN) * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
+        return 1./ 8. * q2 / mN2 * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
     }
     if (i == 5 && j == i) {
-        return Cj / 4. * q2 / (mN * mN) * FF(NR_framework, A, "M", "M", N1, N2, Er);
+        return 4 * Cj * q2 / mN2 * FF(NR_framework, A, "M", "M", N1, N2, Er);
     }
     if (i == 7 && j == i) {
         return 1. / 8. * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
     }
     if (i == 8 && j == i) {
-        return Cj / 4. * FF(NR_framework, A, "M", "M", N1, N2, Er);
+        return 4 * Cj * FF(NR_framework, A, "M", "M", N1, N2, Er);
     }
 	if (i == 12 && j == i) {
-		return Cj / 16. * (FF(NR_framework, A, "Spp", "Spp", N1, N2, Er) + 0.5 * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er));
+		return Cj * (FF(NR_framework, A, "Spp", "Spp", N1, N2, Er) + 0.5 * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er));
 	}
     if (i == 13 && j == i) {
-        return Cj / 16. * q2 / (mN * mN) * FF(NR_framework, A, "Spp", "Spp", N1, N2, Er);
+        return Cj * q2 / mN2 * FF(NR_framework, A, "Spp", "Spp", N1, N2, Er);
     }
     if (i == 14 && j == i) {
-        return Cj / 16. * q2 / (2. * mN * mN) * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
+        return Cj * q2 / (2. * mN2) * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
     }
     if (i == 15 && j == i) {
-        return Cj / 16. * q4 / (mN * mN * mN * mN) * 0.5 * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
+        return Cj * q4 / mN4 * 0.5 * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
     }
+	if (i == 12 && j == 15) {
+		return -Cj * q2 / mN2 * FF(NR_framework, A, "Sp", "Sp", N1, N2, Er);
+	}
     return 0.0;
 }

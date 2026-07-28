@@ -179,29 +179,37 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 	int i;
 	for ( i = 1; i < 16; i++) // FIXME what about Cp(0) et al?
         {
-          if (Cp(i) != 0. || Cn(i) != 0.)
-          {
-		//printf("CN %.5E CP %.5E \r\n", Cp(i), Cn(i));
-		//printf("Op number %i \n", i);
-		rate += difrate_isotope_dEr(A, Z, rhochi, val_difcros, i, i);
+          if (Cp(i) != 0. || Cn(i) != 0.){
+			//printf("CN %.5E CP %.5E \r\n", Cp(i), Cn(i));
+			//printf("Op number %i \n", i);
+			rate += difrate_isotope_dEr(A, Z, rhochi, val_difcros, i, i);
           }
         }
-
 	//INTEREFERENCE TERMS
+	// Interferences between different nuclear responses not need both ij and ji terms
+	// as they already include both contributions in their definition.
+	// For the ones that comes from the same nuclear responses, we need to explicitly add moth ij and ji terms.
+	// see eq. 38 and 89 of https://arxiv.org/abs/1308.6288
 	if ((Cp(1) != 0. || Cn(1) != 0.) & (Cp(3) != 0. || Cn(3) != 0.)){
-		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 1, 3) + difrate_isotope_dEr(A, Z, rhochi, input_difcros, 3, 1);
+		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 1, 3);
 	}
-
 	if ((Cp(4) != 0. || Cn(4) != 0.) & (Cp(5) != 0. || Cn(5) != 0.)){
-		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 5) + difrate_isotope_dEr(A, Z, rhochi, input_difcros, 5, 4);
+		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 5);
 	}
-
 	if ((Cp(4) != 0. || Cn(4) != 0.) & (Cp(6) != 0. || Cn(6) != 0.)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 6) + difrate_isotope_dEr(A, Z, rhochi, input_difcros, 6, 4);
 	}
 	if ((Cp(8) != 0. || Cn(8) != 0.) & (Cp(9) != 0. || Cn(9) != 0.)){
-		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 8, 9) + difrate_isotope_dEr(A, Z, rhochi, input_difcros, 9, 8);
-
+		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 8, 9);
+	}
+	if ((Cp(11) != 0. || Cn(11) != 0.) & (Cp(12) != 0. || Cn(12) != 0.)){
+		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 11, 12);
+	}
+	if ((Cp(11) != 0. || Cn(11) != 0.) & (Cp(15) != 0. || Cn(15) != 0.)){
+		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 11, 15);
+	}
+	if ((Cp(12) != 0. || Cn(12) != 0.) & (Cp(15) != 0. || Cn(15) != 0.)){
+		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 12, 15);
 	}
 
     return fabs(rate);
