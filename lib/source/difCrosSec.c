@@ -7,14 +7,14 @@
  | | \ \  / ____ \| |    _| |_| |__| | |__| |
  |_|  \_\/_/    \_\_|   |_____|_____/|_____/ 
                                              
-Based on : arXiv:1802.03174
+Based on: arXiv:1802.03174
 difCrosSec.c
 difCrosSEffective operators for DM direct detectionec.c
 early versions of this code were developed by M. Peiró
 and E. Gerstmayr. 
 
 Subroutine calculating equation (53) and (55)
-          of arXiv: 1203.3542  
+of arXiv:1203.3542.
 
 ##########################################*/
 
@@ -46,16 +46,12 @@ cross section into two pieces, a velocity independent and a v^2 pieces.
 double difcros_isotope_v0_dEr(int A, int Z, double Er, double mchi, double jchi, double v, char * Nucleon, int F_i, int F_j){
 
 	double mN = approx_mass_nucleus(A, Z);
-	/*double E = 0.5*mchi*pow(v / c, 2.);*/
-        double E = 0.5*mchi*v*v/c/c;
-	/*double r = 4.*mchi*mN / pow(mchi + mN, 2.);*/
-        double mchimN_2 =(mchi + mN)*(mchi + mN);
+    double E = 0.5*mchi*v*v/c/c;
+    double mchimN_2 =(mchi + mN)*(mchi + mN);
 	double r = 4.*mchi*mN /mchimN_2;
 	double Jacobian = 2. / (r*E);
 	//double prefactor = pow(mN, 2.) / (32.*M_PI*pow(mchi + mN, 2.)*pow(mproton, 2.))*Jacobian;
-        /*double prefactor = pow(mN, 1.) / (32.*M_PI*pow(mchi + mN, 2.))*Jacobian;*/
-        double prefactor = mN / (32.*M_PI*mchimN_2)*Jacobian;
-
+    double prefactor = mN / (32.*M_PI*mchimN_2)*Jacobian;
 
 	if (strncmp(Nucleon, "pp_only", 10) == 0){
 		return prefactor*Cp(F_i)*Cp(F_j)*FormFact_v0("pn_BD", A, Z, F_i, F_j, "p", "p", Er, mchi, jchi);

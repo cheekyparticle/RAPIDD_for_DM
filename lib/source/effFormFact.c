@@ -7,17 +7,21 @@
  | | \ \  / ____ \| |    _| |_| |__| | |__| |
  |_|  \_\/_/    \_\_|   |_____|_____/|_____/ 
                                              
-Based on : arXiv:1802.03174
- effFormFact.c
+Based on arXiv:1802.03174
+effFormFact.c
 
-early versions of this code were developed by M. Peiró
+Early versions of this code were developed by M. Peiró
 and E. Gerstmayr. 
 
-Using arXiv: 1203.3542 and then the unit conventions of
-arXiv: 1308.6288
+Using arXiv:1203.3542 and then the unit conventions of
+arXiv:1308.6288.
 
-responses coming from ChEFT as outlined in
-arXiv:1605.08043. As well as formfactors for operators 12-15 added. 
+responses coming from:
+  - arXiv:1308.6288v1
+  - arXiv:1605.08043
+  - arXiv:2510.25197
+  - arXiv:2106.06207
+  
 ##########################################*/
 
 #include <stdio.h>

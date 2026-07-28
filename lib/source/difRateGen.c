@@ -77,20 +77,15 @@ double difrate_isotope_v0_dEr(int A, int Z, double rhochi, void * input_difcros,
 	double jchi = (val_difcros->jchi);
 	double v = (val_difcros->v);
 	char * Nucleon = (val_difcros->Nucleon);
-        double pbGeVfactor = 2.67e-9;
+    double pbGeVfactor = 2.67e-9;
 	v = c; //so effectively v=1
-
-
 	double mtarget = approx_mass_nucleus(A, Z);
 	double muN = reduced_mass(mchi, mtarget);
-
 	double vmin = c*sqrt((mtarget*Er*1.e-6) / 2.) / muN;
-	//printf("halo %.5e\n", halo(vmin, 0));
+	
 	return (rhochi / mchi)*difcros_isotope_v0_dEr(A, Z, Er, mchi, jchi, v, Nucleon, F_i, F_j)*halo(vmin, 0)*4.36e+5*(1./pbGeVfactor);
 	//return (rhochi / mchi)*difcros_isotope_v0_dEr(A, Z, Er, mchi, jchi, v, Nucleon, F_i, F_j)*shm_halo_analitic(vmin,232,544,220, 0)*4.36e+5*(1./pbGeVfactor);
-	
-	// shm_halo_analitic(double velmin, double ve, double vesc, double v0, double beta)
-}
+	}
 
 double difrate_isotope_v0_dEr_w(int A, int Z, double rhochi, void * input_difcros, int F_i, int F_j, gsl_interp_accel *ga, gsl_spline * gs){
                                                                                                     
@@ -101,16 +96,13 @@ double difrate_isotope_v0_dEr_w(int A, int Z, double rhochi, void * input_difcro
 	double jchi = (val_difcros->jchi);
 	double v = (val_difcros->v);
 	char * Nucleon = (val_difcros->Nucleon);
-        double pbGeVfactor = 2.67e-9;
+    double pbGeVfactor = 2.67e-9;
 	v = c; //so effectively v=1
-
 
 	double mtarget = approx_mass_nucleus(A, Z);
 	double muN = reduced_mass(mchi, mtarget);
-
 	double vmin = c*sqrt((mtarget*Er*1.e-6) / 2.) / muN;
-        /*printf("vmin: %f\n", vmin);*/
-        /*printf("halo %.5e\n", halo(vmin, 0));*/
+
 	return (rhochi / mchi)*difcros_isotope_v0_dEr(A, Z, Er, mchi, jchi, v, Nucleon, F_i, F_j)*halo_w(vmin, ga, gs)*4.36e+5*(1./pbGeVfactor);
 }
 
@@ -123,7 +115,7 @@ double difrate_isotope_v2_dEr(int A, int Z, double rhochi, void * input_difcros,
 	double jchi = (val_difcros->jchi);
 	double v = (val_difcros->v);
 	char * Nucleon = (val_difcros->Nucleon);
-        const double pbGeVfactor = 2.67e-9;
+    const double pbGeVfactor = 2.67e-9;
 	v = c; //so effectively v=1
 
 
@@ -144,7 +136,7 @@ double difrate_isotope_v2_dEr_w(int A, int Z, double rhochi, void * input_difcro
   double jchi = (val_difcros->jchi);
   double v = (val_difcros->v);
   char * Nucleon = (val_difcros->Nucleon);
-  double pbGeVfactor = 2.67e-9;
+  const double pbGeVfactor = 2.67e-9;
   v = c; //so effectively v=1
   double mtarget = approx_mass_nucleus(A, Z);
   double muN = reduced_mass(mchi, mtarget);
@@ -317,7 +309,6 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 		if (strncmp(model, "Light_Med", 10)==0)
 		{
 			double med_mass = give_med_mass();
-			printf("Here we are, mass =%lf\n", med_mass );
 			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
@@ -327,7 +318,6 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 			set_coeffs();
 			set_any_Ncoeff(C11p, 11, "p");
 			double med_mass = 0.0;
-			printf("Here we are, mass =%lf\n", med_mass );
 			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
@@ -350,13 +340,11 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 			set_any_Ncoeff(C6p, 6, "p");
 			set_any_Ncoeff(C6n, 6, "n");
 			double med_mass = 0.0;
-			//printf("Here we are, mass =%lf\n", med_mass );
 			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		else {
 			counts +=  isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
-			//printf("%.5E \n", counts);
 		}
 	}
 	return counts;
@@ -467,7 +455,6 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 		if (strncmp(model, "Light_Med", 10)==0)
 		{
 			double med_mass = give_med_mass();
-			printf("Here we are, mass =%lf\n", med_mass );
 			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
@@ -477,7 +464,6 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 			set_coeffs();
 			set_any_Ncoeff(C11p, 11, "p");
 			double med_mass = 0.0;
-			printf("Here we are, mass =%lf\n", med_mass );
 			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
@@ -500,13 +486,11 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 			set_any_Ncoeff(C6p, 6, "p");
 			set_any_Ncoeff(C6n, 6, "n");
 			double med_mass = 0.0;
-			//printf("Here we are, mass =%lf\n", med_mass );
 			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		else {
 			counts +=  isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
-			//printf("%.5E \n", counts);
 		}
 	}
 	return counts;
