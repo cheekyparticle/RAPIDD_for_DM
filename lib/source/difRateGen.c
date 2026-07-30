@@ -77,8 +77,8 @@ double difrate_isotope_v0_dEr(int A, int Z, double rhochi, void * input_difcros,
 	double jchi = (val_difcros->jchi);
 	double v = (val_difcros->v);
 	char * Nucleon = (val_difcros->Nucleon);
-    double pbGeVfactor = 2.67e-9;
-	v = c; //so effectively v=1
+    double pbGeVfactor = 2.568e-9; // 1 pb = 2.56819×10−9 GeV−2 ??? before it was 2.67 
+	v = c; //so effectively v=1 ???
 	double mtarget = approx_mass_nucleus(A, Z);
 	double muN = reduced_mass(mchi, mtarget);
 	double vmin = c*sqrt((mtarget*Er*1.e-6) / 2.) / muN;
@@ -96,7 +96,7 @@ double difrate_isotope_v0_dEr_w(int A, int Z, double rhochi, void * input_difcro
 	double jchi = (val_difcros->jchi);
 	double v = (val_difcros->v);
 	char * Nucleon = (val_difcros->Nucleon);
-    double pbGeVfactor = 2.67e-9;
+    double pbGeVfactor = 2.568e-9; // 1 pb = 2.56819×10−9 GeV−2 ???
 	v = c; //so effectively v=1
 
 	double mtarget = approx_mass_nucleus(A, Z);
@@ -115,7 +115,7 @@ double difrate_isotope_v2_dEr(int A, int Z, double rhochi, void * input_difcros,
 	double jchi = (val_difcros->jchi);
 	double v = (val_difcros->v);
 	char * Nucleon = (val_difcros->Nucleon);
-    const double pbGeVfactor = 2.67e-9;
+    const double pbGeVfactor = 2.568e-9;
 	v = c; //so effectively v=1
 
 
@@ -136,7 +136,7 @@ double difrate_isotope_v2_dEr_w(int A, int Z, double rhochi, void * input_difcro
   double jchi = (val_difcros->jchi);
   double v = (val_difcros->v);
   char * Nucleon = (val_difcros->Nucleon);
-  const double pbGeVfactor = 2.67e-9;
+  const double pbGeVfactor = 2.568e-9;
   v = c; //so effectively v=1
   double mtarget = approx_mass_nucleus(A, Z);
   double muN = reduced_mass(mchi, mtarget);

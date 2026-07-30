@@ -47,11 +47,10 @@ double difcros_isotope_v0_dEr(int A, int Z, double Er, double mchi, double jchi,
 
 	double mN = approx_mass_nucleus(A, Z);
     double E = 0.5*mchi*v*v/c/c;
-    double mchimN_2 =(mchi + mN)*(mchi + mN);
-	double r = 4.*mchi*mN /mchimN_2;
+	double r = 4.*mchi*mN;
 	double Jacobian = 2. / (r*E);
 	//double prefactor = pow(mN, 2.) / (32.*M_PI*pow(mchi + mN, 2.)*pow(mproton, 2.))*Jacobian;
-    double prefactor = mN / (32.*M_PI*mchimN_2)*Jacobian;
+    double prefactor = mN / (32.*M_PI)*Jacobian;
 
 	if (strncmp(Nucleon, "pp_only", 10) == 0){
 		return prefactor*Cp(F_i)*Cp(F_j)*FormFact_v0("pn_BD", A, Z, F_i, F_j, "p", "p", Er, mchi, jchi);
@@ -87,12 +86,11 @@ double difcros_isotope_v2_dEr(int A, int Z, double Er, double mchi, double jchi,
 	/*double E = 0.5*mchi*pow(v / c, 2.);*/
         double E = 0.5*mchi*v*v/c/c;
 	/*double r = 4.*mchi*mN / pow(mchi + mN, 2.);*/
-        double mchimN_2 =(mchi + mN)*(mchi + mN);
-	double r = 4.*mchi*mN /mchimN_2;
+	double r = 4.*mchi*mN;
 	double Jacobian = 2. / (r*E);
 	//double prefactor = pow(mN, 2.) / (32.*M_PI*pow(mchi + mN, 2.)*pow(mproton, 2.))*Jacobian;
         /*double prefactor = pow(mN, 1.) / (32.*M_PI*pow(mchi + mN, 2.))*Jacobian;*/
-        double prefactor = mN / (32.*M_PI*mchimN_2)*Jacobian;
+        double prefactor = mN / (32.*M_PI)*Jacobian;
 
 
 	if (strncmp(Nucleon, "pp_only", 10) == 0){
