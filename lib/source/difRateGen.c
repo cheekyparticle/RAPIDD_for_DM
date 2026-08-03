@@ -189,10 +189,8 @@ double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, in
 		Cn(F_i) * Cp(F_j) * FormFact_v2(nuclear_framework, A, Z, F_i,F_j, n_name, p_name, Er, mchi, jchi))
 		* halo(vmin, 2) * conv_factor_v2;
 
-
 	double coeff_times_v_avg_formfact = v0term + v2term;
-
-	double difrate = rhochi / (2. * M_PI * mchi * v_h4) * Cp(F_i) * Cp(F_j) * coeff_times_v_avg_formfact;
+	double difrate = rhochi / (2. * M_PI * mchi * v_h4) * coeff_times_v_avg_formfact;
 	
 	return difrate;
 }
@@ -213,8 +211,6 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 	for ( i = 1; i < 16; i++) // FIXME what about Cp(0) et al?
         {
           if (Cp(i) != 0. || Cn(i) != 0.){
-			//printf("CN %.5E CP %.5E \r\n", Cp(i), Cn(i));
-			//printf("Op number %i \n", i);
 			rate += difrate_isotope_dEr(A, Z, rhochi, val_difcros, i, i);
           }
         }
@@ -230,7 +226,7 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 5);
 	}
 	if ((Cp(4) != 0. || Cn(4) != 0.) & (Cp(6) != 0. || Cn(6) != 0.)){
-		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 6) + difrate_isotope_dEr(A, Z, rhochi, input_difcros, 6, 4);
+		rate += (difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 6) + difrate_isotope_dEr(A, Z, rhochi, input_difcros, 6, 4));
 	}
 	if ((Cp(8) != 0. || Cn(8) != 0.) & (Cp(9) != 0. || Cn(9) != 0.)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 8, 9);
