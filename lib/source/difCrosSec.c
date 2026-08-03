@@ -72,7 +72,7 @@ double difcros_isotope_v0_dEr(int A, int Z, double Er, double mchi, double jchi,
 		return prefactor*(Cp(F_i)*Cp(F_j)*FormFact_v0("pn_SN100PN", A, Z, F_i,F_j, "p", "p", Er, mchi, jchi) + Cn(F_i)*Cn(F_j)*FormFact_v0("pn_SN100PN", A, Z, F_i,F_j, "n", "n", Er, mchi, jchi) +
 			Cp(F_i)*Cn(F_j)*FormFact_v0("pn_SN100PN", A, Z, F_i,F_j, "p", "n", Er, mchi, jchi) + Cn(F_i)*Cp(F_j)*FormFact_v0("pn_SN100PN", A, Z, F_i,F_j, "n", "p", Er, mchi, jchi));
 	}
-	if (strncmp(Nucleon, "ISO_GCN5082", 10) == 0){
+	if (strncmp(Nucleon, "iso_GCN5082", 10) == 0){
 		return prefactor*(Cp(F_i)*Cp(F_j)*FormFact_v0("ISO_GCN5082", A, Z, F_i,F_j, "+", "+", Er, mchi, jchi) + Cn(F_i)*Cn(F_j)*FormFact_v0("ISO_GCN5082", A, Z, F_i,F_j, "-", "-", Er, mchi, jchi) +
 			Cp(F_i)*Cn(F_j)*FormFact_v0("ISO_GCN5082", A, Z, F_i,F_j, "+", "-", Er, mchi, jchi) + Cn(F_i)*Cp(F_j)*FormFact_v0("ISO_GCN5082", A, Z, F_i,F_j, "-", "+", Er, mchi, jchi));
 	}

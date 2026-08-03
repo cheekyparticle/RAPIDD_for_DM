@@ -77,7 +77,7 @@ double difrate_isotope_v0_dEr(int A, int Z, double rhochi, void * input_difcros,
 	double jchi = (val_difcros->jchi);
 	double v = (val_difcros->v);
 	char * Nucleon = (val_difcros->Nucleon);
-    double pbGeVfactor = 2.568e-9; // 1 pb = 2.56819×10−9 GeV−2 ??? before it was 2.67 
+    double pbGeVfactor = 2.568e-9;
 	v = c; //so effectively v=1 ???
 	double mtarget = approx_mass_nucleus(A, Z);
 	double muN = reduced_mass(mchi, mtarget);
@@ -96,7 +96,7 @@ double difrate_isotope_v0_dEr_w(int A, int Z, double rhochi, void * input_difcro
 	double jchi = (val_difcros->jchi);
 	double v = (val_difcros->v);
 	char * Nucleon = (val_difcros->Nucleon);
-    double pbGeVfactor = 2.568e-9; // 1 pb = 2.56819×10−9 GeV−2 ???
+    double pbGeVfactor = 2.568e-9;
 	v = c; //so effectively v=1
 
 	double mtarget = approx_mass_nucleus(A, Z);
@@ -146,14 +146,55 @@ double difrate_isotope_v2_dEr_w(int A, int Z, double rhochi, void * input_difcro
 
 
 double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, int F_i, int F_j){
+	/* Calculate the differential rate dR/dE_R given the NREFT coefficients specified by the indexes F_i and F_j */
 
-	struct difcros_params * val_difcros = (struct difcros_params *)input_difcros;
+    struct difcros_params * val_difcros = (struct difcros_params *)input_difcros;
+	double Er = (val_difcros->Er);
+ 	double mchi = (val_difcros->mchi);
+  	double jchi = (val_difcros->jchi);
+	double v_h4 = higgs_vev*higgs_vev*higgs_vev*higgs_vev;
+	char * nuclear_framework = (val_difcros->Nucleon);
+	double pbGeVfactor = 2.568e-9;
+	double conv_factor_v0 = 4.36e+5*(1./pbGeVfactor);
+	double conv_factor_v2 = C_NORM;
+	double mtarget = approx_mass_nucleus(A, Z);
+	double muN = reduced_mass(mchi, mtarget);
+	double vmin = c*sqrt((mtarget*Er*1.e-6) / 2.) / muN;
 
-	double mchi = (val_difcros->mchi);
+	char p_name[2] = "";
+	char n_name[2] = "";
 
-	//return pow(4.*mchi*mtarget,2.)*(difrate_isotope_v0_dEr(A, Z, rhochi, input_difcros, F_i, F_j) + difrate_isotope_v2_dEr(A, Z, rhochi, input_difcros, F_i, F_j));
-    return (16*mchi*mchi)*(1./(higgs_vev*higgs_vev*higgs_vev*higgs_vev))*(difrate_isotope_v0_dEr(A, Z, rhochi, input_difcros, F_i, F_j) + difrate_isotope_v2_dEr(A, Z, rhochi, input_difcros, F_i, F_j));
+	if (strncmp(nuclear_framework, "pn", 2) == 0) {
+		strcpy(p_name, "p");
+		strcpy(n_name, "n");
+	} else if (strncmp(nuclear_framework, "iso", 3) == 0) {
+		strcpy(p_name, "+");
+		strcpy(n_name, "-");
+	} else {
+		fprintf(stderr, "nuclear_framework must start with 'pn' or 'iso' to be valid: %s\n", nuclear_framework);
+		exit(1);
+	}
 
+	double v0term = (
+		Cp(F_i) * Cp(F_j) * FormFact_v0(nuclear_framework, A, Z, F_i,F_j, p_name, p_name, Er, mchi, jchi) +
+		Cn(F_i) * Cn(F_j) * FormFact_v0(nuclear_framework, A, Z, F_i,F_j, n_name, n_name, Er, mchi, jchi) +
+		Cp(F_i) * Cn(F_j) * FormFact_v0(nuclear_framework, A, Z, F_i,F_j, p_name, n_name, Er, mchi, jchi) +
+		Cn(F_i) * Cp(F_j) * FormFact_v0(nuclear_framework, A, Z, F_i,F_j, n_name, p_name, Er, mchi, jchi))
+		* halo(vmin, 0) * conv_factor_v0;
+	
+	double v2term = (
+		Cp(F_i) * Cp(F_j) * FormFact_v2(nuclear_framework, A, Z, F_i,F_j, p_name, p_name, Er, mchi, jchi) +
+		Cn(F_i) * Cn(F_j) * FormFact_v2(nuclear_framework, A, Z, F_i,F_j, n_name, n_name, Er, mchi, jchi) +
+		Cp(F_i) * Cn(F_j) * FormFact_v2(nuclear_framework, A, Z, F_i,F_j, p_name, n_name, Er, mchi, jchi) +
+		Cn(F_i) * Cp(F_j) * FormFact_v2(nuclear_framework, A, Z, F_i,F_j, n_name, p_name, Er, mchi, jchi))
+		* halo(vmin, 2) * conv_factor_v2;
+
+
+	double coeff_times_v_avg_formfact = v0term + v2term;
+
+	double difrate = rhochi / (2. * M_PI * mchi * v_h4) * Cp(F_i) * Cp(F_j) * coeff_times_v_avg_formfact;
+	
+	return difrate;
 }
 
 double difrate_isotope_dEr_w(int A, int Z, double rhochi, void * input_difcros, int F_i, int F_j, gsl_interp_accel *ga0, gsl_spline * gs0, gsl_interp_accel *ga2, gsl_spline * gs2)

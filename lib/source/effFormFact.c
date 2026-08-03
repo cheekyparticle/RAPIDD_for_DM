@@ -837,7 +837,7 @@ of the nuclear responses as in arXiv:1308.6288v1, and we use the proton-neutron 
 double FF_ISO_GCN5082(int A, char* Symbol1, char * Symbol2, char*N1, char * N2, double Er){
 	/*The fit coefficients of the form factors and the form factors parametrizations are
 	taken from in arXiv:1605.08043 for SI and from the WimPy software arXiv:2106.06207 for non-SI.
-	We use the isospin basis ± = 1/2(p ± n). Note that the ISO_GCN5082 form factors are not squared,
+	We use the isospin basis ± = 1/2(p ± n). Note that the iso_GCN5082 form factors are not squared,
 	so they refer only to one nucleon and one type of interaction. The squared elementes and
 	the interference terms will be computed afterwards. The WimPy responses are instead squared.*/
 
@@ -1176,14 +1176,14 @@ double FF(char* NR_framework, int A, char* Symbol1, char * Symbol2, char*N1, cha
 	if (strcmp(NR_framework, "pn_BD") == 0) {
 		return FF_pn_BD(A, Symbol1, Symbol2, N1, N2, Er);
 	}
-	else if (strcmp(NR_framework, "ISO_GCN5082") == 0) {
+	else if (strcmp(NR_framework, "iso_GCN5082") == 0) {
 		return FF_ISO_GCN5082(A, Symbol1, Symbol2, N1, N2, Er);
 	}
 	else if (strcmp(NR_framework, "pn_SN100PN") == 0) {
 		return FF_pn_SN100PN(A, Symbol1, Symbol2, N1, N2, Er);
 	}
 	else {
-		printf("Error: NR_framework %s not recognized. Please use pn_BD, pn_SN100PN or ISO_GCN5082.\n", NR_framework);
+		printf("Error: NR_framework %s not recognized. Please use pn_BD, pn_SN100PN or iso_GCN5082.\n", NR_framework);
 		exit(1);
 	}
 }
