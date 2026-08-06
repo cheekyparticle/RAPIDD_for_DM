@@ -77,6 +77,7 @@ double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, in
 	double mTarget = approx_mass_nucleus(A, Z);
 	double muN = reduced_mass(mchi, mTarget);
 	double vmin = c*sqrt((mTarget*Er*1.e-6) / 2.) / muN;
+	double c_p, c_n;
 
 	char p_name[2] = "";
 	char n_name[2] = "";
@@ -85,26 +86,30 @@ double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, in
 	if (strncmp(nuclear_framework, "pn", 2) == 0) {
 		strcpy(p_name, "p");
 		strcpy(n_name, "n");
+		c_p = Cp(i_coeff);  // c_proton
+		c_n = Cn(i_coeff);  // c_neutron
 	} else if (strncmp(nuclear_framework, "iso", 3) == 0) {
 		strcpy(p_name, "+");
 		strcpy(n_name, "-");
+		c_p = (Cp(i_coeff)+Cn(i_coeff))/2.; // c_plus = (c_proton + c_neutron)/2
+		c_n = (Cp(i_coeff)-Cn(i_coeff))/2.; // c_minus = (c_proton - c_neutron)/2
 	} else {
 		fprintf(stderr, "nuclear_framework must start with 'pn' or 'iso' to be valid: %s\n", nuclear_framework);
 		exit(1);
 	}
 
 	double v0term = (
-		Cp(i_coeff) * Cp(j_coeff) * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, p_name, Er, mchi, jchi) +
-		Cn(i_coeff) * Cn(j_coeff) * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, n_name, Er, mchi, jchi) +
-		Cp(i_coeff) * Cn(j_coeff) * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, n_name, Er, mchi, jchi) +
-		Cn(i_coeff) * Cp(j_coeff) * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, p_name, Er, mchi, jchi))
+		c_p * c_p * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, p_name, Er, mchi, jchi) +
+		c_n * c_n * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, n_name, Er, mchi, jchi) +
+		c_p * c_n * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, n_name, Er, mchi, jchi) +
+		c_n * c_p * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, p_name, Er, mchi, jchi))
 		* halo(vmin, 0) * conv_factor_v0;
 	
 	double v2term = (
-		Cp(i_coeff) * Cp(j_coeff) * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, p_name, Er, mchi, jchi) +
-		Cn(i_coeff) * Cn(j_coeff) * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, n_name, Er, mchi, jchi) +
-		Cp(i_coeff) * Cn(j_coeff) * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, n_name, Er, mchi, jchi) +
-		Cn(i_coeff) * Cp(j_coeff) * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, p_name, Er, mchi, jchi))
+		c_p * c_p * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, p_name, Er, mchi, jchi) +
+		c_n * c_n * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, n_name, Er, mchi, jchi) +
+		c_p * c_n * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, n_name, Er, mchi, jchi) +
+		c_n * c_p * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, p_name, Er, mchi, jchi))
 		* halo(vmin, 2) * conv_factor_v2;
 
 	double coeff_times_v_avg_formfact = v0term + v2term;
