@@ -64,7 +64,7 @@ def gen_shm_table(path, card):
 
     vend = vesc + vE_GC
     vminspace = linspace(0.0, vend, 100)
-    eta_values = eta_shm(vminspace, vE_GC, v0, vesc)
+    eta_values = eta_shm(vminspace, v0, vesc, vE_GC)
 
 
     # Open the file for writing
