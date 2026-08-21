@@ -138,7 +138,7 @@ double counts_bin_python( char* halo_path, double rhochi, double mass, double ex
 }
 
 double counts_eff_bin_python( char* halo_path, double rhochi, double mass, double exposure, double E1, double E2, char*model, char*Target){
-	struct difcros_params struct_difcros_Xe = {Target, 1., mass, 0.5, 220, "All", 0.0};
+	struct difcros_params struct_difcros_Xe = {Target, 1., mass, 0.5, 220, "pn_BD", 0.0};
 	double counts = counts_eff_bin( rhochi, &struct_difcros_Xe, exposure, E1,  E2, model);
 	return counts ;
 }
@@ -164,7 +164,7 @@ double counts_bin_noread(double rhochi, void * input_difcros, double exposure, d
 
 double counts_bin_python_noread(double rhochi, double mass, double exposure, double E1, double E2, char*model, char*Target)
 {
-	struct difcros_params struct_difcros_Xe = {Target, 1., mass, 0.5, 220, "All", 0.0};
+	struct difcros_params struct_difcros_Xe = {Target, 1., mass, 0.5, 220, "pn_BD", 0.0};
 	double counts = counts_bin_noread(rhochi, &struct_difcros_Xe, exposure, E1,  E2, model);
 	return counts ;
 }

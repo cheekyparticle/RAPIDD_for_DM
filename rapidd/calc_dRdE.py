@@ -19,9 +19,9 @@ def DDrate_save(card, alphaq, dmmass, output_path, halo_path=base_dir+"/SHM.dat"
     
     energies = np.linspace(0.01, 40, 1000)
 
-    drde_Xe = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Xe", basis="All")
-    drde_Ar = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Ar", basis="All")
-    drde_Ge = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Ge", basis="All")
+    drde_Xe = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Xe", basis="pn_BD")
+    drde_Ar = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Ar", basis="pn_BD")
+    drde_Ge = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Ge", basis="pn_BD")
 
     np.savez(output_path+"/DDrates.npz", energies=energies, drde_Xe=drde_Xe, drde_Ar=drde_Ar, drde_Ge=drde_Ge)
 

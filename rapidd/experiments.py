@@ -57,7 +57,7 @@ _counts_effres_bin_LZ.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_dou
 _counts_effres_bin_LZ.restype = ctypes.c_double
 
 @np.vectorize
-def counts_bin_LZ(rhoDM, mDM, E1, E2, model="None", basis="ISO",
+def counts_bin_LZ(rhoDM, mDM, E1, E2, model="None", basis="iso_GCN5082",
  eff_file = 'NO'):
     
     if eff_file == 'NO':
@@ -87,7 +87,7 @@ _counts_bin_Xe1T.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, 
 
 _counts_bin_Xe1T.restype = ctypes.c_double
 
-def counts_bin_Xe1T(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
+def counts_bin_Xe1T(rhoDM, mDM, E1, E2, model="None", basis="iso_GCN5082"):
     return _counts_bin_Xe1T(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
 
@@ -97,7 +97,7 @@ _counts_bin_Xe1T_effres.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_d
 
 _counts_bin_Xe1T_effres.restype = ctypes.c_double
 
-def counts_effres_Xe1T(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
+def counts_effres_Xe1T(rhoDM, mDM, E1, E2, model="None", basis="iso_GCN5082"):
     return _counts_bin_Xe1T_effres(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
 
@@ -145,7 +145,7 @@ _counts_bin_DS50.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, 
 
 _counts_bin_DS50.restype = ctypes.c_double
 
-def counts_bin_DS50(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
+def counts_bin_DS50(rhoDM, mDM, E1, E2, model="None", basis="iso_GCN5082"):
 
     return _counts_bin_DS50(rhoDM, mDM, E1, E2, model.encode(), basis.encode())
 
@@ -166,7 +166,7 @@ def read_DS20k_eff(path = DS20k_eff_path):
     return 
 
 @np.vectorize
-def counts_bin_DS20k(rhoDM, mDM, E1, E2, model="None", basis="ISO"):
+def counts_bin_DS20k(rhoDM, mDM, E1, E2, model="None", basis="iso_GCN5082"):
     read_DS20k_eff()
     read_DS50_LEFF()
     return _counts_bin_DS20k( rhoDM, mDM, E1, E2, model.encode(), basis.encode())

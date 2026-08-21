@@ -119,6 +119,5 @@ _difrate_dER_python.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_doubl
 _difrate_dER_python.restype = ctypes.c_double
 
 @np.vectorize
-def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="ISO"):
+def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="iso_GCN5082"):
     return _difrate_dER_python(rhoDM, mDM, np.log10(ER), model.encode(), target.encode(), basis.encode())
-

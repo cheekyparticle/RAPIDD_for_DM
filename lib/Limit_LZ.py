@@ -76,7 +76,7 @@ def test_statistic(c,dm,bkgrd,obs) :
 @np.vectorize
 def counts_LZ_efficiency_res(rho, mass, E1, E2, eff_file = rapidd_lib + b'/efficiency_tables/LZ_NR_2022.csv'):
     rapidd.read_efficiency(eff_file) ### read efficiency table 
-    return rapidd.counts_effres_bin_LZ( rho, mass, E1, E2, b"None" , b"ISO" )
+    return rapidd.counts_effres_bin_LZ( rho, mass, E1, E2, b"None" , b"iso_GCN5082" )
 
 
 

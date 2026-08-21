@@ -70,10 +70,10 @@ int main() {
   double mass = 10.0;
   printf("%.5e", mass);
   
-  // struct difcros_params struct_difcros_Xe = {"Xe", 1., mass, 0.5, 220, "All", 0.0};
-  // struct difcros_params struct_difcros_Ge = {"Ge", 1., mass,0.5,220.,"All", 0.0};
-  // struct difcros_params struct_difcros_Ar = {"Ar", 1., mass, 0.5, 220, "All", 0.0};
-  // struct difcros_params struct_difcros_F = {"F", 1., mass, 0.5, 220, "All", 0.0};
+  // struct difcros_params struct_difcros_Xe = {"Xe", 1., mass, 0.5, 220, "pn_BD", 0.0};
+  // struct difcros_params struct_difcros_Ge = {"Ge", 1., mass,0.5,220.,"pn_BD", 0.0};
+  // struct difcros_params struct_difcros_Ar = {"Ar", 1., mass, 0.5, 220, "pn_BD", 0.0};
+  // struct difcros_params struct_difcros_F = {"F", 1., mass, 0.5, 220, "pn_BD", 0.0};
 
   // //{char * target; double Er; double mchi; double jchi; double v; char * Nucleon; double exposure;};
 
