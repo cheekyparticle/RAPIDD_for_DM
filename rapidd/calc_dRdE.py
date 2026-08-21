@@ -1,4 +1,4 @@
-from core import base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo, difrate_dER, vev
+from .core import base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo, difrate_dER, vev
 import numpy as np
 
 def DDrate_save(card, alphaq, dmmass, output_path, halo_path=base_dir+"/SHM.dat"):
