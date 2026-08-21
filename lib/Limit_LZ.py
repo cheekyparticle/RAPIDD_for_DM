@@ -116,10 +116,9 @@ def lzlimit(mchi, op=1, fnfp=1., coeff=1e-3, e_kevee=e_kevee22, data=data22, bkg
     
     ## set the coefficients for the correct operator
     cp = coeff; cn = fnfp*coeff
-    c0,c1=isofromneuc(cp,cn)
 
-    rapidd.set_any_Ncoeff(c0, op, b"p") # ci, i (operator number), p: proton and n:neutron  
-    rapidd.set_any_Ncoeff(c1, op, b"n") # ci, i (operator number), p: proton and n:neutron
+    rapidd.set_any_Ncoeff(cp, op, b"p") # ci, i (operator number), p: proton and n:neutron
+    rapidd.set_any_Ncoeff(cn, op, b"n") # ci, i (operator number), p: proton and n:neutron
 
     ## scale the bkgrds and data down so that there are 11 bkgrd events
     totaldata = data*spacing
