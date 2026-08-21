@@ -1,7 +1,20 @@
 import ctypes
+from ctypes.util import find_library
+from pathlib import Path
 
 import numpy as np
-rapidd = ctypes.CDLL('build/libRAPIDD.so')
+_build_dir = Path(__file__).resolve().parents[1] / "build"
+_library_candidates = ("libRAPIDD.so", "libRAPIDD.dylib", "RAPIDD.dll", "libRAPIDD.dll")
+for _candidate in _library_candidates:
+    _library_path = _build_dir / _candidate
+    if _library_path.exists():
+        rapidd = ctypes.CDLL(str(_library_path))
+        break
+else:
+    _library_name = find_library("RAPIDD")
+    if _library_name is None:
+        raise OSError(f"Could not find RAPIDD shared library in {_build_dir} or system library paths.")
+    rapidd = ctypes.CDLL(_library_name)
 
 from scipy import optimize
 from scipy.interpolate import interp1d
