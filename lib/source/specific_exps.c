@@ -334,7 +334,7 @@ double DS50_LEFF ( double E_r){
         return y[leff_length-1];
       }
     }
-  printf("ERROR: could not read leff_path, taking Leff = 0\n");
+  fprintf(stderr, "ERROR: could not read leff_path, taking Leff = 0\n");
   return 0.0;
 }
 
