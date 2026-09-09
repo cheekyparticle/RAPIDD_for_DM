@@ -54,7 +54,7 @@ char leff_path_true[26];
 struct binning_params      { double rhochi; double exposure; void * input_difcros; double E1; double E2; char* model;};
 
 
-
+// change the name!
 double bin_Xenon1T( double rhochi, double mass, double E1, double E2, char* model, char* basis){
   double exposure = 0.9*1e3 * 278.8 * 0.475;
 
@@ -141,7 +141,7 @@ double counts_effres_bin_Xenon1T( double rhochi, double mass, double E1, double 
     result = 0.0;
   }
   else{
-    double Eth = 1.0;
+    double Eth = 0.1;
     double Emax = 50.0;
     size_t nevals;
     gsl_integration_cquad_workspace * v = gsl_integration_cquad_workspace_alloc (100); 
@@ -172,7 +172,7 @@ double res_fn_lux_nr(int A, int Z, double ERnr){
 }
 
 double bin_LZ( double rhochi, double mass, double E1, double E2, char* model, char* basis){
-  double exposure = 5.6*1.0e3 * 1.0e3*0.5;
+  double exposure = 5.6*1.0e3 * 1.0e3;
 
   struct difcros_params struct_difcros_Xe = {"Xe", 1., mass, 0.5, 220, basis, exposure};
   
@@ -211,7 +211,7 @@ double difrate_effres_integrand_LZ(double x, void * p){
 double counts_effres_bin_LZ( double rhochi, double mass, double E1, double E2, char*model, char*basis){
 	double result, abserr;
 	struct difcros_params struct_difcros_Xe = {"Xe", 1., mass, 0.5, 220, basis, 0.0};
-	double exposure = 5.6*1.0e3 * 1.0e3*0.5;
+	double exposure = 5.6*1.0e3 * 1.0e3;
 	gsl_function F;
 	struct binning_params params = {rhochi, exposure, &struct_difcros_Xe, E1, E2, model};
 	
@@ -333,11 +333,9 @@ double DS50_LEFF ( double E_r){
       if (E_r > x[leff_length-1]) {  // eff(E_r) data out of the range
         return y[leff_length-1];
       }
-
     }
-  else{
-    return 0.0;
-  }
+  fprintf(stderr, "ERROR: could not read leff_path, taking Leff = 0\n");
+  return 0.0;
 }
 
 double lindhard_DS(int A, int Z, double ER){

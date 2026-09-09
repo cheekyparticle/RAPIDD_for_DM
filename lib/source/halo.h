@@ -23,7 +23,7 @@ void define_halo (char * profile, double vesc, double v0, double beta, double vt
 void define_and_write_halo(char * profile, double vesc, double v0, double beta, double vt, double vc, double ve, double k, int i);
 void define_and_write_halo_path(char* path, char * profile, double vesc, double v0, double beta, double vt, double vc, double ve, double k, int i);
 void read_halo(char* path);
-int access_check();
+int access_check(char* path);
 int access_check_time();
 //double time_ve(double ve, double ve0, double t0, double T, int t);
 void define_and_write_halo_time(char * profile, double vesc, double v0, double beta, double vt, double vc, double ve, double k, int i, double ve0, double t0, double T);
