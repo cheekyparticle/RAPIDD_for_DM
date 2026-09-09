@@ -127,7 +127,7 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 	struct difcros_params * val_difcros = (struct difcros_params *)input_difcros;
 	double rate = 0.0;
 	int i;
-	for ( i = 1; i < 16; i++) // FIXME what about Cp(0) et al?
+	for ( i = 1; i < 16; i++)
         {
           if (Cp(i) != 0. || Cn(i) != 0.){
 			rate += difrate_isotope_dEr(A, Z, rhochi, val_difcros, i, i);
