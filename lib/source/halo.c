@@ -195,6 +195,31 @@ int f_shm_ann(unsigned ndim, const double *k, void *p, unsigned fdim, double *fv
 
 }
 
+int f_shm_hard_cutoff(unsigned ndim, const double *k, void *p, unsigned fdim, double *fval){
+
+    struct shm_params * params
+     = (struct shm_params *)p;
+    double vesc_param = (params->vesc_param);
+    double v0_param = (params->v0_param);
+    double ve_param = (params->ve_param);
+    int i_param = (params->i_param);
+    double v = k[1];
+    double cos_theta = k[0];
+    double cos_theta_min = (v*v + ve_param*ve_param - vesc_param*vesc_param)
+                            / (2.*v*ve_param);
+
+    if (cos_theta < cos_theta_min){
+        fval[0] = 0.;
+        return 0;
+    }
+
+    fval[0] = 2.*M_PI*v * pow(v, i_param*1.0) *
+              exp(-(v*v + ve_param*ve_param - 2.*v*ve_param*cos_theta)
+                  / (v0_param*v0_param));
+
+    return 0;
+}
+
 
 /* The following is the 2D integration in angle and velocity */
 
@@ -207,15 +232,59 @@ double shm_halo (double vmin, double vesc, double v0, double ve, double beta, in
     double xl[2]={-1, vmin};
 	double xu[2] = {1, vesc + ve};
 
-if(vmin>vesc+ve) return 0.;
+	if(vmin>vesc+ve) return 0.;
+	else {
+		hcubature(1, &f_shm, &params,
+			2, xl, xu,
+			0, 0, 1e-13, ERROR_INDIVIDUAL, &val, &err);
+		return val;
+	}
+}
 
+struct shm_radial_params { double vesc; double v0; double ve; int i; };
 
-else {
-    hcubature(1, &f_shm, &params,
-	      2, xl, xu,
-	      0, 0, 1e-13, ERROR_INDIVIDUAL, &val, &err);
+double f_shm_radial(double v, void *p){
+    struct shm_radial_params * params = (struct shm_radial_params *)p;
+    double vesc = params->vesc;
+    double v0   = params->v0;
+    double ve   = params->ve;
+    int i       = params->i;
 
-return val;}
+    /* avoid division by zero near v=0; true integrand -> 0 there anyway */
+    if (v < 1e-6) return 0.0;
+
+    double u_min_raw = (v*v + ve*ve - vesc*vesc)/(2.*v*ve);
+    double u_min = (u_min_raw > -1.) ? u_min_raw : -1.;
+
+    double exp_lower = exp(-(v-ve)*(v-ve)/(v0*v0));
+    double exp_upper_arg = v*v + ve*ve - 2.*v*ve*u_min;
+    double exp_upper = exp(-exp_upper_arg/(v0*v0));
+
+    return 2.*M_PI*pow(v, i+1.0) * (v0*v0/(2.*v*ve)) * (exp_lower - exp_upper);
+}
+
+double shm_halo_hard_cutoff(double vmin, double vesc, double v0, double ve, double beta, int i){
+	/* Optimized hard-cutoff SHM halo integral: the angular integration is done
+   analytically (see derivation above), reducing the 2D adaptive cubature
+   with a discontinuous integrand to a smooth 1D radial integral.
+   'beta' is kept in the signature only for drop-in compatibility with
+   shm_halo's call sites in fv_v; it is ignored (a hard cutoff has no
+   smoothing parameter). */
+
+    if (vmin > vesc+ve) return 0.;
+
+    double result, error;
+    gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
+
+    gsl_function F;
+    struct shm_radial_params params = {vesc, v0, ve, i};
+    F.function = &f_shm_radial;
+    F.params = &params;
+
+    gsl_integration_qags(&F, vmin, vesc+ve, 1e-10, 1e-10, 1000, w, &result, &error);
+    gsl_integration_workspace_free(w);
+
+    return result;
 }
 
 /*########################################################################################
@@ -241,7 +310,7 @@ double Nk_intd(double v,void * p) {
     double v0_Nk = (params->v0_Nk);
     double k_Nk = (params->k_Nk);
     double x=pow(v/v0_Nk,1);
-    double xesc=pow(vesc_Nk/v0_Nk,1);
+    //double xesc=pow(vesc_Nk/v0_Nk,1);
     if(k_Nk>=0.1) return 4*M_PI*v*v*pow(exp(-(v*v)/(k_Nk*v0_Nk*v0_Nk))-exp(-(vesc_Nk*vesc_Nk)/(v0_Nk*v0_Nk*k_Nk)),k_Nk);
     else return  v*v*exp(-x);
 }
@@ -326,12 +395,12 @@ void normalization(char * profile, double vesc, double v0, double beta, double v
 if (strncmp (profile,"SHM",10) == 0){
 Normalization_shm = norm_shm_num(vesc, v0, beta);
 }
-if (strncmp (profile,"Lisanti",10) == 0){
+else if (strncmp (profile,"Lisanti",10) == 0){
 Normalization_lisanti = Nk_uncert(vesc, v0, k);
 }
 else {
 Normalization_fornasa = 0.0;
-printf("Need to have a table we have\n");
+printf("No valid profile specified, setting normalization to 0.0\n");
 }
 }
 
@@ -362,7 +431,7 @@ for(m=0 ; m<i+1 ; m++){
 	if (strncmp (profile,"SHM",10) == 0){
    	int j;
     for (j=0 ; j<length ; j++){
-      fv[m][j] = shm_halo (vel[j], vesc, v0, ve, beta,m)/Normalization_shm;
+      fv[m][j] = shm_halo_hard_cutoff (vel[j], vesc, v0, ve, beta,m)/Normalization_shm;
    }}
 }
 
@@ -389,34 +458,26 @@ else { printf("The profile does NOT exist! please use: Lisanti or SHM\n");}
                Interpolation
 ##################################################*/
 
-double halo (double vmin, int i){
+double halo(double vmin, int i){
    int m;
    double x[length], y[length];
    double result;
 
-
-   for (m = 0; m < length; m++)
-   {
+   for (m = 0; m < length; m++){
       x[m] = vel[m];
       y[m] = fv[i][m];
-
    }
-
 
    if (vmin >= x[0] && vmin <= x[length-1]){
        /*printf("%f\n", x[length-1]);*/
-       gsl_interp_accel *fofv = gsl_interp_accel_alloc ();
-       gsl_spline *spline = gsl_spline_alloc (gsl_interp_cspline, length);
-
-       gsl_spline_init (spline, x, y, length);
-
-       result = gsl_spline_eval (spline,vmin, fofv);
-
-       gsl_spline_free (spline);
-       gsl_interp_accel_free (fofv);
+       gsl_interp_accel *fofv = gsl_interp_accel_alloc();
+       gsl_spline *spline = gsl_spline_alloc(gsl_interp_cspline, length);
+       gsl_spline_init(spline, x, y, length);
+       result = gsl_spline_eval(spline,vmin, fofv);
+       gsl_spline_free(spline);
+       gsl_interp_accel_free(fofv);
 
        return result;
-
    }
    else {  // f(v) data out of the range
       return 0.;
@@ -436,7 +497,7 @@ double halo_w (double vmin, gsl_interp_accel *ga, gsl_spline * gs ){
 double halo_f (char * profile, double vmin, double vesc, double v0, double beta, double vt, double vc, double ve, double k, int i){
 if (strncmp (profile,"SHM",10) == 0){
 double N = norm_shm_num(vesc, v0, beta);
-return shm_halo (vmin, vesc, v0, ve, beta,i)/N;
+return shm_halo_hard_cutoff (vmin, vesc, v0, ve, beta,i)/N;
 }
 if (strncmp (profile,"Lisanti",10) == 0){
 double N = Nk_uncert(vesc, v0, k);
@@ -462,7 +523,7 @@ int write_fv_v(char * profile, double vesc, double v0, double beta, double vt, d
 
 	if (i == 0){
 
-		table = fopen("halo_table.dat", "w+");
+		table = fopen("halo_table/halo_table.dat", "w+");
 		fprintf(table, "%d %d \r\n", length, i);
 		int j;
 		for (j = 0; j < length; j++){
@@ -474,7 +535,7 @@ int write_fv_v(char * profile, double vesc, double v0, double beta, double vt, d
 	}
 	if (i == 1){
 
-		table = fopen("halo_table.dat", "w+");
+		table = fopen("halo_table/halo_table.dat", "w+");
 		fprintf(table, "%d %d \r\n", length, i);
 		int j;
 		for (j = 0; j < length; j++){
@@ -486,7 +547,7 @@ int write_fv_v(char * profile, double vesc, double v0, double beta, double vt, d
 	}
 	if (i == 2){
 
-		table = fopen("halo_table.dat", "w+");
+		table = fopen("halo_table/halo_table.dat", "w+");
 		fprintf(table, "%d %d \r\n", length, i);
 		int j;
 		for (j = 0; j < length; j++){
@@ -640,26 +701,65 @@ int access_check_time(){
 
 }
 
-double time_ve(double ve, double ve0, double t0, double T, int t){
+double lab_frame_speed(double v0_lsr, const double v_pec[3], double v_earth_avg, double t0, int t){
+	/* Eq. 10-11 of arXiv:2105.00599. Computes |v_lab| = |v0_lsr_vec + v_pec + v_earth(t)|.
+   v0_lsr: local standard of rest speed, phi component only, km/s (Table 1: 238)
+   v_pec[3]: solar peculiar velocity vector (vr, vphi, vtheta), km/s (Table 1: 11.1,12.2,7.3)
+   v_earth_avg: <|v_earth|>, km/s (Table 1: 29.8)
+   t0: reference day offset from March 22 2018 (i.e. the day corresponding to t=0 in the loop)
+   t: day index */
+    double delta_t = t - t0;
+    double v_earth[3];
+    earth_velocity_vector(delta_t, v_earth_avg, v_earth);
 
-	return ve + ve0*cos(2*M_PI*(t-t0)/T);
+    double vx = 0.0     + v_pec[0] + v_earth[0];
+    double vy = v0_lsr  + v_pec[1] + v_earth[1];
+    double vz = 0.0     + v_pec[2] + v_earth[2];
 
-
+    return sqrt(vx*vx + vy*vy + vz*vz);
 }
-void define_and_write_halo_time(char * profile, double vesc, double v0, double beta, double vt, double vc, double ve, double k, int i, double ve0, double t0, double T){
-  double vsun = sqrt(vc*vc + vc*12.24 + 11.10*11.10 + 12.24*12.24 + 7.25*7.25);
+
+double lab_frame_speed_annual_avg(double v0_lsr, const double v_pec[3]){
+	/* Eq. 12: annual-average lab speed, recommended for analyses not targeting
+   annual modulation. Uses the fixed Earth-velocity vector evaluated at March 9. */
+    double v_earth_mar9[3] = {29.2, -0.1, 5.9}; // Eq. 12
+
+    double vx = 0.0     + v_pec[0] + v_earth_mar9[0];
+    double vy = v0_lsr  + v_pec[1] + v_earth_mar9[1];
+    double vz = 0.0     + v_pec[2] + v_earth_mar9[2];
+
+    return sqrt(vx*vx + vy*vy + vz*vz);
+}
+
+void earth_velocity_vector(double delta_t, double v_earth_avg, double v_out[3]){
+	/* Eq. 11 of arXiv:2105.00599 - vector Earth velocity relative to the Sun in the
+   galactic frame, components (vr, vphi, vtheta): r points radially inward,
+   phi points in the direction of the Milky Way's rotation.
+   delta_t = days since March 22, 2018 (arbitrary reference date).
+   v_earth_avg = <|v_earth|> = 29.8 km/s (Table 1) */
+    double omega = 0.0172; // rad/day
+    v_out[0] = v_earth_avg*(0.9941*cos(omega*delta_t) - 0.0504*sin(omega*delta_t));
+    v_out[1] = v_earth_avg*(0.1088*cos(omega*delta_t) + 0.4946*sin(omega*delta_t));
+    v_out[2] = v_earth_avg*(0.0042*cos(omega*delta_t) - 0.8677*sin(omega*delta_t));
+}
+
+void define_and_write_halo_time(char * profile, double vesc, double v0, double beta,
+                                 double v0_lsr, const double v_pec[3],
+                                 double k, int i, double t0, double T){
+
 	if (i>power - 1){ printf("Please select a power in velocity up to %d or change the definition of power in source/halo.c\n", power - 1); }
 	else{
 		if (strncmp(profile, "NFW", 10) == 0 || strncmp(profile, "Einasto", 10) == 0 ||
 			strncmp(profile, "Burkert", 10) == 0 || strncmp(profile, "SHM", 10) == 0
 			|| strncmp(profile, "Lisanti", 10) == 0){
 
+			double vsun = sqrt(v_pec[0]*v_pec[0] + pow(v0_lsr+v_pec[1],2.) + v_pec[2]*v_pec[2]);
+
 			printf("Calculating halo integrals for %s up to order %d in v...\n", profile, i);
-			normalization(profile, vesc, v0, beta, vt, vsun, k);
+			normalization(profile, vesc, v0, beta, 0.0, vsun, k);
 
 			clock_t start, end;
 			double cpu_time_used;
-
 			start = clock();
 
 			int t;
@@ -667,7 +767,8 @@ void define_and_write_halo_time(char * profile, double vesc, double v0, double b
 				char path[32];
 				snprintf(path, sizeof(char) * 32, "halo_table/halo_table_%i.dat", t);
 				printf("Calculating for t=%i...\n", t);
-				write_fv_v_varpath(path, profile, vesc, v0, beta, vt, vsun, time_ve(ve, ve0, t0, T, t), k, i);
+				double ve_t = lab_frame_speed(v0_lsr, v_pec, 29.8, t0, t); // v_earth_avg = 29.8 km/s, Table 1
+				write_fv_v_varpath(path, profile, vesc, v0, beta, 0.0, vsun, ve_t, k, i);
 			}
 
 			printf("Done!\n");

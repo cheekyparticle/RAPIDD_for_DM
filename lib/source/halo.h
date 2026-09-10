@@ -4,6 +4,19 @@
 #pragma once
 #include <gsl/gsl_spline.h>
 
+struct halo_params {
+    char * profile;
+    double vesc;
+    double v0;        // SHM velocity dispersion, km/s
+    double beta;
+    double v0_lsr;     // Local standard of rest speed (phi component), km/s
+    double v_pec[3];   // Solar peculiar velocity (vr, vphi, vtheta), km/s
+    double k;
+    int i;
+    double t0;         // reference day offset (days since March 22)
+    double T;          // modulation period, days
+    char * halo_path;
+};
 int f_shm(unsigned ndim, const double *k, void *p, unsigned fdim, double *fval);
 double shm_halo (double vmin, double vesc, double v0, double ve, double beta, int i);
 double shm_halo_analitic(double velmin, double ve, double vesc, double v0, double beta);
@@ -26,5 +39,9 @@ void read_halo(char* path);
 int access_check(char* path);
 int access_check_time();
 //double time_ve(double ve, double ve0, double t0, double T, int t);
-void define_and_write_halo_time(char * profile, double vesc, double v0, double beta, double vt, double vc, double ve, double k, int i, double ve0, double t0, double T);
-double time_ve(double ve, double ve0, double t0, double T, int t);
+void define_and_write_halo_time(char * profile, double vesc, double v0, double beta,
+                                 double v0_lsr, const double v_pec[3],
+                                 double k, int i, double t0, double T);
+double lab_frame_speed(double v0_lsr, const double v_pec[3], double v_earth_avg, double t0, int t);
+double lab_frame_speed_annual_avg(double v0_lsr, const double v_pec[3]);
+void earth_velocity_vector(double delta_t, double v_earth_avg, double v_out[3]);

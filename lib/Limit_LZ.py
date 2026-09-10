@@ -43,7 +43,7 @@ rapidd.counts_effres_bin_LZ.restype = ctypes.c_double
 rapidd_lib = b"../lib/"
 rapidd_lib_str = "../lib/"
 
-rapidd.read_halo(rapidd_lib + b"/halo_table.dat") ### read the halo function 
+rapidd.read_halo(rapidd_lib + b"/halo_table/halo_table.dat") ### read the halo function 
 pi = 3.1415
 print("here")
 
@@ -130,8 +130,10 @@ def lzlimit(mchi, op=1, fnfp=1., coeff=1e-3, e_kevee=e_kevee22, data=data22, bkg
     ## set the coefficients for the correct operator
     cp = coeff; cn = fnfp*coeff
 
-    rapidd.set_any_Ncoeff(cp, op, b"p") # ci, i (operator number), p: proton and n:neutron
-    rapidd.set_any_Ncoeff(cn, op, b"n") # ci, i (operator number), p: proton and n:neutron
+    rapidd.set_any_Ncoeff(cp, op, b"p") # ci, i (operator number), p: proton and n:neutron
+
+    rapidd.set_any_Ncoeff(cn, op, b"n") # ci, i (operator number), p: proton and n:neutron
+
 
     ## scale the bkgrds and data down so that there are 11 bkgrd events
     totaldata = data*spacing

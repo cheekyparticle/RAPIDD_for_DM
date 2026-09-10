@@ -55,7 +55,7 @@ _read_halo.argtypes = [ctypes.c_char_p]
 
 _read_halo.restype = ctypes.c_void_p 
 
-halo_path = os.path.join(base_dir, '../lib/halo_table.dat')
+halo_path = os.path.join(base_dir, '../lib/halo_table/halo_table.dat')
 
 
 def read_halo(path = halo_path):

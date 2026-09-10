@@ -2,7 +2,6 @@
 #include <gsl/gsl_spline.h>
 
 struct difcros_params { char * target; double Er; double mchi; double jchi; double v; char * Nucleon; double exposure; };
-struct halo_params { char * profile; double vesc; double v0; double beta; double vt; double vc; double ve; double k; int i; double ve0; double t0; double T; char * halo_path; };
 
 double difrate_SI_standard(double rho, int A, int Z, double fp, double fn, double mchi, double Er);
 double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros);
