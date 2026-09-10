@@ -10,12 +10,12 @@ ifneq (,$(findstring andrewcheek, $(USR)))
 
 else 
 	LPATH=/usr/local/lib
-	CFLAGS= -Wall -I$(GSLPATH) -std=gnu99 -m64 -O4 -fpic
+	CFLAGS= -Wall -I$(GSLPATH) -std=gnu99 -m64 -O3 -fpic
 
 endif
 #LPATH=/usr/local/lib
 LDFLAGS=-L$(LPATH) -lgsl -lgslcblas -DHCUBATURE -lm 
-SOURCES=main.c hcubature.c source/halo.c source/effFormFact.c source/difCrosSec.c source/difRateGen.c source/WriteData.c source/coeffs_eft.c source/phys_consts.c source/binning_general.c
+SOURCES=main.c hcubature.c source/halo.c source/effFormFact.c source/difCrosSec.c source/difRateGen.c source/WriteData.c source/coeffs_eft.c source/phys_consts.c source/binning_general.c source/efficiency_curve.c
 
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=main

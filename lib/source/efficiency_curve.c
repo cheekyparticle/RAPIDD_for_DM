@@ -50,9 +50,7 @@ if (!er) {
 
 void read_efficiency(char* path){
   FILE * table;
-  int i;
   int j;
-  int check_length;
   length = countlines(path);
   //printf("%s\n", path );
   if (access(path, F_OK) == -1){
@@ -66,7 +64,6 @@ void read_efficiency(char* path){
     table = fopen(path, "r");
 
     //printf("Getting table format...\n");
-    //printf("Done! %i\n", length);
 
     //printf("Reading data table...\n");
       for (j = 0; j < length; j++){
@@ -75,7 +72,6 @@ void read_efficiency(char* path){
       }
 
       fclose(table);
-      //printf("printing here %i\n",length );
 
   //printf("Done!\n");
 }
