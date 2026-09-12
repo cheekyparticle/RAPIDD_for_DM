@@ -59,14 +59,22 @@ Below are the functions for the EFT.
 
 double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, int i_coeff, int j_coeff){
 	/*Calculate the differential rate dR/dE_R in events/(keV*kg*day) given the NREFT coefficients
-	specified by the indexes i_coeff and j_coeff.*/
-
+	specified by the indexes i_coeff and j_coeff.
+	Parameters:
+	- A: mass number
+	- Z: atomic number
+	- rhochi: dark matter density in GeV/cm^3
+	- input_difcros: pointer to the differential cross section parameters
+	- i_coeff: index of the first NREFT coefficient
+	- j_coeff: index of the second NREFT coefficient
+	*/
     struct difcros_params * val_difcros = (struct difcros_params *)input_difcros;
 	double Er = (val_difcros->Er);
  	double mchi = (val_difcros->mchi);
   	double jchi = (val_difcros->jchi);
 	double v_h4 = higgs_vev*higgs_vev*higgs_vev*higgs_vev;
 	char * nuclear_framework = (val_difcros->Nucleon);
+	double delta = (val_difcros->delta);
 	/*
 	From natural units to events/(keV*kg*day):
 	GeV/cm^3 1/(GeV^5) (km/s)^-1 = 1.698603e+14 (kg day keV)^-1
@@ -76,7 +84,9 @@ double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, in
 	double conv_factor_v2 = 1.889947e+3;
 	double mTarget = approx_mass_nucleus(A, Z);
 	double muN = reduced_mass(mchi, mTarget);
-	double vmin = c*sqrt((mTarget*Er*1.e-6) / 2.) / muN;
+	double Er_GeV = Er * 1.e-6;
+	double delta_GeV = delta * 1.e-6;
+	double vmin = c * fabs((mTarget * Er_GeV / muN) + delta_GeV) / sqrt(2. * mTarget * Er_GeV);
 	double c_p_i, c_n_i, c_p_j, c_n_j;
 
 	char p_name[2] = "";
@@ -138,25 +148,25 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 	// as they already include both contributions in their definition.
 	// For the ones that comes from the same nuclear responses, we need to explicitly add moth ij and ji terms.
 	// see eq. 38 and 89 of https://arxiv.org/abs/1308.6288
-	if ((Cp(1) != 0. || Cn(1) != 0.) & (Cp(3) != 0. || Cn(3) != 0.)){
+	if ((Cp(1) != 0. || Cn(1) != 0.) && (Cp(3) != 0. || Cn(3) != 0.)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 1, 3);
 	}
-	if ((Cp(4) != 0. || Cn(4) != 0.) & (Cp(5) != 0. || Cn(5) != 0.)){
+	if ((Cp(4) != 0. || Cn(4) != 0.) && (Cp(5) != 0. || Cn(5) != 0.)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 5);
 	}
-	if ((Cp(4) != 0. || Cn(4) != 0.) & (Cp(6) != 0. || Cn(6) != 0.)){
+	if ((Cp(4) != 0. || Cn(4) != 0.) && (Cp(6) != 0. || Cn(6) != 0.)){
 		rate += (difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 6) + difrate_isotope_dEr(A, Z, rhochi, input_difcros, 6, 4));
 	}
-	if ((Cp(8) != 0. || Cn(8) != 0.) & (Cp(9) != 0. || Cn(9) != 0.)){
+	if ((Cp(8) != 0. || Cn(8) != 0.) && (Cp(9) != 0. || Cn(9) != 0.)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 8, 9);
 	}
-	if ((Cp(11) != 0. || Cn(11) != 0.) & (Cp(12) != 0. || Cn(12) != 0.)){
+	if ((Cp(11) != 0. || Cn(11) != 0.) && (Cp(12) != 0. || Cn(12) != 0.)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 11, 12);
 	}
-	if ((Cp(11) != 0. || Cn(11) != 0.) & (Cp(15) != 0. || Cn(15) != 0.)){
+	if ((Cp(11) != 0. || Cn(11) != 0.) && (Cp(15) != 0. || Cn(15) != 0.)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 11, 15);
 	}
-	if ((Cp(12) != 0. || Cn(12) != 0.) & (Cp(15) != 0. || Cn(15) != 0.)){
+	if ((Cp(12) != 0. || Cn(12) != 0.) && (Cp(15) != 0. || Cn(15) != 0.)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 12, 15);
 	}
 
@@ -170,7 +180,6 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 	double znumarr[10];
 	int atomic_numbers[10]; 
 	int num_isos, znum;
-	char result[256];
 	if (strncmp(target, "Xe", 10) == 0){
 		num_isos = 7;
 		znum = 74;
@@ -266,8 +275,8 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 	return counts;
 }
 
-double difrate_dER_python(double rhochi, double mass, double logenergy, char* model, char* Target, char*ISO_switch){
-  struct difcros_params struct_difcros_T= {Target, 1., mass, 0.5, 220, ISO_switch, 0.0};
+double difrate_dER_python(double rhochi, double mass, double logenergy, char* model, char* Target, char*ISO_switch, double delta){
+  struct difcros_params struct_difcros_T= {Target, 1., mass, 0.5, 220, ISO_switch, 0.0, delta};
   
   double rate = difrate_dER(rhochi, &struct_difcros_T, logenergy, model);
   return rate;
@@ -288,7 +297,6 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 	double znumarr[10];
 	int atomic_numbers[10]; 
 	int num_isos, znum;
-	char result[256];
 	if (strncmp(target, "Xe", 10) == 0){
 		num_isos = 7;
 		znum = 74;

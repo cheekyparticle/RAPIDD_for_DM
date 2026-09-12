@@ -70,8 +70,8 @@ int main() {
   // Calculate halo files or retrieve data from table (halo_table.dat)
   // #######################################################################
 
-  char *halo_file_path = "/Users/gianmarcolucchetti/PhD/WIMPnucleon/RAPIDD_for_DM/lib/halo_table/";
-  struct halo_params struct_halo = {"SHM", 544, 238., 0., 238., {11.1,12.2,7.3}, 0., 2, 151., 365., halo_file_path};
+  //char *halo_file_path = "/Users/gianmarcolucchetti/PhD/WIMPnucleon/RAPIDD_for_DM/lib/halo_table/";
+  //struct halo_params struct_halo = {"SHM", 544, 238., 0., 238., {11.1,12.2,7.3}, 0., 2, 151., 365., halo_file_path};
 
   /* Static (non-modulated) call */
   //double ve = lab_frame_speed_annual_avg(struct_halo.v0_lsr, struct_halo.v_pec);

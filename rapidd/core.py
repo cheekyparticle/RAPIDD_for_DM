@@ -115,9 +115,9 @@ def isofromneuc(cp, cn):
 
 ####### differential rate #########
 _difrate_dER_python = _crapidd.difrate_dER_python
-_difrate_dER_python.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+_difrate_dER_python.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_double]
 _difrate_dER_python.restype = ctypes.c_double
 
 @np.vectorize
-def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="iso_GCN5082"):
-    return _difrate_dER_python(rhoDM, mDM, np.log10(ER), model.encode(), target.encode(), basis.encode())
+def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="iso_GCN5082", delta=0.0):
+    return _difrate_dER_python(rhoDM, mDM, np.log10(ER), model.encode(), target.encode(), basis.encode(), delta)
