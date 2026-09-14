@@ -6,10 +6,19 @@ This branch (`maddm`) integrates RAPIDD with [MadDM](https://github.com/maddmhep
 
 ## Authors
 
+### Current maintainers and authors of the code
+- A. Cheek — andrew.cheek1992@gmail.com
+- Gian Marco Lucchetti -- gianmarco.lucchetti@unibo.it
+
+
+
+### Past contributors
+- Ellen Sandford E.M.Sandford@liverpool.ac.uk
 - D. G. Cerdeño — davidg.cerdeno@gmail.com
-- A. Cheek — andrew.cheek@durham.ac.uk
-- E. Reid — elliott.m.reid@durham.ac.uk
-- H. Schulz — iamholger@googlemail.com
+- E. Reid
+- H. Schulz 
+- M. Peiro
+- E. Gerstmayr
 
 ## Requirements
 
