@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rapidd"
+version = "0.1.0"
+description = "RAPIDD: a tool for computing dark matter direct detection rates and limits"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Unspecified" }
+authors = [
+    { name = "D. G. Cerdeno", email = "davidg.cerdeno@gmail.com" },
+    { name = "A. Cheek", email = "andrew.cheek@durham.ac.uk" },
+    { name = "E. Reid", email = "elliott.m.reid@durham.ac.uk" },
+    { name = "H. Schulz", email = "iamholger@googlemail.com" },
+]
+keywords = ["dark matter", "direct detection", "physics", "astroparticle physics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+
+dependencies = [
+    "numpy",
+    "scipy",
+    "cmake>=3.10",
+]
+
+[project.optional-dependencies]
+test = ["matplotlib"]
+
+[project.urls]
+Repository = "https://github.com/cheekyparticle/RAPIDD_for_DM"
+
+[tool.setuptools.packages.find]
+include = ["rapidd", "rapidd.*"]
+
+# Note: RAPIDD also requires a compiled C library (lib/build/libRAPIDD.*),
+# built separately via CMake before this package can be imported.
+# See instructions_cmake.sh / README.md:
+#   1. sh instructions_cmake.sh   (requires: cmake, GSL, pkg-config)
+#   2. pip install -e .
