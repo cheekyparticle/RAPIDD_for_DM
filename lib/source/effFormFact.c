@@ -118,16 +118,16 @@ Form factor function for all isotopes.
 ########################################################################################*/
 
 double FF_pn_BD(int A, char* Symbol1, char * Symbol2, char*N1, char * N2, double Er){
-/*Fit coefficients of the form factors taken from the DMFormFactor tool arXiv:1308.6288v1.
-Using the polynomial parametrization of the nuclear responses as in arXiv:1308.6288v1.
-Using the proton-neutron basis.*/
-struct {
-    int A;
-    int Z;
-    const char *symbol1, *symbol2, *n1, *n2;
-    double prefact;
-    double a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10;
-} data[] = {
+	/*Fit coefficients of the form factors taken from the DMFormFactor tool arXiv:1308.6288v1.
+	Using the polynomial parametrization of the nuclear responses as in arXiv:1308.6288v1.
+	Using the proton-neutron basis.*/
+	struct {
+		int A;
+		int Z;
+		const char *symbol1, *symbol2, *n1, *n2;
+		double prefact;
+		double a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10;
+	} data[] = {
 
 	/*########################################################################################
 	16 Oxygen
