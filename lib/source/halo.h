@@ -29,15 +29,16 @@ double lisanti_halo(double vmin, double vesc, double v0, double ve, double k, in
 double Nk_uncert(double vesc, double v0, double k);
 double halo(double vmin, int i);
 double halo_w(double vmin, gsl_interp_accel *ga, gsl_spline * gs);
-double halo_f(char * profile, double vmin, double vesc, double v0, double beta, double ve, double k, int i);
+double halo_f(char * profile, double vmin, double vesc, double v0, double beta, double ve, double k, int i, double w, double vb, double cosb, double sigb, double vcut);
 
-void define_and_write_halo(char* path, char * profile, double vesc, double v0, double beta, double ve, double k, int i);
-void define_and_write_halo_path(char* path, char * profile, double vesc, double v0, double beta, double ve, double k, int i);
+void define_and_write_halo(char* path, char * profile, double vesc, double v0, double beta, double ve, double k, int i, double w, double vb, double cosb, double sigb, double vcut);
+void define_and_write_halo_path(char* path, char * profile, double vesc, double v0, double beta, double ve, double k, int i, double w, double vb, double cosb, double sigb, double vcut);
 void read_halo(char* path);
 //double time_ve(double ve, double ve0, double t0, double T, int t);
 void define_and_write_halo_time(char * profile, double vesc, double v0, double beta,
                                  double v0_lsr, const double v_pec[3],
-                                 double k, int i, double t0, double T);
+                                 double k, int i, double t0, double T,
+                                 double w, double vb, double cosb, double sigb, double vcut);
 double lab_frame_speed(double v0_lsr, const double v_pec[3], double v_earth_avg, double t0, int t);
 double lab_frame_speed_annual_avg(double v0_lsr, const double v_pec[3]);
 void earth_velocity_vector(double delta_t, double v_earth_avg, double v_out[3]);

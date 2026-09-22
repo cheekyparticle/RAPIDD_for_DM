@@ -44,7 +44,7 @@ and E. Gerstmayr.
 #include "../cubature.h"
 
 #define VERBOSE 0
-#define length 100 // Number of divisions between 0 and (vesc+ve) to perform the interpolation.
+#define length 500 // Number of divisions between 0 and (vesc+ve) to perform the interpolation.
 #define power 10   // Maximum predefined power of the velocity in the halo integral
 
 #if defined(PCUBATURE)
@@ -149,28 +149,6 @@ struct shm_params {
 	int i_param;
 };
 
-int f_shm(unsigned ndim, const double *k, void *p, unsigned fdim, double *fval){
-	/*Cubature integrand for the SHM halo integral (smooth-cutoff, angle-velocity space).
-	Inputs: ndim, k (integration variables: k[0]=cos(theta), k[1]=v), p (shm_params), fdim.
-	Output: fval[0] set to the integrand value; return 0 on success.*/
-	struct shm_params *params = (struct shm_params *)p;
-	double vesc_param = (params->vesc_param);
-	double v0_param   = (params->v0_param);
-	double ve_param   = (params->ve_param);
-	double beta_param = (params->beta_param);
-	int i_param       = (params->i_param);
-
-	fval[0] = 2. * M_PI * k[1] * pow(k[1], i_param * 1.0) *
-	          (exp(-(k[1] * k[1] + ve_param * ve_param - 2. * k[1] * ve_param * k[0]) / (v0_param * v0_param))
-	           - beta_param * exp(-vesc_param * vesc_param / (v0_param * v0_param)));
-
-	/* Edited by Andrew originally 2.*M_PI*k[1] * pow(k[1], i_param*1.0)
-	(exp(-(k[1] * k[1] + ve_param*ve_param + 2.*k[1] * ve_param*k[0]) / (v0_param*v0_param))
-	 - beta_param*exp(-vesc_param*vesc_param/(v0_param*v0_param))) */
-
-	return 0;
-}
-
 int f_shm_ann(unsigned ndim, const double *k, void *p, unsigned fdim, double *fval){
 	/*Cubature integrand for the SHM halo integral, alternate ("annual") smooth-cutoff
 	form used in arXiv:1112.0524v2 (added 12/02/2016).
@@ -190,7 +168,7 @@ int f_shm_ann(unsigned ndim, const double *k, void *p, unsigned fdim, double *fv
 	return 0;
 }
 
-int f_shm_hard_cutoff(unsigned ndim, const double *k, void *p, unsigned fdim, double *fval){
+int f_shm(unsigned ndim, const double *k, void *p, unsigned fdim, double *fval){
 	/*Cubature integrand for the SHM halo integral with a hard (sharp) velocity cutoff.
 	Inputs: ndim, k (integration variables: k[0]=cos(theta), k[1]=v), p (shm_params), fdim.
 	Output: fval[0] set to 0 below the cutoff angle, else the integrand value; return 0 on success.*/
@@ -239,8 +217,8 @@ double shm_halo_beta(double vmin, double vesc, double v0, double ve, double beta
 struct shm_radial_params { double vesc; double v0; double ve; int i; };
 
 double f_shm_radial(double v, void *p){
-	/*Radial integrand for the hard-cutoff SHM halo integral, after analytic
-	integration over the angular variable (see shm_halo_hard_cutoff).
+	/*Radial integrand for the SHM halo integral, after analytic
+	integration over the angular variable (see shm_halo).
 	Inputs: v (velocity), p (shm_radial_params).
 	Output: integrand value at v.*/
 	struct shm_radial_params *params = (struct shm_radial_params *)p;
@@ -262,13 +240,9 @@ double f_shm_radial(double v, void *p){
 	return 2. * M_PI * pow(v, i + 1.0) * (v0 * v0 / (2. * v * ve)) * (exp_lower - exp_upper);
 }
 
-double shm_halo_hard_cutoff(double vmin, double vesc, double v0, double ve, double beta, int i){
-	/*Optimized hard-cutoff SHM halo integral: the angular integration is done
-	analytically (see f_shm_radial), reducing the 2D adaptive cubature with a
-	discontinuous integrand to a smooth 1D radial integral. 'beta' is kept in
-	the signature only for drop-in compatibility with shm_halo_beta's call
-	sites in fv_v; it is ignored (a hard cutoff has no smoothing parameter).
-	Inputs: vmin, vesc, v0, ve, beta (unused), i (velocity power).
+double shm_halo(double vmin, double vesc, double v0, double ve, int i){
+	/*
+	Inputs: vmin, vesc, v0, ve, i (velocity power).
 	Output: value of the halo integral (0 if vmin > vesc+ve).*/
 	if (vmin > vesc + ve) return 0.;
 
@@ -284,6 +258,87 @@ double shm_halo_hard_cutoff(double vmin, double vesc, double v0, double ve, doub
 	gsl_integration_workspace_free(w);
 
 	return result;
+}
+
+/*########################################################################################
+SHM + LMC BOOSTED COMPONENT (SHM_wLMC)
+Mixture f = (1-w) f_SHM + w f_LMC, Eq. (1) of arXiv:2609.04175:
+  f_LMC ~ exp(-|v-vb|^2/sigb^2) * Theta(vcut - |v-vb|), boosted by vb in the Galactic frame.
+Same conventions as shm_halo(): ve = lab speed, i = velocity power (i=0 gives eta(vmin)).
+w is a FRACTION in [0,1] (0.6% -> w = 0.006). cosb = cos(angle between vb and v_lab).
+########################################################################################*/
+
+double lmc_lab_bulk(double vb, double cosb, double ve){
+	/*Speed of the LMC bulk velocity in the lab frame, |vb - v_lab|.
+	Inputs: vb (Galactic-frame bulk speed), cosb (cos of angle between vb and v_lab), ve (lab speed).
+	Output: lab-frame bulk speed.*/
+	return sqrt(vb * vb + ve * ve - 2. * vb * ve * cosb);
+}
+
+double norm_lmc(double sigb, double vcut){
+	/*Analytic normalization of the truncated Gaussian LMC component (int d^3v f = 1).
+	Inputs: sigb (Gaussian width), vcut (hard cutoff around vb).
+	Output: normalization constant.*/
+	double x = vcut / sigb;
+	double sigb3 = sigb * sigb * sigb;
+	return pow(M_PI, 1.5) * sigb3 * (gsl_sf_erf(x) - 2. * x / sqrt(M_PI) * exp(-x * x));
+}
+
+struct lmc_radial_params { double uc; double sigb; double vcut; int i; };
+
+double f_lmc_radial(double u, void *p){
+	/*Radial integrand of the LMC halo integral after analytic angular integration
+	(same structure as f_shm_radial). Inputs: u (lab speed), p (lmc_radial_params).
+	Output: integrand value at u.*/
+	struct lmc_radial_params *par = (struct lmc_radial_params *)p;
+	double uc = par->uc, sigb = par->sigb, vcut = par->vcut;
+	int i = par->i;
+
+	if (u < 1e-6) return 0.0;
+	/* isotropic limit (uc -> 0), avoids cancellation in the general formula */
+	if (uc < 1e-3) return (u < vcut) ? 4. * M_PI * pow(u, i + 1.0) * exp(-u * u / (sigb * sigb)) : 0.;
+
+	double c_min_raw = (u * u + uc * uc - vcut * vcut) / (2. * u * uc);
+	double c_min = (c_min_raw > -1.) ? c_min_raw : -1.;
+	double e_low = exp(-(u - uc) * (u - uc) / (sigb * sigb));
+	double e_up  = exp(-(u * u + uc * uc - 2. * u * uc * c_min) / (sigb * sigb));
+
+	return 2. * M_PI * pow(u, i + 1.0) * (sigb * sigb / (2. * u * uc)) * (e_low - e_up);
+}
+
+double lmc_halo(double vmin, double vb, double cosb, double sigb, double vcut, double ve, int i){
+	/*Un-normalized halo integral of the LMC component (divide by norm_lmc).
+	Inputs: vmin, vb, cosb, sigb, vcut, ve, i (velocity power).
+	Output: value of the halo integral (0 if vmin is above the lab-frame endpoint).*/
+	double uc = lmc_lab_bulk(vb, cosb, ve);
+	double u_lo = MAX(MAX(vmin, 0.), uc - vcut);
+	double u_hi = uc + vcut;
+	if (u_lo >= u_hi) return 0.;
+
+	double result, error;
+	gsl_integration_workspace *w = gsl_integration_workspace_alloc(1000);
+	gsl_function F;
+	struct lmc_radial_params params = {uc, sigb, vcut, i};
+	F.function = &f_lmc_radial;
+	F.params = &params;
+	gsl_integration_qags(&F, u_lo, u_hi, 1e-10, 1e-10, 1000, w, &result, &error);
+	gsl_integration_workspace_free(w);
+
+	return result;
+}
+
+double shm_wlmc_halo(double vmin, double vesc, double v0, double ve, double w,
+                     double vb, double cosb, double sigb, double vcut, int i){
+	/*Normalized SHM + LMC mixture halo integral (hard-cutoff SHM, beta = 0).
+	Inputs: vmin, vesc, v0, ve (lab speed), w (LMC fraction in [0,1]),
+	vb, cosb, sigb, vcut (LMC parameters), i (velocity power).
+	Output: (1-w) * SHM + w * LMC, each normalized to unity.
+	Paper fiducial: vesc=544, v0=238, vb=570, cosb=-0.71, sigb=100, vcut=200.*/
+	if (w < 0. || w > 1.) { printf("shm_wlmc_halo: w must be in [0,1]\n"); return 0.; }
+	double h_shm = shm_halo(vmin, vesc, v0, ve, i) / norm_shm(vesc, v0, 0.0);
+	if (w == 0.) return h_shm;
+	double h_lmc = lmc_halo(vmin, vb, cosb, sigb, vcut, ve, i) / norm_lmc(sigb, vcut);
+	return (1. - w) * h_shm + w * h_lmc;
 }
 
 /*########################################################################################
@@ -366,6 +421,8 @@ double lisanti_halo(double vmin, double vesc, double v0, double ve, double k, in
 	via 2D cubature over angle and velocity.
 	Inputs: vmin, vesc, v0, ve, k (shape parameter), i (velocity power).
 	Output: value of the halo integral.*/
+	if (vmin > vesc + ve) return 0.;
+	
 	double val, err;
 	struct lisanti_params params = {vesc, v0, ve, k, i};
 
@@ -397,6 +454,10 @@ void normalization(char *profile, double vesc, double v0, double beta, double k)
 	else if (strncmp(profile, "Lisanti", 10) == 0) {
 		Normalization_lisanti = Nk_uncert(vesc, v0, k);
 	}
+	else if (strncmp(profile, "SHM_wLMC", 10) == 0) {
+		/* mixture is normalized inside shm_wlmc_halo,
+		nothing to do here */
+	}
 	else {
 		Normalization_fornasa = 0.0;
 		printf("No valid profile specified, setting normalization to 0.0\n");
@@ -418,17 +479,25 @@ int velocity(double vesc, double ve){
 	return 0;
 }
 
-int fv_v(char *profile, double vesc, double v0, double beta, double ve, double k, int i){
+int fv_v(char *profile, double vesc, double v0, double beta, double ve, double k, int i,
+         double w, double vb, double cosb, double sigb, double vcut){
 	/*Fills the global fv[][] array (normalized halo integral values, f(v)*v^(i+1) bins)
 	for every velocity bin and every velocity power up to i, for the selected profile.
-	Inputs: profile ("SHM", "SHM_beta", or "Lisanti"), vesc, v0, beta, ve, k, i (max velocity power).
+	Inputs: profile ("SHM", "SHM_beta", or "Lisanti"), vesc, v0, beta, ve, k, i (max velocity power),
+	w, vb, cosb, sigb, vcut.
 	Output: always 0 (updates the global vel[] and fv[][] arrays).*/
-	if (!(strncmp(profile, "SHM", 10) == 0 || strncmp(profile, "SHM_beta", 10) == 0 || strncmp(profile, "Lisanti", 10) == 0)) {
-		printf("The profile does NOT exist! please use: SHM, SHM_beta, or Lisanti\n");
+	if (!(strncmp(profile, "SHM", 10) == 0 || strncmp(profile, "SHM_beta", 10) == 0 || strncmp(profile, "Lisanti", 10) == 0 || strncmp(profile, "SHM_wLMC", 10) == 0)) {
+		printf("The profile does NOT exist! please use: SHM, SHM_beta, Lisanti, or SHM_wLMC\n");
 		return 0;
 	}
 
 	velocity(vesc, ve);
+	/* LMC tail extends beyond vesc+ve: extend the grid so halo() does not truncate it */
+	if (strncmp(profile, "SHM_wLMC", 10) == 0 && w > 0.) {
+		double vmax = MAX(vesc + ve, lmc_lab_bulk(vb, cosb, ve) + vcut);
+		int jj;
+		for (jj = 0; jj < length; jj++) vel[jj] = vmax * jj / length;
+	}
 	int m;
 	for (m = 0; m < i + 1; m++) {
 		if (strncmp(profile, "Lisanti", 10) == 0) {
@@ -440,13 +509,19 @@ int fv_v(char *profile, double vesc, double v0, double beta, double ve, double k
 		if (strncmp(profile, "SHM", 10) == 0) {
 			int j;
 			for (j = 0; j < length; j++) {
-				fv[m][j] = shm_halo_hard_cutoff(vel[j], vesc, v0, ve, beta, m) / Normalization_shm;
+				fv[m][j] = shm_halo(vel[j], vesc, v0, ve, m) / Normalization_shm;
 			}
 		}
 		if (strncmp(profile, "SHM_beta", 10) == 0) {
 			int j;
 			for (j = 0; j < length; j++) {
 				fv[m][j] = shm_halo_beta(vel[j], vesc, v0, ve, beta, m) / Normalization_shm;
+			}
+		}
+		if (strncmp(profile, "SHM_wLMC", 10) == 0) {
+			int j;
+			for (j = 0; j < length; j++) {
+				fv[m][j] = shm_wlmc_halo(vel[j], vesc, v0, ve, w, vb, cosb, sigb, vcut, m);
 			}
 		}
 	}
@@ -499,18 +574,22 @@ double halo_w(double vmin, gsl_interp_accel *ga, gsl_spline *gs){
 	}
 }
 
-double halo_f(char *profile, double vmin, double vesc, double v0, double beta, double ve, double k, int i){
+double halo_f(char *profile, double vmin, double vesc, double v0, double beta, double ve, double k, int i,
+    		  double w, double vb, double cosb, double sigb, double vcut){
 	/*Direct (non-interpolated, non-tabulated) evaluation of the normalized halo
 	integral for the selected profile at a single vmin.
-	Inputs: profile ("SHM" or "Lisanti"), vmin, vesc, v0, beta, ve, k, i (velocity power).
+	Inputs: profile ("SHM", "SHM_beta", "Lisanti", or "SHM_wLMC"), vmin, vesc, v0, beta, ve, k, i (velocity power).
 	Output: normalized halo integral value, or 0.0 if the profile is not implemented.*/
 	if (strncmp(profile, "SHM", 10) == 0) {
 		double N = norm_shm_num(vesc, v0, beta);
-		return shm_halo_hard_cutoff(vmin, vesc, v0, ve, beta, i) / N;
+		return shm_halo(vmin, vesc, v0, ve, i) / N;
 	}
 	if (strncmp(profile, "Lisanti", 10) == 0) {
 		double N = Nk_uncert(vesc, v0, k);
 		return lisanti_halo(vmin, vesc, v0, ve, k, i) / N;
+	}
+	if (strncmp(profile, "SHM_wLMC", 10) == 0) {
+		return shm_wlmc_halo(vmin, vesc, v0, ve, w, vb, cosb, sigb, vcut, i);
 	}
 	else {
 		printf("We do not have this halow implemented\n");
@@ -523,12 +602,14 @@ TABLE I/O
 Modified functions for writing and reading halo tables to/from disk. (30-07-2015)
 ########################################################################################*/
 
-int write_fv_v(char *path, char *profile, double vesc, double v0, double beta, double ve, double k, int i){
+int write_fv_v(char *path, char *profile, double vesc, double v0, double beta, double ve, double k, int i,
+			   double w, double vb, double cosb, double sigb, double vcut){
 	/*Computes fv[][] for the selected profile (via fv_v) and writes the velocity
 	bins and halo values to a text table file.
-	Inputs: path (output file path), profile, vesc, v0, beta, ve, k, i (max velocity power).
+	Inputs: path (output file path), profile, vesc, v0, beta, ve, k, i (max velocity power),
+	w, vb, cosb, sigb, vcut.
 	Output: always 0 (writes the table to disk).*/
-	fv_v(profile, vesc, v0, beta, ve, k, i);
+	fv_v(profile, vesc, v0, beta, ve, k, i, w, vb, cosb, sigb, vcut);
 	FILE *table;
 	table = fopen(path, "w+");
 	fprintf(table, "%d %d \r\n", length, i);
@@ -545,7 +626,8 @@ int write_fv_v(char *path, char *profile, double vesc, double v0, double beta, d
 	return 0;
 }
 
-void define_and_write_halo(char *path, char *profile, double vesc, double v0, double beta, double ve, double k, int i){
+void define_and_write_halo(char *path, char *profile, double vesc, double v0, double beta, double ve, double k, int i, 
+						   double w, double vb, double cosb, double sigb, double vcut){
 	/*Convenience wrapper that computes the normalization and writes the halo table
 	to file for the selected profile, with basic input validation and logging.
 	Inputs: path (output file path), profile, vesc, v0, beta, ve, k, i (max velocity power).
@@ -556,7 +638,7 @@ void define_and_write_halo(char *path, char *profile, double vesc, double v0, do
 	else {
 		printf("Calculating halo integrals for %s up to order %d in v...\n", profile, i);
 		normalization(profile, vesc, v0, beta, k);
-		write_fv_v(path, profile, vesc, v0, beta, ve, k, i);
+		write_fv_v(path, profile, vesc, v0, beta, ve, k, i, w, vb, cosb, sigb, vcut);
 		printf("Done!\n");
 	}
 }
@@ -638,11 +720,12 @@ void earth_velocity_vector(double delta_t, double v_earth_avg, double v_out[3]){
 
 void define_and_write_halo_time(char *profile, double vesc, double v0, double beta,
                                  double v0_lsr, const double v_pec[3],
-                                 double k, int i, double t0, double T){
+                                 double k, int i, double t0, double T,
+								 double w, double vb, double cosb, double sigb, double vcut){
 	/*Computes and writes halo tables for a time series of days T, using the
 	time-dependent lab-frame Earth velocity (for annual-modulation studies).
 	Inputs: profile, vesc, v0, beta, v0_lsr, v_pec[3], k, i (max velocity power),
-	t0 (reference day offset), T (number of days to compute).
+	t0 (reference day offset), T (number of days to compute), w, vb, cosb, sigb, vcut.
 	Output: none (writes one table file per day under halo_table/).*/
 	if (i > power - 1) {
 		printf("Please select a power in velocity up to %d or change the definition of power in source/halo.c\n", power - 1);
@@ -663,7 +746,7 @@ void define_and_write_halo_time(char *profile, double vesc, double v0, double be
 			snprintf(path, sizeof(char) * 32, "halo_table/halo_table_%i.dat", t);
 			printf("Calculating for t=%i...\n", t);
 			double ve_t = lab_frame_speed(v0_lsr, v_pec, 29.8, t0, t); // v_earth_avg = 29.8 km/s, Table 1
-			write_fv_v(path, profile, vesc, v0, beta, ve_t, k, i);
+			write_fv_v(path, profile, vesc, v0, beta, ve_t, k, i, w, vb, cosb, sigb, vcut);
 		}
 
 		printf("Done!\n");

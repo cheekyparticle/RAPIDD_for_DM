@@ -32,33 +32,35 @@ mproton = 0.938272
 # Halo related functions
 ########################################################################################
 _define_and_write_halo = _crapidd.define_and_write_halo
-_define_and_write_halo.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_int ]
+_define_and_write_halo.argtypes = [ctypes.c_char_p, ctypes.c_char_p] + [ctypes.c_double] * 5 \
+                                  + [ctypes.c_int] + [ctypes.c_double] * 5
 _define_and_write_halo.restype = ctypes.c_void_p
 _lab_frame_speed_annual_avg = _crapidd.lab_frame_speed_annual_avg  
 _lab_frame_speed_annual_avg.argtypes = [ctypes.c_double, ctypes.c_double * 3]  
 _lab_frame_speed_annual_avg.restype = ctypes.c_double  
 _define_and_write_halo_time = _crapidd.define_and_write_halo_time  
-_define_and_write_halo_time.argtypes = [  
-    ctypes.c_char_p, ctypes.c_double, ctypes.c_double, ctypes.c_double,  
-    ctypes.c_double, ctypes.c_double * 3, ctypes.c_double, ctypes.c_int,  
-    ctypes.c_double, ctypes.c_double  
-]  
+_define_and_write_halo_time.argtypes = [
+    ctypes.c_char_p, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+    ctypes.c_double, ctypes.c_double * 3, ctypes.c_double, ctypes.c_int,
+    ctypes.c_double, ctypes.c_double,
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+]
   
-VALID_PROFILES = ("SHM", "SHM_beta", "Lisanti")  
+VALID_PROFILES = ("SHM", "SHM_beta", "SHM_wLMC", "Lisanti")  
   
 def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
                v0_lsr=238., v_pec=(11.1, 12.2, 7.3), k_lisanti=1.5, i=2,
-               t0=151., T=None):
+               t0=151., T=None, w=0.006, vb=570., cosb=-0.71, sigb=100., vcut=200.):
     """
     Compute the dark matter halo velocity-integral table and write it to disk
-    (calls define_and_write_halo_path if T is None, define_and_write_halo_time
+    (calls define_and_write_halo if T is None, define_and_write_halo_time
     otherwise).
 
     Parameters
     ----------
     table_path : str
         Destination path for the output table.
-    profile : {"SHM", "SHM_beta", "Lisanti"}
+    profile : {"SHM", "SHM_beta", "SHM_wLMC", "Lisanti"}
         Halo velocity-distribution model.
     vesc : float
         Galactic escape velocity [km/s].
@@ -88,14 +90,23 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
         If None, write a single annual-average (static) table. If an
         integer, write T daily-modulated tables (halo_table_0.dat ...
         halo_table_{T-1}.dat), one per day from t=0 to T-1.
+    w : float
+        Weight fraction (w:[0,1], eg. 0.6%->w=0.006). Only used for SHM_wLMC.
+    vb : float
+        Bulk velocity of the LMC component. Only used for SHM_wLMC.
+    cosb : float
+        Cosine of the angle between v_b and v_lab. Only used for SHM_wLMC.
+    sigb : float
+        Sigma_b parameter of the LMC component. Only used for SHM_wLMC.
+    vcut : float
+        Max velocity distance from vb. Only used for SHM_wLMC.
     """
     if profile not in VALID_PROFILES:  
         raise ValueError(f"Profile must be one of {VALID_PROFILES}")
 
     if profile == "Lisanti" and k_lisanti <= 0:
         raise ValueError(
-            "For profile='Lisanti', k must be > 0 (k=0 makes fint() in halo.c "
-            "divide by zero, giving a null halo table). Typical range: k in [0.5, 3.5]."
+            "For profile='Lisanti', k must be > 0. Typical range: k in [0.5, 3.5]."
         )
   
     v_pec_c = (ctypes.c_double * 3)(*v_pec)
@@ -103,12 +114,14 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
         ve = _lab_frame_speed_annual_avg(v0_lsr, v_pec_c)
         _define_and_write_halo(
             table_path.encode(), profile.encode(),
-            vesc, v0, beta, ve, k_lisanti, i 
+            vesc, v0, beta, ve, k_lisanti, i, w,
+            vb, cosb, sigb, vcut
         )
     else:
         _define_and_write_halo_time(
             profile.encode(), vesc, v0, beta,
-            v0_lsr, v_pec_c, k_lisanti, i, t0, T
+            v0_lsr, v_pec_c, k_lisanti, i, t0, T,
+            w, vb, cosb, sigb, vcut
         )
 
 _read_halo = _crapidd.read_halo
