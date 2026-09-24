@@ -17,9 +17,13 @@ struct halo_params {
     double T;          // modulation period, days
     char * halo_path;
 };
+int fv_v(char *profile, double vesc, double v0, double beta, double ve, double k, int i,
+         double w, double vb, double cosb, double sigb, double vcut);
 int f_shm(unsigned ndim, const double *k, void *p, unsigned fdim, double *fval);
+double shm_halo(double vmin, double vesc, double v0, double ve, int i);
+double shm_wlmc_halo(double vmin, double vesc, double v0, double ve, double w, double vb, double cosb, double sigb, double vcut, int i);
 double shm_halo_beta(double vmin, double vesc, double v0, double ve, double beta, int i);
-double shm_halo_analitic(double velmin, double ve, double vesc, double v0, double beta);
+double shm_halo_analitic(double vmin, double vesc, double v0, double ve, int i);
 double norm_shm(double vesc, double v0, double beta);
 double Norm_fornasa(double vesc, double k);
 double fornasa_halo(double vmin, double vesc, double ve, double k, int i);

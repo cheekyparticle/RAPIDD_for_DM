@@ -46,7 +46,7 @@ _define_and_write_halo_time.argtypes = [
     ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
 ]
   
-VALID_PROFILES = ("SHM", "SHM_beta", "SHM_wLMC", "Lisanti")  
+VALID_PROFILES = ("SHM", "SHM_numeric", "SHM_beta", "SHM_wLMC", "Lisanti")  
   
 def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
                v0_lsr=238., v_pec=(11.1, 12.2, 7.3), k_lisanti=1.5, i=2,
@@ -80,9 +80,9 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
         Ignored for "SHM"/"SHM_beta". Must be > 0. Typical range,
         following arXiv:1802.03174, is [0.5, 3.5].
     i : int
-        Highest power of v included in the tabulated velocity moments
-        (0 <= i <= power-1, see halo.c). i=2 is standard for the usual
-        differential-rate calculation.
+        i - 1 is the highest power of v included in the tabulated halo integrals:
+        eta_i(vmin) = int_{vmin}^infty v^{i-1} f(vec{v}) d^3v.
+        i=2 includes all the integrals for the usual differential-rate calculation.
     t0 : float
         Reference day offset (days since March 22, 2018) used only when
         T is not None, to phase the annual modulation.
