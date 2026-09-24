@@ -44,7 +44,7 @@ and E. Gerstmayr.
 #include "../cubature.h"
 
 #define VERBOSE 0
-#define length 1000 // Number of divisions between 0 and (vesc+ve) to perform the interpolation.
+#define length 200 // Number of divisions between 0 and (vesc+ve) to perform the interpolation.
 #define power 10   // Maximum predefined power of the velocity in the halo integral
 
 #if defined(PCUBATURE)
@@ -523,12 +523,17 @@ VELOCITY BINNING AND TABULATION
 ########################################################################################*/
 
 int velocity(double vesc, double ve){
-	/*Fills the global vel[] array with 'length' evenly spaced velocity bins from 0 to vesc+ve.
+	/*Fills the global vel[] array with 'length' velocity bins from 0 to vesc+ve,
+	with increasing point density toward the tail (high-v end).
 	Inputs: vesc, ve.
 	Output: always 0 (updates the global vel[] array).*/
 	int i;
+	double vmax = vesc + ve;
+	double p = 2.0; /* p>1: higher p = more density near vmax. p=1 recovers linear. */
+	double t;
 	for (i = 0; i < length; i++) {
-		vel[i] = (vesc + ve) * i / length;
+		t = (double)i / (length - 1);
+		vel[i] = vmax * (1.0 - pow(1.0 - t, p));
 	}
 	return 0;
 }
