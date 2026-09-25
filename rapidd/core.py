@@ -182,7 +182,7 @@ _difrate_dER_python = _crapidd.difrate_dER_python
 _difrate_dER_python.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_double]
 _difrate_dER_python.restype = ctypes.c_double
 
-VALID_NUCLEAR_MODELS = ("iso_GCN5082", "pn_BD", "pn_SN100PN")
+VALID_NUCLEAR_MODELS = ("iso_GCN5082", "iso_Fitz", "pn_SN100PN")
 
 @np.vectorize
 def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="iso_GCN5082", delta=0.0):
