@@ -127,7 +127,7 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
 _read_halo = _crapidd.read_halo
 _read_halo.argtypes = [ctypes.c_char_p]
 _read_halo.restype = ctypes.c_void_p 
-halo_path = os.path.join(base_dir, '../lib/halo_table/halo_table.dat')
+halo_path = os.path.join(base_dir, '../lib/halo_table/halo_table_SHM.dat')
 
 def read_halo(path = halo_path):
     _read_halo(path.encode())
@@ -182,7 +182,7 @@ _difrate_dER_python = _crapidd.difrate_dER_python
 _difrate_dER_python.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_double]
 _difrate_dER_python.restype = ctypes.c_double
 
-VALID_NUCLEAR_MODELS = ("iso_GCN5082", "iso_Fitz", "pn_SN100PN")
+VALID_NUCLEAR_MODELS = ("iso_GCN5082", "pn_Fitz", "iso_Fitz", "pn_SN100PN")
 
 @np.vectorize
 def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="iso_GCN5082", delta=0.0):

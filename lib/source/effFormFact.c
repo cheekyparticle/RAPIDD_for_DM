@@ -1746,8 +1746,12 @@ double FF_iso_GCN5082(int A, char* Symbol1, char * Symbol2, char*tau1, char * ta
     return 0.0;
 }
 
+
 double FF(char* NR_framework, int A, char* Symbol1, char * Symbol2, char*N1, char * N2, double Er){
-	if (strcmp(NR_framework, "iso_Fitz") == 0) {
+	if (strcmp(NR_framework, "pn_Fitz") == 0) {
+		return FF_iso_Fitz(A, Symbol1, Symbol2, N1, N2, Er);
+	}
+	else if (strcmp(NR_framework, "iso_Fitz") == 0) {
 		return FF_iso_Fitz(A, Symbol1, Symbol2, N1, N2, Er);
 	}
 	else if (strcmp(NR_framework, "iso_GCN5082") == 0) {
@@ -1757,7 +1761,7 @@ double FF(char* NR_framework, int A, char* Symbol1, char * Symbol2, char*N1, cha
 		return FF_pn_SN100PN(A, Symbol1, Symbol2, N1, N2, Er);
 	}
 	else {
-		printf("Error: NR_framework %s not recognized. Please use pn_BD, pn_SN100PN or iso_GCN5082.\n", NR_framework);
+		printf("Error: NR_framework %s not recognized. Please use pn_Fitz, iso_Fitz, pn_SN100PN or iso_GCN5082.\n", NR_framework);
 		exit(1);
 	}
 }

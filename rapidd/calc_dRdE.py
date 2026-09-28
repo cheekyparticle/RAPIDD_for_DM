@@ -1,10 +1,10 @@
-from .core import base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo, difrate_dER, vev
+from .core import halo_path, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo, difrate_dER, vev
 import numpy as np
 
-def DDrate_save(card, alphaq, dmmass, output_path, halo_path=base_dir+"/SHM.dat"):
+def DDrate_save(card, alphaq, dmmass, output_path, halo_path=halo_path):
     
 
-    from alpha_map import c1_dirac_mdm, c4_dirac_mdm 
+    from .alpha_map import c1_dirac_mdm, c4_dirac_mdm 
     reset_coefficients()
 
     rhoDM = card['rhoDM']  
@@ -19,9 +19,9 @@ def DDrate_save(card, alphaq, dmmass, output_path, halo_path=base_dir+"/SHM.dat"
     
     energies = np.linspace(0.01, 40, 1000)
 
-    drde_Xe = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Xe", basis="pn_BD")
-    drde_Ar = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Ar", basis="pn_BD")
-    drde_Ge = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Ge", basis="pn_BD")
+    drde_Xe = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Xe", basis="iso_GCN5082")
+    drde_Ar = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Ar", basis="pn_Fitz")
+    drde_Ge = np.vectorize(difrate_dER)(rhoDM, dmmass, energies, target="Ge", basis="pn_Fitz")
 
     np.savez(output_path+"/DDrates.npz", energies=energies, drde_Xe=drde_Xe, drde_Ar=drde_Ar, drde_Ge=drde_Ge)
 
