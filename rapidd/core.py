@@ -24,9 +24,10 @@ lib_path = os.path.join(base_dir, '..', 'lib', 'build', lib_name)
 _crapidd = ctypes.CDLL(lib_path)
 
 
-vev = 246.2
-mneutron = 0.939565
-mproton = 0.938272
+vev = 246.2 # GeV
+mneutron = 0.939565 # GeV
+mproton = 0.938272 # GeV
+amu = 0.9315  # GeV
 
 ########################################################################################
 # Halo related functions
@@ -155,7 +156,18 @@ _Cn.argtypes = [ctypes.c_int]
 _Cn.restype = ctypes.c_double
 
 def set_any_Ncoeff(coeff, op, nuc):
-    '''coeff, op, nuc'''
+    '''
+    Set the coefficient for a given operator and nucleon.
+    
+    Parameters
+    ----------
+    coeff : float
+        The coefficient value to set.
+    op : int
+        The operator index (1-15), 2 excluded.
+    nuc : str
+        The nucleon type ('p' for proton, 'n' for neutron).
+    '''
     _set_any_Ncoeff(coeff, op, nuc.encode())
     return 
 
@@ -174,6 +186,92 @@ def Cn_val(op):
 def isofromneuc(cp, cn):
     ''' Simply takes coeffs from p n basis to 0 1 basis '''
     return (cp+cn)/2, (cp-cn)/2
+
+def set_any_N_EFT_coeff(lagr_num, m_chi, m_M, nucl, E, nucleon, c=1.0):
+    """\
+    Set the EFT coefficients from Table 1 of https://arxiv.org/pdf/1308.6288
+    lagr_num: int, the number of the Lagrangian
+    E: float, recoil energy in keV
+    m_M: float, mediator mass in GeV
+    nucl: str, target nucleus (e.g., 'xe', 'ge', 'ar')
+    m_chi: float, DM mass in GeV. Required for j in {3,4,5,6,7,8,9,12}
+    c: float, coupling to the nucleon (default is 1)
+    nucleon: str, the type of nucleon ('p' for proton, 'n' for neutron)
+    Returns:
+        cNRp: dict, NREFT coefficients for protons
+        cNRn: dict, NREFT coefficients for neutrons
+    """
+    # natural masses of nuclei in amu (atomic mass units)
+    nucleus_masses = {'xe': 131.293,
+                      'ge': 72.64,
+                      'ar': 39.948}
+    try:
+        m_nucl = nucleus_masses[nucl.lower()]
+    except KeyError:
+        raise ValueError(f"{nucl} not implemented. Choose from {list(nucleus_masses.keys())}.")
+
+    if nucleon.lower() == 'p':
+        m_N = mproton
+    elif nucleon.lower() == 'n':
+        m_N = mneutron
+    else:
+        raise ValueError(f"Invalid nucleon type: {nucleon}. Choose 'p' for proton or 'n' for neutron.")
+
+    q = np.sqrt(2 * m_nucl * amu * E * 1e-6)
+    q_ratio2 = (q / m_M)**2
+    mN_ratio1 = m_N / m_M
+    mN_ratio2 = (m_N / m_M)**2
+
+    # set the coefficients based on the Lagrangian number (c = user-defined coupling)
+    if lagr_num == 1:
+        set_any_Ncoeff(c, 1, nucleon)
+    elif lagr_num == 2:
+        set_any_Ncoeff(c, 10, nucleon)
+    elif lagr_num == 3:
+        set_any_Ncoeff(-c * m_N / m_chi, 11, nucleon)
+    elif lagr_num == 4:
+        set_any_Ncoeff(-c * m_N / m_chi, 6, nucleon)
+    elif lagr_num == 5:
+        set_any_Ncoeff(c * 4 * m_chi * m_N / m_M**2, 1, nucleon)
+    elif lagr_num == 6:
+        set_any_Ncoeff(-c * (m_chi / m_N) * q_ratio2, 1, nucleon)
+        set_any_Ncoeff(c * 4 * m_chi * m_N / m_M**2, 3, nucleon)
+    elif lagr_num == 7:
+        set_any_Ncoeff(-c * 4 * m_chi / m_M, 7, nucleon)
+    elif lagr_num == 8:
+        set_any_Ncoeff(c * 4 * m_chi * m_N / m_M**2, 10, nucleon)
+    elif lagr_num == 9:
+        set_any_Ncoeff(c * (m_N / m_chi) * q_ratio2, 1, nucleon)
+        set_any_Ncoeff(-c * 4 * mN_ratio2, 5, nucleon)
+    elif lagr_num == 10:
+        set_any_Ncoeff(c * 4 * q_ratio2, 4, nucleon)
+        set_any_Ncoeff(-c * 4 * mN_ratio2, 6, nucleon)
+    elif lagr_num == 11:
+        set_any_Ncoeff(-c * 4 * mN_ratio1, 9, nucleon)
+    elif lagr_num == 12:
+        set_any_Ncoeff(c * (m_N / m_chi) * q_ratio2, 10, nucleon)
+        set_any_Ncoeff(c * 4 * q_ratio2, 12, nucleon)
+        set_any_Ncoeff(c * 4 * mN_ratio2, 15, nucleon)
+    elif lagr_num == 13:
+        set_any_Ncoeff(c * 4 * mN_ratio1, 8, nucleon)
+    elif lagr_num == 14:
+        set_any_Ncoeff(c * 4 * mN_ratio1, 9, nucleon)
+    elif lagr_num == 15:
+        set_any_Ncoeff(-c * 4, 4, nucleon)
+    elif lagr_num == 16:
+        set_any_Ncoeff(c * 4 * mN_ratio1, 13, nucleon)
+    elif lagr_num == 17:
+        set_any_Ncoeff(-c * 4 * mN_ratio2, 11, nucleon)
+    elif lagr_num == 18:
+        set_any_Ncoeff(c * q_ratio2, 11, nucleon)
+        set_any_Ncoeff(c * 4 * mN_ratio2, 15, nucleon)
+    elif lagr_num == 19:
+        set_any_Ncoeff(c * 4 * mN_ratio1, 14, nucleon)
+    elif lagr_num == 20:
+        set_any_Ncoeff(-c * 4 * mN_ratio2, 6, nucleon)
+    else:
+        raise ValueError(f"Lagrangian number {lagr_num} not recognized (must be 1-20).")
+
 
 ########################################################################################
 # Differential rate functions
