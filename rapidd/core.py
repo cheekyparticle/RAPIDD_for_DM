@@ -281,9 +281,12 @@ _difrate_dER_python.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_doubl
 _difrate_dER_python.restype = ctypes.c_double
 
 VALID_NUCLEAR_MODELS = ("iso_GCN5082", "pn_Fitz", "iso_Fitz", "pn_SN100PN")
+IMPLEMENTED_TARGETS = ("Xe", "Ge", "Ar", "F", "CaWO4")
 
 @np.vectorize
 def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="iso_GCN5082", delta=0.0):
     if basis not in VALID_NUCLEAR_MODELS:  
         raise ValueError(f"Nuclear model must be one of {VALID_NUCLEAR_MODELS}")
+    if target not in IMPLEMENTED_TARGETS:
+        raise ValueError(f"Target must be one of {IMPLEMENTED_TARGETS}")
     return _difrate_dER_python(rhoDM, mDM, np.log10(ER), model.encode(), target.encode(), basis.encode(), delta)
