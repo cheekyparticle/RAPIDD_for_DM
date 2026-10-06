@@ -2,7 +2,7 @@
 
 RAPIDD is a tool for computing dark matter direct detection rates and exclusion limits. It combines a C library for the numerical computation of differential recoil rates with a Python interface for setting up dark matter models, generating rates, and deriving experimental limits.
 
-This branch (`maddm`) integrates RAPIDD with [MadDM](https://github.com/maddmhep/maddm), allowing direct detection rates to be computed directly from a MadDM model.
+The recent RAPIDD version works both in standalone mode and as a plugin of [MadDM](https://github.com/maddmhep/maddm), allowing direct detection rates to be computed directly from a UFO model.
 
 ## Authors
 
