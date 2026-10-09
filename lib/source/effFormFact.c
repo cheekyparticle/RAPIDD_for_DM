@@ -1749,7 +1749,7 @@ double FF_iso_GCN5082(int A, char* Symbol1, char * Symbol2, char*tau1, char * ta
 
 double FF(char* NR_framework, int A, char* Symbol1, char * Symbol2, char*N1, char * N2, double Er){
 	if (strcmp(NR_framework, "pn_Fitz") == 0) {
-		return FF_iso_Fitz(A, Symbol1, Symbol2, N1, N2, Er);
+		return FF_pn_Fitz(A, Symbol1, Symbol2, N1, N2, Er);
 	}
 	else if (strcmp(NR_framework, "iso_Fitz") == 0) {
 		return FF_iso_Fitz(A, Symbol1, Symbol2, N1, N2, Er);
