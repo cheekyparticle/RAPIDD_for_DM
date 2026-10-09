@@ -48,12 +48,11 @@ The Python dependencies (`numpy`, `scipy`) are installed automatically by `pip` 
 
 ## Installation
 
-Clone the repository and switch to the `maddm` branch:
+Clone the repository:
 
 ```bash
 git clone https://github.com/cheekyparticle/RAPIDD_for_DM.git
 cd RAPIDD_for_DM
-git checkout maddm
 ```
 
 ### 1. Build the C library
