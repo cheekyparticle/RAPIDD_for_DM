@@ -29,6 +29,7 @@ Set EFT coefficients for calculations here
 double C[OPERATOR_NUMBER];
 double CP[OPERATOR_NUMBER];
 double CN[OPERATOR_NUMBER];
+double CE[OPERATOR_NUMBER]; // DM-electron NREFT coefficients
 double CP_trace[OPERATOR_NUMBER];
 double CN_trace[OPERATOR_NUMBER];
 double C0[OPERATOR_NUMBER];
@@ -110,6 +111,8 @@ void set_coeffs(){
 	C[15] = 0.0;
 	CP[15] = 0.0;
 	CN[15] = 0.0;
+	//Electron coefficients
+	for (int i = 0; i < OPERATOR_NUMBER; i++) CE[i] = 0.0;
 	//Mass
 	MASS = 0.0;
   //MED_MASS = 0.0;
@@ -122,6 +125,11 @@ double Cp(int i){
 
 double Cn(int i){
 	return CN[i];
+}
+
+double Ce(int i){
+	/*Returns the i-th DM-electron NREFT coefficient (i = 1..15).*/
+	return CE[i];
 }
 
 double Cp_trace(int i){
@@ -164,6 +172,10 @@ void print_coeffs() {
   for (int i = 0; i < OPERATOR_NUMBER; i++) {
     if (fabs(CP[i])>0 || fabs(CN[i]) >0 )
       printf("Set parameters for operator %i: %e (proton) %e (neutron)\n",i, CP[i], CN[i]);
+  }
+  for (int i = 0; i < OPERATOR_NUMBER; i++) {
+    if (fabs(CE[i])>0)
+      printf("Set parameters for operator %i: %e (electron)\n",i, CE[i]);
   }
 }
 
@@ -369,6 +381,14 @@ void set_any_Ncoeff(double input, int i, char* nucleon){
 	if ( strncmp (nucleon,"p",10) == 0){
 		CP[i] = input;
 		//printf("%s %i %lf", nucleon, i, CP[i]);
+	}
+}
+
+void set_any_Ecoeff(double input, int i){
+	/*Sets the i-th DM-electron NREFT coefficient (i = 1..15).
+	Inputs: input (coefficient value), i (operator index).*/
+	if (i >= 0 && i < OPERATOR_NUMBER){
+		CE[i] = input;
 	}
 }
 

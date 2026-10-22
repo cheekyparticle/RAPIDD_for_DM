@@ -6,7 +6,7 @@ import os
 
 
 
-from .core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo
+from .core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, set_any_Ecoeff, read_halo
 from .experiments import counts_bin_LZ
 
 # madDM values, maybe we can get them from the card? 
@@ -188,16 +188,35 @@ def gen_Nff_mdm(card):
     return Nff
 
 
+QUARK_ALPHAS = ("alpha_d", "alpha_u", "alpha_s", "alpha_c", "alpha_b", "alpha_t")
+
+
+def _alphas_missing(values):
+    '''The Fortran sets all the alphas to -1 when the DM-target process does not exist'''
+    return np.all(np.asarray(values, dtype=float) == -1.0)
+
+
+def nucleon_alphas_valid(alphas):
+    '''True if at least one quark has a DM-quark process (alphas != -1)'''
+    return any(q in alphas and len(alphas[q]) == 4 and not _alphas_missing(alphas[q]) for q in QUARK_ALPHAS)
+
+
+def electron_alphas_valid(alphas):
+    '''True if the DM-electron process exists (alpha_e != -1)'''
+    return "alpha_e" in alphas and len(alphas["alpha_e"]) == 4 and not _alphas_missing(alphas["alpha_e"])
+
+
 def c1_dirac_mdm(card, alphaq):
 
     PFF = gen_Pff_mdm(card)
     NFF = gen_Nff_mdm(card)
 
-    alpha_data = alphaq
-
     c1p, c1n = 0.0, 0.0 
-    for quark, values in alpha_data.items():
-        #print(values[0:2] * pff[quark][0:2])
+    for quark in QUARK_ALPHAS:
+        # quarks without a DM-quark process (alphas = -1) contribute 0
+        if quark not in alphaq or len(alphaq[quark]) != 4 or _alphas_missing(alphaq[quark]):
+            continue
+        values = np.asarray(alphaq[quark], dtype=float)
         c1p += (values[0:2] * PFF[quark][0:2]).sum()
         c1n += (values[0:2] * NFF[quark][0:2]).sum()
 
@@ -206,12 +225,13 @@ def c1_dirac_mdm(card, alphaq):
 def c4_dirac_mdm(card, alphaq):
     PFF = gen_Pff_mdm(card)
     NFF = gen_Nff_mdm(card)
-    alpha_data = alphaq
-
 
     c4p, c4n = 0.0, 0.0 
-    for quark, values in alpha_data.items():
-        #print(values[0:2] * pff[quark][0:2])
+    for quark in QUARK_ALPHAS:
+        # quarks without a DM-quark process (alphas = -1) contribute 0
+        if quark not in alphaq or len(alphaq[quark]) != 4 or _alphas_missing(alphaq[quark]):
+            continue
+        values = np.asarray(alphaq[quark], dtype=float)
         c4p += (values[2:] * PFF[quark][2:]).sum()
         c4n += (values[2:] * NFF[quark][2:]).sum()
 
@@ -252,6 +272,52 @@ def sigmaSD_nucleon_mdm(card, alphaq, dmmass):
     return sigp, sign
 
 
+
+
+
+
+###################### 
+# DM-electron scattering
+######################
+
+def jchi_from_dm_spin(dm_spin):
+    '''DM spin from the MadDM dm_spin = 2s+1 (1: scalar, 2: fermion). Vector DM is
+    not implemented: returns -1.'''
+    dm_spin = int(round(dm_spin))
+    if dm_spin == 1:
+        return 0.0
+    if dm_spin == 2:
+        return 0.5
+    return -1.0
+
+
+def ce_dm_electron(alphas, mchi, m_e, dm_spin):
+    '''NREFT DM-electron coefficients c1, c4 [GeV units of the legacy MadDM
+    get_dm_response] from alphas["alpha_e"] = (aSIe, aSIo, aSDe, aSDo).
+    The unit factors (gev_to_pb*pb_to_cm2, and GeV_to_kg^2 for scalar DM) are applied
+    in the C function dm_response_electron. Vector DM is not implemented: returns -1, -1.'''
+    aSIe, aSIo, aSDe, aSDo = [float(a) for a in alphas["alpha_e"]]
+    dm_spin = int(round(dm_spin))
+    if dm_spin == 1:
+        c1 = 2*m_e*(aSIe + 2*mchi*aSIo)
+        c4 = 0.0
+    elif dm_spin == 2:
+        c1 = 4*mchi*m_e*(aSIo + aSIe)
+        c4 = 16*mchi*m_e*(2*aSDo - aSDe)
+    else:
+        return -1.0, -1.0
+    return c1, c4
+
+
+def set_alphas_electron_rpd(alphas, mchi, m_e, dm_spin):
+    '''Set the DM-electron coefficients Ce(1), Ce(4) in RAPIDD. Returns False for the
+    DM spins not implemented.'''
+    if jchi_from_dm_spin(dm_spin) < 0:
+        return False
+    c1, c4 = ce_dm_electron(alphas, mchi, m_e, dm_spin)
+    set_any_Ecoeff(c1, 1)
+    set_any_Ecoeff(c4, 4)
+    return True
 
 
 

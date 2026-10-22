@@ -24,10 +24,9 @@ lib_path = os.path.join(base_dir, '..', 'lib', 'build', lib_name)
 _crapidd = ctypes.CDLL(lib_path)
 
 
-vev = 246.2 # GeV
-mneutron = 0.939565 # GeV
-mproton = 0.938272 # GeV
-amu = 0.9315  # GeV
+vev = 246.2
+mneutron = 0.939565
+mproton = 0.938272
 
 ########################################################################################
 # Halo related functions
@@ -47,11 +46,14 @@ _define_and_write_halo_time.argtypes = [
     ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
 ]
   
+_define_and_write_halo_time_path = _crapidd.define_and_write_halo_time_path
+_define_and_write_halo_time_path.argtypes = [ctypes.c_char_p] + _define_and_write_halo_time.argtypes
+
 VALID_PROFILES = ("SHM", "SHM_numeric", "SHM_beta", "SHM_wLMC", "Lisanti")  
   
 def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
                v0_lsr=238., v_pec=(11.1, 12.2, 7.3), k_lisanti=1.5, i=2,
-               t0=151., T=None, w=0.006, vb=570., cosb=-0.71, sigb=100., vcut=200.):
+               t0=151., T=None, w=0.006, vb=570., cosb=-0.71, sigb=100., vcut=200., table_dir=None):
     """
     Compute the dark matter halo velocity-integral table and write it to disk
     (calls define_and_write_halo if T is None, define_and_write_halo_time
@@ -101,6 +103,10 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
         Sigma_b parameter of the LMC component. Only used for SHM_wLMC.
     vcut : float
         Max velocity distance from vb. Only used for SHM_wLMC.
+    table_dir : str or None
+        Only used when T is not None: directory where the daily tables
+        halo_table_<t>.dat are written. If None, they are written in
+        halo_table/ relative to the current working directory.
     """
     if profile not in VALID_PROFILES:  
         raise ValueError(f"Profile must be one of {VALID_PROFILES}")
@@ -118,9 +124,16 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
             vesc, v0, beta, ve, k_lisanti, i, w,
             vb, cosb, sigb, vcut
         )
-    else:
+    elif table_dir is None:
         _define_and_write_halo_time(
             profile.encode(), vesc, v0, beta,
+            v0_lsr, v_pec_c, k_lisanti, i, t0, T,
+            w, vb, cosb, sigb, vcut
+        )
+    else:
+        os.makedirs(table_dir, exist_ok=True)
+        _define_and_write_halo_time_path(
+            os.path.abspath(table_dir).encode(), profile.encode(), vesc, v0, beta,
             v0_lsr, v_pec_c, k_lisanti, i, t0, T,
             w, vb, cosb, sigb, vcut
         )
@@ -155,26 +168,29 @@ _Cn = _crapidd.Cn
 _Cn.argtypes = [ctypes.c_int]
 _Cn.restype = ctypes.c_double
 
+_set_any_Ecoeff = _crapidd.set_any_Ecoeff
+_set_any_Ecoeff.argtypes = [ctypes.c_double, ctypes.c_int]
+_set_any_Ecoeff.restype = None
+
+_Ce = _crapidd.Ce
+_Ce.argtypes = [ctypes.c_int]
+_Ce.restype = ctypes.c_double
+
 def set_any_Ncoeff(coeff, op, nuc):
-    '''
-    Set the coefficient for a given operator and nucleon.
-    
-    Parameters
-    ----------
-    coeff : float
-        The coefficient value to set.
-    op : int
-        The operator index (1-15), 2 excluded.
-    nuc : str
-        The nucleon type ('p' for proton, 'n' for neutron).
-    '''
+    '''coeff, op, nuc'''
     _set_any_Ncoeff(coeff, op, nuc.encode())
     return 
+
+def set_any_Ecoeff(coeff, op):
+    '''Set the DM-electron NREFT coefficient of operator op'''
+    _set_any_Ecoeff(coeff, op)
+    return
 
 def reset_coefficients() :
     for i in range(16):
         set_any_Ncoeff(0, i, "p")
         set_any_Ncoeff(0, i, "n")    
+        set_any_Ecoeff(0, i)
     return
 
 def Cp_val(op):
@@ -183,95 +199,12 @@ def Cp_val(op):
 def Cn_val(op):
     return _Cn(op)
 
+def Ce_val(op):
+    return _Ce(op)
+
 def isofromneuc(cp, cn):
     ''' Simply takes coeffs from p n basis to 0 1 basis '''
     return (cp+cn)/2, (cp-cn)/2
-
-def set_any_N_EFT_coeff(lagr_num, m_chi, m_M, nucl, E, nucleon, c=1.0):
-    """\
-    Set the EFT coefficients from Table 1 of https://arxiv.org/pdf/1308.6288
-    lagr_num: int, the number of the Lagrangian
-    E: float, recoil energy in keV
-    m_M: float, mediator mass in GeV
-    nucl: str, target nucleus (e.g., 'xe', 'ge', 'ar')
-    m_chi: float, DM mass in GeV. Required for j in {3,4,5,6,7,8,9,12}
-    c: float, coupling to the nucleon (default is 1)
-    nucleon: str, the type of nucleon ('p' for proton, 'n' for neutron)
-    Returns:
-        cNRp: dict, NREFT coefficients for protons
-        cNRn: dict, NREFT coefficients for neutrons
-    """
-    # natural masses of nuclei in amu (atomic mass units)
-    nucleus_masses = {'xe': 131.293,
-                      'ge': 72.64,
-                      'ar': 39.948}
-    try:
-        m_nucl = nucleus_masses[nucl.lower()]
-    except KeyError:
-        raise ValueError(f"{nucl} not implemented. Choose from {list(nucleus_masses.keys())}.")
-
-    if nucleon.lower() == 'p':
-        m_N = mproton
-    elif nucleon.lower() == 'n':
-        m_N = mneutron
-    else:
-        raise ValueError(f"Invalid nucleon type: {nucleon}. Choose 'p' for proton or 'n' for neutron.")
-
-    q = np.sqrt(2 * m_nucl * amu * E * 1e-6)
-    q_ratio2 = (q / m_M)**2
-    mN_ratio1 = m_N / m_M
-    mN_ratio2 = (m_N / m_M)**2
-
-    # set the coefficients based on the Lagrangian number (c = user-defined coupling)
-    if lagr_num == 1:
-        set_any_Ncoeff(c, 1, nucleon)
-    elif lagr_num == 2:
-        set_any_Ncoeff(c, 10, nucleon)
-    elif lagr_num == 3:
-        set_any_Ncoeff(-c * m_N / m_chi, 11, nucleon)
-    elif lagr_num == 4:
-        set_any_Ncoeff(-c * m_N / m_chi, 6, nucleon)
-    elif lagr_num == 5:
-        set_any_Ncoeff(c * 4 * m_chi * m_N / m_M**2, 1, nucleon)
-    elif lagr_num == 6:
-        set_any_Ncoeff(-c * (m_chi / m_N) * q_ratio2, 1, nucleon)
-        set_any_Ncoeff(c * 4 * m_chi * m_N / m_M**2, 3, nucleon)
-    elif lagr_num == 7:
-        set_any_Ncoeff(-c * 4 * m_chi / m_M, 7, nucleon)
-    elif lagr_num == 8:
-        set_any_Ncoeff(c * 4 * m_chi * m_N / m_M**2, 10, nucleon)
-    elif lagr_num == 9:
-        set_any_Ncoeff(c * (m_N / m_chi) * q_ratio2, 1, nucleon)
-        set_any_Ncoeff(-c * 4 * mN_ratio2, 5, nucleon)
-    elif lagr_num == 10:
-        set_any_Ncoeff(c * 4 * q_ratio2, 4, nucleon)
-        set_any_Ncoeff(-c * 4 * mN_ratio2, 6, nucleon)
-    elif lagr_num == 11:
-        set_any_Ncoeff(-c * 4 * mN_ratio1, 9, nucleon)
-    elif lagr_num == 12:
-        set_any_Ncoeff(c * (m_N / m_chi) * q_ratio2, 10, nucleon)
-        set_any_Ncoeff(c * 4 * q_ratio2, 12, nucleon)
-        set_any_Ncoeff(c * 4 * mN_ratio2, 15, nucleon)
-    elif lagr_num == 13:
-        set_any_Ncoeff(c * 4 * mN_ratio1, 8, nucleon)
-    elif lagr_num == 14:
-        set_any_Ncoeff(c * 4 * mN_ratio1, 9, nucleon)
-    elif lagr_num == 15:
-        set_any_Ncoeff(-c * 4, 4, nucleon)
-    elif lagr_num == 16:
-        set_any_Ncoeff(c * 4 * mN_ratio1, 13, nucleon)
-    elif lagr_num == 17:
-        set_any_Ncoeff(-c * 4 * mN_ratio2, 11, nucleon)
-    elif lagr_num == 18:
-        set_any_Ncoeff(c * q_ratio2, 11, nucleon)
-        set_any_Ncoeff(c * 4 * mN_ratio2, 15, nucleon)
-    elif lagr_num == 19:
-        set_any_Ncoeff(c * 4 * mN_ratio1, 14, nucleon)
-    elif lagr_num == 20:
-        set_any_Ncoeff(-c * 4 * mN_ratio2, 6, nucleon)
-    else:
-        raise ValueError(f"Lagrangian number {lagr_num} not recognized (must be 1-20).")
-
 
 ########################################################################################
 # Differential rate functions
@@ -281,12 +214,112 @@ _difrate_dER_python.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_doubl
 _difrate_dER_python.restype = ctypes.c_double
 
 VALID_NUCLEAR_MODELS = ("iso_GCN5082", "pn_Fitz", "iso_Fitz", "pn_SN100PN")
-IMPLEMENTED_TARGETS = ("Xe", "Ge", "Ar", "F", "CaWO4")
 
 @np.vectorize
 def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="iso_GCN5082", delta=0.0):
     if basis not in VALID_NUCLEAR_MODELS:  
         raise ValueError(f"Nuclear model must be one of {VALID_NUCLEAR_MODELS}")
-    if target not in IMPLEMENTED_TARGETS:
-        raise ValueError(f"Target must be one of {IMPLEMENTED_TARGETS}")
     return _difrate_dER_python(rhoDM, mDM, np.log10(ER), model.encode(), target.encode(), basis.encode(), delta)
+
+########################################################################################
+# DM-electron scattering
+########################################################################################
+GRIDSIZE_K = 100
+GRIDSIZE_Q = 200
+N_SHELL_XE = 11
+XE_SHELLS = ("1s", "2p", "2s", "3d", "3p", "3s", "4d", "4p", "4s", "5p", "5s")
+S2_MAX_XENON10 = 203
+N_BINS_XENON10 = 7
+S2_BIN_MAX_XENON1T = 63
+
+atomic_resp_dir = os.path.join(base_dir, '..', 'lib', 'atomic_responses')
+experiments_dir = os.path.join(base_dir, '..', 'lib', 'experiments')
+
+_read_atomic_responses = _crapidd.read_atomic_responses
+_read_atomic_responses.argtypes = [ctypes.c_char_p, ctypes.c_int]
+_read_atomic_responses.restype = ctypes.c_int
+
+def read_atomic_responses(path=atomic_resp_dir, response_index=1):
+    '''Read the Xenon atomic response W_<response_index> from
+    path/atomic_response_<response_index>/Xe_<shell>.txt'''
+    resp_dir = os.path.join(path, 'atomic_response_%i' % response_index)
+    err = _read_atomic_responses(resp_dir.encode(), response_index)
+    if err != 0:
+        raise IOError("Could not read the atomic responses in %s (error %i)" % (resp_dir, err))
+    return
+
+_dm_response_electron = _crapidd.dm_response_electron
+_dm_response_electron.argtypes = [ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_double]
+_dm_response_electron.restype = ctypes.c_double
+
+def dm_response_electron(mchi, jchi, resp=1, q=0.0):
+    '''DM response R_resp built from the electron coefficients Ce (legacy MadDM normalisation)'''
+    return _dm_response_electron(resp, q, mchi, jchi)
+
+_dbl_p = ctypes.POINTER(ctypes.c_double)
+_int_p = ctypes.POINTER(ctypes.c_int)
+
+_difrate_electron_dEr_all = _crapidd.difrate_electron_dEr_all
+_difrate_electron_dEr_all.argtypes = [ctypes.c_double] * 4 + [_dbl_p] * 3
+_difrate_electron_dEr_all.restype = ctypes.c_int
+
+def difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e):
+    '''Returns k [GeV] (GRIDSIZE_K+1), E [GeV] (GRIDSIZE_K+1) and the per-shell
+    dR/dE [events/kg/day/GeV] (N_SHELL_XE x GRIDSIZE_K) for DM-electron scattering in Xenon'''
+    k = np.zeros(GRIDSIZE_K + 1)
+    E = np.zeros(GRIDSIZE_K + 1)
+    rate = np.zeros(N_SHELL_XE * GRIDSIZE_K)
+    err = _difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, k.ctypes.data_as(_dbl_p),
+                                    E.ctypes.data_as(_dbl_p), rate.ctypes.data_as(_dbl_p))
+    if err != 0:
+        raise RuntimeError("difrate_electron_dEr_all failed (error %i)" % err)
+    return k, E, rate.reshape(N_SHELL_XE, GRIDSIZE_K)
+
+_xenon10_bins = _crapidd.xenon10_bins
+_xenon10_bins.argtypes = [_int_p]
+_xenon10_bins.restype = ctypes.c_int
+
+def xenon10_bins():
+    bins = np.zeros(N_BINS_XENON10 + 1, dtype=np.int32)
+    _xenon10_bins(bins.ctypes.data_as(_int_p))
+    return bins
+
+_difrate_dS2 = _crapidd.difrate_dS2
+_difrate_dS2.argtypes = [ctypes.c_char_p, _dbl_p, _dbl_p, ctypes.c_double, ctypes.c_char_p,
+                         _dbl_p, _dbl_p, _dbl_p, _dbl_p, _dbl_p, _int_p]
+_difrate_dS2.restype = ctypes.c_int
+
+def difrate_dS2(experiment, E, rate_shell, mDM, exp_dir=experiments_dir):
+    '''Detector response in S2 for experiment "Xenon10" or "Xenon1T", given the grids E and
+    the per-shell dR/dE from difrate_electron_dEr_all. Returns a dict with S2, dRdS2, signal,
+    n_obs (and dRdS2_shell for Xenon10, n_bkg for Xenon1T).'''
+    E = np.ascontiguousarray(E, dtype=np.float64)
+    rate_shell = np.ascontiguousarray(rate_shell, dtype=np.float64).ravel()
+    if experiment == "Xenon10":
+        nS2, nsig = S2_MAX_XENON10, N_BINS_XENON10
+        shell = np.zeros(N_SHELL_XE * nS2)
+        shell_p = shell.ctypes.data_as(_dbl_p)
+    elif experiment == "Xenon1T":
+        nS2, nsig = S2_BIN_MAX_XENON1T, 1
+        shell, shell_p = None, None
+    else:
+        raise ValueError("experiment must be Xenon10 or Xenon1T")
+    S2 = np.zeros(nS2)
+    dRdS2 = np.zeros(nS2)
+    signal = np.zeros(nsig)
+    n_bkg = np.zeros(1)
+    n_obs = np.zeros(nsig, dtype=np.int32)
+    n = _difrate_dS2(experiment.encode(), E.ctypes.data_as(_dbl_p), rate_shell.ctypes.data_as(_dbl_p),
+                     mDM, exp_dir.encode(), S2.ctypes.data_as(_dbl_p), dRdS2.ctypes.data_as(_dbl_p),
+                     shell_p, signal.ctypes.data_as(_dbl_p), n_bkg.ctypes.data_as(_dbl_p),
+                     n_obs.ctypes.data_as(_int_p))
+    if n < 0:
+        raise RuntimeError("difrate_dS2 failed for %s" % experiment)
+    res = {'S2': S2, 'dRdS2': dRdS2, 'signal': signal, 'n_obs': n_obs}
+    if experiment == "Xenon10":
+        res['dRdS2_shell'] = shell.reshape(N_SHELL_XE, nS2)
+    else:
+        res['signal'] = signal[0]
+        res['n_obs'] = int(n_obs[0])
+        res['n_bkg'] = n_bkg[0]
+    return res

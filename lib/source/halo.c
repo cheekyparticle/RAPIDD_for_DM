@@ -609,6 +609,20 @@ double halo_w(double vmin, gsl_interp_accel *ga, gsl_spline *gs){
 	}
 }
 
+int halo_table(int i, double *v_out, double *f_out){
+	/*Copies the tabulated halo integral fv[i][] and the velocity bins vel[] (as read
+	by read_halo) into double arrays, e.g. to build a GSL spline once and evaluate it
+	with halo_w.
+	Inputs: i (velocity power index into fv), v_out, f_out (arrays of size >= length).
+	Output: number of tabulated points (length).*/
+	int m;
+	for (m = 0; m < length; m++) {
+		v_out[m] = vel[m];
+		f_out[m] = fv[i][m];
+	}
+	return length;
+}
+
 double halo_f(char *profile, double vmin, double vesc, double v0, double beta, double ve, double k, int i,
     		  double w, double vb, double cosb, double sigb, double vcut){
 	/*Direct (non-interpolated, non-tabulated) evaluation of the normalized halo
@@ -764,7 +778,18 @@ void define_and_write_halo_time(char *profile, double vesc, double v0, double be
 	time-dependent lab-frame Earth velocity (for annual-modulation studies).
 	Inputs: profile, vesc, v0, beta, v0_lsr, v_pec[3], k, i (max velocity power),
 	t0 (reference day offset), T (number of days to compute), w, vb, cosb, sigb, vcut.
-	Output: none (writes one table file per day under halo_table/).*/
+	Output: none (writes one table file per day under halo_table/, relative to the cwd).*/
+	define_and_write_halo_time_path("halo_table", profile, vesc, v0, beta, v0_lsr, v_pec, k, i, t0, T,
+									w, vb, cosb, sigb, vcut);
+}
+
+void define_and_write_halo_time_path(char *dir, char *profile, double vesc, double v0, double beta,
+                                      double v0_lsr, const double v_pec[3],
+                                      double k, int i, double t0, double T,
+									  double w, double vb, double cosb, double sigb, double vcut){
+	/*Same as define_and_write_halo_time, writing the tables to dir/halo_table_<t>.dat.
+	Inputs: dir (output directory, e.g. an absolute path), then as define_and_write_halo_time.
+	Output: none (writes one table file per day under dir).*/
 	if (i > power - 1) {
 		printf("Please select a power in velocity up to %d or change the definition of power in source/halo.c\n", power - 1);
 	}
@@ -777,8 +802,8 @@ void define_and_write_halo_time(char *profile, double vesc, double v0, double be
 
 		int t;
 		for (t = 0; t < T; t++) {
-			char path[32];
-			snprintf(path, sizeof(char) * 32, "halo_table/halo_table_%i.dat", t);
+			char path[1024];
+			snprintf(path, sizeof(path), "%s/halo_table_%i.dat", dir, t);
 			printf("Calculating for t=%i...\n", t);
 			double ve_t = lab_frame_speed(v0_lsr, v_pec, 29.8, t0, t); // v_earth_avg = 29.8 km/s, Table 1
 			write_fv_v(path, profile, vesc, v0, beta, ve_t, k, i, w, vb, cosb, sigb, vcut);
