@@ -147,6 +147,27 @@ def read_halo(path = halo_path):
     _read_halo(path.encode())
     return
 
+# halo parameters of the default table halo_path (calc_halo defaults)
+default_halo_vesc = 544.
+default_halo_v0 = 238.
+default_halo_v_pec = (11.1, 12.2, 7.3)
+
+def halo_path_from_card(card, table_dir):
+    """
+    Annual-average SHM table for the halo parameters of the MadDM card.
+
+    Returns halo_path if vescape, vmp and (vSun_r, vSun_phi, vSun_theta) are the
+    default ones, otherwise computes the table in table_dir/SHM.dat and returns
+    its path. vmp is used both as v0 and as the LSR speed.
+    """
+    card_pars = (card['vescape'], card['vmp'], card['vSun_r'], card['vSun_phi'], card['vSun_theta'])
+    if np.allclose(card_pars, (default_halo_vesc, default_halo_v0) + default_halo_v_pec, rtol=1e-9, atol=0.):
+        return halo_path
+    path = os.path.join(table_dir, 'SHM.dat')
+    calc_halo(path, profile="SHM", vesc=card['vescape'], v0=card['vmp'], v0_lsr=card['vmp'],
+              v_pec=(card['vSun_r'], card['vSun_phi'], card['vSun_theta']))
+    return path
+
 ########################################################################################
 # Functions used to set coefficient
 ########################################################################################

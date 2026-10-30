@@ -14,6 +14,9 @@ from .experiments import counts_bin_LZ
 mneutron = 0.94  
 mproton = 0.938
 
+gev_to_pb = 3.893793721e+8 # (hbar c)^2: GeV^-2 -> pb
+pb_to_cm2 = 1.e-36 # pb -> cm^2
+
 ### SHOULD USE VALUES FROM PARAM CARD ### 
 
 m_u = 2.550000e-03
@@ -241,6 +244,7 @@ def c4_dirac_mdm(card, alphaq):
 
 
 def sigmaSI_nucleon_mdm(card, alphaq, dmmass):
+    '''SI DM-proton and DM-neutron cross sections [cm^2]'''
     c1p, c1n = c1_dirac_mdm(card, alphaq)
     #print('c1p = %.2e c1n: %.2e' % (c1p, c1n))
     
@@ -248,26 +252,21 @@ def sigmaSI_nucleon_mdm(card, alphaq, dmmass):
     mun = dmmass * mneutron / (dmmass + mneutron)
 
 
-    sigp = 4 *mup**2 * c1p**2 / np.pi
-    sign = 4 *mun**2 * c1n**2 / np.pi
-
-    #print('SI sigma_dmp: %.2e GeV^{-2} : %.2e cm^2' % (sigp, sigp*0.0389e-26))
-    #print('SI sigma_dmn: %.2e GeV^{-2} : %.2e cm^2' % (sign, sign*0.0389e-26))
+    sigp = 4 *mup**2 * c1p**2 / np.pi * gev_to_pb * pb_to_cm2
+    sign = 4 *mun**2 * c1n**2 / np.pi * gev_to_pb * pb_to_cm2
 
     return sigp, sign
 
 def sigmaSD_nucleon_mdm(card, alphaq, dmmass):
+    '''SD DM-proton and DM-neutron cross sections [cm^2]'''
     c4p, c4n = c4_dirac_mdm(card, alphaq)
     #print('c4p = %.2e c4n: %.2e' % (c4p, c4n))
     mup = dmmass * mproton / (dmmass + mproton)
     mun = dmmass * mneutron / (dmmass + mneutron)
 
 
-    sigp = 12 *mup**2 * c4p**2 / np.pi
-    sign = 12 *mun**2 * c4n**2 / np.pi
-
-    #print('SD sigma_dmp: %.2e GeV^{-2} : %.2e cm^2' % (sigp, sigp*0.0389e-26))
-    #print('SD sigma_dmn: %.2e GeV^{-2} : %.2e cm^2' % (sign, sign*0.0389e-26))
+    sigp = 12 *mup**2 * c4p**2 / np.pi * gev_to_pb * pb_to_cm2
+    sign = 12 *mun**2 * c4n**2 / np.pi * gev_to_pb * pb_to_cm2
 
     return sigp, sign
 

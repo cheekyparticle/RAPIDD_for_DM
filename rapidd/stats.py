@@ -39,3 +39,13 @@ def binned_poisson_likelihood_limit (coeff,mchi,counts,data, background, cl=2.70
         
         c_90 = float(optimize.root(lambda c: test_statistic(c,counts,bkgrd,observed)-cl, 1).x)
         return np.sqrt(c_90 * coeff**2)
+
+
+def poisson_pvalue(observed, expected):
+    '''p-value P(n <= observed) of a Poisson counting experiment with mean expected'''
+    return poisson.cdf(observed, expected)
+
+
+def binned_poisson_pvalue_min(observed, expected):
+    '''smallest p-value among the bins of a binned Poisson counting experiment'''
+    return min(poisson_pvalue(obs, exp) for obs, exp in zip(observed, expected))
