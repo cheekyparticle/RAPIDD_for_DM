@@ -6,6 +6,7 @@ struct difcros_params { char * target; double Er; double mchi; double jchi; doub
 double difrate_SI_standard(double rho, int A, int Z, double fp, double fn, double mchi, double Er);
 double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros);
 double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* model);
+int nuclear_model_supports_target(char* NR_framework, char* target);
 double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* model);
 double difrate_isotope_dEr_w(int A, int Z, double rhochi, void * input_difcros, int F_i, int F_j, gsl_interp_accel *ga, gsl_spline * gs, gsl_interp_accel *ga2, gsl_spline * gs2);
 double difrate_isotope_v2_dEr_w(int A, int Z, double rhochi, void * input_difcros, int F_i, int F_j, gsl_interp_accel *ga, gsl_spline * gs);

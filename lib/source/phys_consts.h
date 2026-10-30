@@ -15,11 +15,11 @@ Physical constants
 
 #pragma once
 
-const double static mproton = 0.938272046; // proton mass
-const double static mneutron = 0.939565560; // neutron mass
+const double static mproton = 0.93827208943; // proton mass in GeV (CODATA 2022)
+const double static mneutron = 0.93956542194; // neutron mass in GeV (CODATA 2022)
 const double static c = 2.99792458e+5; //Speed of light in km/s
-const double static G_F = 1.1664e-5; //Fermi coupling constant in GeV^-2
-const double static higgs_vev = 246.22 ; //GeV 
+const double static G_F = 1.1663788e-5; //Fermi coupling constant in GeV^-2 (PDG 2024)
+const double static higgs_vev = 246.2196402393; //GeV, (sqrt(2) G_F)^(-1/2)
 const double static e = 0.3; // e charge
 const double static s_w = 0.4895916665957459;
 const double static g_n = -3.83;
@@ -59,8 +59,8 @@ const int static Z_numbers_CaWO4[2] = {8,20};
 double reduced_mass(double mass_1, double mass_2);
 double approx_mass_nucleus(double A, double Z);
 
-double sigma_to_f_11(double sigma, double mchi);
-double sigma_to_a_44(double sigma, double mchi);
+double sigma_to_f_11(double sigma, double mchi, double mnucleon);
+double sigma_to_a_44(double sigma, double mchi, double mnucleon);
 
 
 //double isotopes_Ar[1];

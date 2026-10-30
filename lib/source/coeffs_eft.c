@@ -302,15 +302,15 @@ void write_coeffs(char * output_path){
 void set_coeffs_matching_Standard( double mchi, double sigma, double sigmaSD){
 
     int i;
-    double pbGeVfactor = 2.67e-9;
+    double pbGeVfactor = 1./gev_to_pb; // pb -> GeV^-2
     for (i=0; i < OPERATOR_NUMBER; i++){
         if(i != 1){
             CP[i] = 0;
             CN[i] = 0;
         }
         if ( i == 1){
-            double fn = sigma_to_f_11(sigma, mchi);
-            double fp = sigma_to_f_11(sigma, mchi);
+            double fn = sigma_to_f_11(sigma, mchi, mneutron);
+            double fp = sigma_to_f_11(sigma, mchi, mproton);
             //CP[i] = 8* mproton*mchi*fp*sqrt(pbGeVfactor);
             //CN[i] = 8* mneutron*mchi*fn*sqrt(pbGeVfactor);
             CP[i] = 2*higgs_vev*higgs_vev*fp*sqrt(pbGeVfactor);
@@ -319,9 +319,10 @@ void set_coeffs_matching_Standard( double mchi, double sigma, double sigmaSD){
 
         }
 	else if ( i == 4){
-	    double a_44 = sigma_to_a_44(sigmaSD, mchi);
-	    CP[i]=8*higgs_vev*higgs_vev*sqrt(2)*G_F*a_44*sqrt(pbGeVfactor);
-   	    CN[i]=8*higgs_vev*higgs_vev*sqrt(2)*G_F*a_44*sqrt(pbGeVfactor);
+	    double ap_44 = sigma_to_a_44(sigmaSD, mchi, mproton);
+	    double an_44 = sigma_to_a_44(sigmaSD, mchi, mneutron);
+	    CP[i]=8*higgs_vev*higgs_vev*sqrt(2)*G_F*ap_44*sqrt(pbGeVfactor);
+   	    CN[i]=8*higgs_vev*higgs_vev*sqrt(2)*G_F*an_44*sqrt(pbGeVfactor);
          }
     }
 }
@@ -329,14 +330,14 @@ void set_coeffs_matching_Standard( double mchi, double sigma, double sigmaSD){
 void set_coeffs_matching_Standard_all( double mchi, double sigma_p,double sigma_n, double sigmaSD_p, double sigmaSD_n){
 
     int i;
-    double pbGeVfactor = 2.67e-9;
+    double pbGeVfactor = 1./gev_to_pb; // pb -> GeV^-2
     for (i=0; i < OPERATOR_NUMBER; i++){
         if (i == 0){
           MASS = mchi;
         }
         else if ( i == 1){
-          double fn = sigma_to_f_11(sigma_n, mchi);
-          double fp = sigma_to_f_11(sigma_p, mchi);
+          double fn = sigma_to_f_11(sigma_n, mchi, mneutron);
+          double fp = sigma_to_f_11(sigma_p, mchi, mproton);
           //CP[i] = 8* mproton*mchi*fp*sqrt(pbGeVfactor);
           //CN[i] = 8* mneutron*mchi*fn*sqrt(pbGeVfactor);
           CP[i] = 2*higgs_vev*higgs_vev*fp*sqrt(pbGeVfactor);
@@ -345,8 +346,8 @@ void set_coeffs_matching_Standard_all( double mchi, double sigma_p,double sigma_
 
         }
       	else if ( i == 4){
-	        double ap_44 = sigma_to_a_44(sigmaSD_p, mchi);
-			    double an_44 = sigma_to_a_44(sigmaSD_n, mchi);
+	        double ap_44 = sigma_to_a_44(sigmaSD_p, mchi, mproton);
+			    double an_44 = sigma_to_a_44(sigmaSD_n, mchi, mneutron);
 	        CP[i]=8*higgs_vev*higgs_vev*sqrt(2)*G_F*ap_44*sqrt(pbGeVfactor);
    	      CN[i]=8*higgs_vev*higgs_vev*sqrt(2)*G_F*an_44*sqrt(pbGeVfactor);
         }
@@ -412,7 +413,7 @@ void set_any_coeffs_trace(double input, int i, char*nucleon){
 void set_coeffs_anapole(double mchi, double ANAPOLE){
     int i;
 		MASS = mchi;
-    double pbGeVfactor = 2.67e-9;
+    double pbGeVfactor = 1./gev_to_pb; // pb -> GeV^-2
     double mup = reduced_mass(mchi, mproton);
     for (i=0; i < OPERATOR_NUMBER; i++){
         if(i != 8 && i != 9){

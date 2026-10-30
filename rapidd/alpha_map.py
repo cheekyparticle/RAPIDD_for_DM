@@ -7,12 +7,8 @@ import os
 
 
 from .core import _crapidd, base_dir, reset_coefficients, isofromneuc, set_any_Ncoeff, set_any_Ecoeff, read_halo
+from .core import mproton, mneutron
 from .experiments import counts_bin_LZ
-
-# madDM values, maybe we can get them from the card? 
-
-mneutron = 0.94  
-mproton = 0.938
 
 gev_to_pb = 3.893793721e+8 # (hbar c)^2: GeV^-2 -> pb
 pb_to_cm2 = 1.e-36 # pb -> cm^2
@@ -210,6 +206,11 @@ def electron_alphas_valid(alphas):
 
 
 def c1_dirac_mdm(card, alphaq):
+    '''Non-relativistic NREFT coefficients c1 (proton, neutron) [GeV^-2] of O1 = 1,
+    in RAPIDD's convention (sigma_SI = mu^2 c1^2 / pi).
+    The alphas are the coefficients of the EffOperators reference operators, which have
+    the Dirac normalisation for both COMPLEX and REAL DM: the scalar (SI even) and vector
+    (SI odd) DM-quark couplings give f_N = sum_q alpha FF and chibar chi Nbar N -> c1 = f_N.'''
 
     PFF = gen_Pff_mdm(card)
     NFF = gen_Nff_mdm(card)
@@ -226,6 +227,13 @@ def c1_dirac_mdm(card, alphaq):
     return c1p, c1n
 
 def c4_dirac_mdm(card, alphaq):
+    '''Non-relativistic NREFT coefficients c4 (proton, neutron) [GeV^-2] of O4 = S_chi.S_N,
+    in RAPIDD's convention (sigma_SD = 3 mu^2 c4^2 / (16 pi)).
+    The axial (SD even) and tensor (SD odd) alphas, projected on the Dirac-normalised
+    axial-vector reference operator, give a_N = sum_q alpha FF, the coefficient of
+    (chibar gamma^mu gamma^5 chi)(Nbar gamma_mu gamma^5 N). In the NR limit
+    ubar gamma^i gamma^5 u -> 2m xi^dag sigma^i xi, so M -> -16 a_N m_chi m_N S_chi.S_N
+    and c4 = -4 a_N.'''
     PFF = gen_Pff_mdm(card)
     NFF = gen_Nff_mdm(card)
 
@@ -238,7 +246,7 @@ def c4_dirac_mdm(card, alphaq):
         c4p += (values[2:] * PFF[quark][2:]).sum()
         c4n += (values[2:] * NFF[quark][2:]).sum()
 
-    return c4p, c4n
+    return -4*c4p, -4*c4n
 
 
 
@@ -252,8 +260,8 @@ def sigmaSI_nucleon_mdm(card, alphaq, dmmass):
     mun = dmmass * mneutron / (dmmass + mneutron)
 
 
-    sigp = 4 *mup**2 * c1p**2 / np.pi * gev_to_pb * pb_to_cm2
-    sign = 4 *mun**2 * c1n**2 / np.pi * gev_to_pb * pb_to_cm2
+    sigp = mup**2 * c1p**2 / np.pi * gev_to_pb * pb_to_cm2
+    sign = mun**2 * c1n**2 / np.pi * gev_to_pb * pb_to_cm2
 
     return sigp, sign
 
@@ -265,8 +273,8 @@ def sigmaSD_nucleon_mdm(card, alphaq, dmmass):
     mun = dmmass * mneutron / (dmmass + mneutron)
 
 
-    sigp = 12 *mup**2 * c4p**2 / np.pi * gev_to_pb * pb_to_cm2
-    sign = 12 *mun**2 * c4n**2 / np.pi * gev_to_pb * pb_to_cm2
+    sigp = 3 * mup**2 * c4p**2 / (16 * np.pi) * gev_to_pb * pb_to_cm2
+    sign = 3 * mun**2 * c4n**2 / (16 * np.pi) * gev_to_pb * pb_to_cm2
 
     return sigp, sign
 

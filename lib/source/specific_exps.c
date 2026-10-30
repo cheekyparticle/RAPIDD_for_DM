@@ -113,7 +113,7 @@ double difrate_effres_integrand_Xenon1T(double x, void * p){
 	double exposure = (params->exposure);
 	double E1 = (params->E1);
 	double E2 = (params->E2);
-  double res = res_fn_xenon_nr(132, 74, x)*x;
+  double res = res_fn_xenon_nr(132, 54, x)*x;
 
 	struct difcros_params * val_difcros = (params-> input_difcros);
 	val_difcros->Er = x; 
@@ -196,7 +196,7 @@ double difrate_effres_integrand_LZ(double x, void * p){
 	double exposure = (params->exposure);
 	double E1 = (params->E1);
 	double E2 = (params->E2);
-  double res = res_fn_lux_nr(132, 74, x)*x;
+  double res = res_fn_lux_nr(132, 54, x)*x;
 
 	struct difcros_params * val_difcros = (params-> input_difcros);
 	val_difcros->Er = x; 

@@ -33,17 +33,17 @@ double approx_mass_nucleus(double A, double Z){
 }
 
 ////////Function to calculate couplings f (f_n, f_p) for SI interaction by using the cross section sigma//////////////////////////
-double sigma_to_f_11(double sigma, double mchi){
+double sigma_to_f_11(double sigma, double mchi, double mnucleon){
 
-	double mun = reduced_mass(mchi, mproton); //reduced mass DM particle and nucleon
+	double mun = reduced_mass(mchi, mnucleon); //reduced mass DM particle and nucleon (mproton or mneutron)
 	return sqrt(sigma*M_PI) / (2.*mun);
 
 }
 
 ////////Function to calculate couplings a (a_n, a_p) for SD interaction by using the cross section sigma//////////////////////////
-double sigma_to_a_44(double sigma, double mchi){
+double sigma_to_a_44(double sigma, double mchi, double mnucleon){
 
-	double mun = reduced_mass(mchi, mproton); //reduced mass DM particle and nucleon
+	double mun = reduced_mass(mchi, mnucleon); //reduced mass DM particle and nucleon (mproton or mneutron)
 	return sqrt(sigma*M_PI) / (sqrt(24.)*mun*G_F);
 
 }

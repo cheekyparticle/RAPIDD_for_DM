@@ -24,9 +24,11 @@ lib_path = os.path.join(base_dir, '..', 'lib', 'build', lib_name)
 _crapidd = ctypes.CDLL(lib_path)
 
 
-vev = 246.2
-mneutron = 0.939565
-mproton = 0.938272
+# same values as lib/source/phys_consts.h
+G_F = 1.1663788e-5 # Fermi constant [GeV^-2] (PDG 2024)
+vev = 1/np.sqrt(np.sqrt(2)*G_F) # Higgs vev [GeV], 246.2196
+mneutron = 0.93956542194 # [GeV] (CODATA 2022)
+mproton = 0.93827208943 # [GeV] (CODATA 2022)
 
 ########################################################################################
 # Halo related functions
@@ -234,12 +236,26 @@ _difrate_dER_python = _crapidd.difrate_dER_python
 _difrate_dER_python.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_double]
 _difrate_dER_python.restype = ctypes.c_double
 
+_nuclear_model_supports_target = _crapidd.nuclear_model_supports_target
+_nuclear_model_supports_target.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+_nuclear_model_supports_target.restype = ctypes.c_int
+
 VALID_NUCLEAR_MODELS = ("iso_GCN5082", "pn_Fitz", "iso_Fitz", "pn_SN100PN")
+_supported_targets = {}
+
+def check_nuclear_model(target, basis):
+    '''Raise a ValueError if basis is not a valid nuclear model or if its form factors are
+    not tabulated for all the isotopes of target (difrate_dER would silently return 0)'''
+    if basis not in VALID_NUCLEAR_MODELS:
+        raise ValueError(f"Nuclear model must be one of {VALID_NUCLEAR_MODELS}")
+    if (target, basis) not in _supported_targets:
+        _supported_targets[(target, basis)] = bool(_nuclear_model_supports_target(basis.encode(), target.encode()))
+    if not _supported_targets[(target, basis)]:
+        raise ValueError(f"The nuclear model {basis} has no form factors for (all the isotopes of) the target {target}")
 
 @np.vectorize
 def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="iso_GCN5082", delta=0.0):
-    if basis not in VALID_NUCLEAR_MODELS:  
-        raise ValueError(f"Nuclear model must be one of {VALID_NUCLEAR_MODELS}")
+    check_nuclear_model(target, basis)
     return _difrate_dER_python(rhoDM, mDM, np.log10(ER), model.encode(), target.encode(), basis.encode(), delta)
 
 ########################################################################################

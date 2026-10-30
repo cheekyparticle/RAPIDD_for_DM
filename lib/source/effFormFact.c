@@ -30,6 +30,7 @@ responses coming from:
 #include <string.h>
 
 #include "effFormFact.h"
+#include "phys_consts.h"
 
 #define SQR(X) ((X)*(X))
 #define ABS(X) ((X) > 0 ? (X) : (-(X)))
@@ -63,7 +64,7 @@ Generic polynomial function used to parametrize each nuclear response in arXiv:1
 double f(double Er, int A, int Z, double a0, double a1, double a2, double a3, double a4,
          double a5, double a6, double a7, double a8, double a9, double a10)
 {
-    double mn = Z * 0.938 + (A-Z) * 0.940; // GeV
+    double mn = Z * mproton + (A-Z) * mneutron; // GeV
     double q2 = 2.*mn*Er*1.e-6;//GeV
     double b2 = B2[A-1];
 
@@ -88,8 +89,6 @@ Generic polynomial function used to parametrize each nuclear response in arXiv:1
 ########################################################################################*/
 double f_Men(double Er, int A, int Z, double a0, double a1, double a2, double a3, double a4,
 			 double a5){
-    double mproton=0.938; //Proton mass in GeV
-    double mneutron=0.940; //Neutron mass in GeV
     double mn=Z*mproton+(A-Z)*mneutron;
     double q = sqrt(2.*mn*Er*1.e-6);//GeV
     double b =  1./(sqrt(938.919*1.0e-6*(45*pow(A,-1.0/3.0) - 25*pow(A,-2./3.))));
@@ -1776,8 +1775,6 @@ The expressions for the prefactors have been extrapolated from eq. 37 and 38 of 
 
 double FormFact_v0(char* NR_framework, int A, int Z, int i, int j, char* N1, char* N2, double Er, double mchi, double jchi) {
     
-    double mproton = 0.938;
-    double mneutron = 0.940;
     double mnucleus = Z * mproton + (A - Z) * mneutron;
 	double q2 = 2. * mnucleus * Er * 1.e-6;
 	double q4 = q2 * q2;
@@ -1848,8 +1845,6 @@ double FormFact_v0(char* NR_framework, int A, int Z, int i, int j, char* N1, cha
 
 double FormFact_v2(char* NR_framework, int A, int Z, int i, int j, char* N1, char* N2, double Er, double mchi, double jchi) {
 
-    double mproton = 0.938;
-    double mneutron = 0.940;
     double mnucleus = Z * mproton + (A - Z) * mneutron;
     double mN = mproton;
 	double mN2 = mN * mN;

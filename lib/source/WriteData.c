@@ -103,7 +103,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 	copy_trace();
 	if (strncmp(target, "Xe", 10) == 0){
 		num_isos = 7;
-		znum = 74;
+		znum = 54;
 		for (int l = 0; l < num_isos; l++){
 			isotopes[l]=isotopes_Xe[l];	
 			atomic_numbers[l]=atomic_numbers_Xe[l];	

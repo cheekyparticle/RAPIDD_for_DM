@@ -174,6 +174,32 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
     return fabs(rate);
 }
 
+int nuclear_model_supports_target(char* NR_framework, char* target){
+	/*Checks that the nuclear form factors of NR_framework are tabulated for every isotope
+	of target used by difrate_dER (isotopes with zero abundance are skipped). Each tabulated
+	isotope has the M-M response, so the check evaluates it at a small recoil energy.
+	Without this check difrate_dER silently returns 0 for a missing isotope.
+	Parameters:
+	- NR_framework: nuclear model, e.g. "iso_GCN5082", "pn_Fitz"
+	- target: "Xe", "Ge", "Ar", "F" or "CaWO4"
+	Output: 1 if all the isotopes are available, 0 otherwise (also for an unknown target).*/
+	const int *A_list;
+	const double *abundance;
+	int num_isos;
+	if (strncmp(target, "Xe", 10) == 0) { A_list = atomic_numbers_Xe; abundance = isotopes_Xe; num_isos = 7; }
+	else if (strncmp(target, "Ge", 10) == 0) { A_list = atomic_numbers_Ge; abundance = isotopes_Ge; num_isos = 5; }
+	else if (strncmp(target, "Ar", 10) == 0) { A_list = atomic_numbers_Ar; abundance = isotopes_Ar; num_isos = 1; }
+	else if (strncmp(target, "F", 10) == 0) { A_list = atomic_numbers_F; abundance = isotopes_F; num_isos = 1; }
+	else if (strncmp(target, "CaWO4", 10) == 0) { A_list = atomic_numbers_CaWO4; abundance = isotopes_CaWO4; num_isos = 2; }
+	else return 0;
+	char * nucleon = (strncmp(NR_framework, "pn", 2) == 0) ? "p" : "+";
+	for (int l = 0; l < num_isos; l++) {
+		if (abundance[l] == 0.) continue;
+		if (FF(NR_framework, A_list[l], "M", "M", nucleon, nucleon, 0.1) == 0.) return 0;
+	}
+	return 1;
+}
+
 double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* model){
 	struct difcros_params * val_difcros = (struct difcros_params *)input_difcros;
 	char * target = (val_difcros->target);
@@ -183,7 +209,7 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 	int num_isos, znum;
 	if (strncmp(target, "Xe", 10) == 0){
 		num_isos = 7;
-		znum = 74;
+		znum = 54;
 		for (int l = 0; l < num_isos; l++){
 			znumarr[l]=znum;
 			isotopes[l]=isotopes_Xe[l];	
@@ -300,7 +326,7 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 	int num_isos, znum;
 	if (strncmp(target, "Xe", 10) == 0){
 		num_isos = 7;
-		znum = 74;
+		znum = 54;
 		for (int l = 0; l < num_isos; l++){
 			znumarr[l]=znum;
 			isotopes[l]=isotopes_Xe[l];	
