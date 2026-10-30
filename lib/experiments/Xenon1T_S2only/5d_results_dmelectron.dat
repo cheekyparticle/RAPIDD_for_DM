@@ -1,8 +1,8 @@
 # XENON1T S2-only DM-electron results, from
 # https://github.com/XENON1T/s2only_data_release/blob/master/limits/5d_results_dmelectron.csv
 # dm_mass[GeV]  s2_roi_min  s2_roi_max  n_obs  n_bkg
-0.01  30  46  8   2.429147965767682
-0.02  30  46  8   2.429147965767682
+0.01  30  45  8   2.429147965767682
+0.02  30  45  8   2.429147965767682
 0.03  30  48  9   2.723379181094673
 0.05  30  54  14  3.560164460077108
 0.07  34  56  13  2.9683432010305126

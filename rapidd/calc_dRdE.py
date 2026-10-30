@@ -126,13 +126,6 @@ def DDrate_electron_save(card, alphas, dm_spin, m_e, dmmass, output_path, halo_p
     result['Xenon1T_bkg'] = x1t['n_bkg']
     result['Xenon1T_obs'] = x1t['n_obs']
 
-    # As in the legacy Fortran, the last energy is moved to the last energy of the XENON1T
-    # response if they differ by less than 5% (only affects the printed grid)
-    E_print = E[:-1].copy()
-    E1T_max = 10.0e-6
-    if (E1T_max - E_print[-1])/E_print[-1] <= 0.05:
-        E_print[-1] = E1T_max
-
     with open(os.path.join(output_path, 'signal_e_recoil.dat'), 'w') as f:
         f.write(_f77('Xenon10_bins', *[int(b) for b in bins]))
         f.write(_f77('Xenon10_signal', *x10['signal']))
@@ -140,7 +133,7 @@ def DDrate_electron_save(card, alphas, dm_spin, m_e, dmmass, output_path, halo_p
     with open(os.path.join(output_path, 'dRdE_e_recoil.dat'), 'w') as f:
         f.write(_f77('##    Momentum (keV)        Energy(keV)               dR/dE[events/kg/day/keV]'))
         for ik in range(len(rate_tot)):
-            f.write(_f77(k[ik]*1e6, E_print[ik]*1e6, rate_tot[ik]/1e6))
+            f.write(_f77(k[ik]*1e6, E[ik]*1e6, rate_tot[ik]/1e6))
 
     with open(os.path.join(output_path, 'dRdS2_Xenon10_e_recoil.dat'), 'w') as f:
         f.write(_f77('##       S2   dN/dS2[events]'))

@@ -426,9 +426,8 @@ static const double S2_val_Xenon1T[S2_BIN_MAX_XENON1T] = {
 double dm_response_electron(int resp, double q, double mchi, double jchi){
 	/*DM response R_resp of arXiv:1912.08204 built from the DM-electron NREFT
 	coefficients Ce(i), times the legacy MadDM normalisation:
-	R_1 = (Ce(1)^2 + jchi(jchi+1)/4 Ce(4)^2) * gev_to_pb * pb_to_cm2 [* GeV_to_kg^2 if jchi = 0].
-	The extra GeV_to_kg^2 for scalar DM (jchi = 0) reproduces the legacy Fortran
-	dm_response. This is the only place where the unit factors are applied.
+	R_1 = (Ce(1)^2 + jchi(jchi+1)/4 Ce(4)^2) * gev_to_pb * pb_to_cm2, for scalar and fermion DM.
+	This is the only place where the unit factors are applied.
 	TODO: R_2 ... R_4 and the other operators (q and mchi dependence) of arXiv:1912.08204.
 	Inputs: resp (1..4), q (exchanged momentum, GeV), mchi (GeV), jchi (DM spin).
 	Output: DM response (0 for the responses not implemented yet).*/
@@ -436,9 +435,7 @@ double dm_response_electron(int resp, double q, double mchi, double jchi){
 	(void)mchi;
 	if (resp != 1) return 0.;
 	double R1 = SQR(Ce(1)) + jchi * (jchi + 1.) / 4. * SQR(Ce(4));
-	double norm = gev_to_pb * pb_to_cm2;
-	if (jchi == 0.) norm *= SQR(GeV_to_kg);
-	return R1 * norm;
+	return R1 * gev_to_pb * pb_to_cm2;
 }
 
 static void electron_grids(double m_e, double *k, double *E, double *q){
@@ -511,7 +508,7 @@ static double legacy_eta(double vmin){
 		else {
 			eta = 0.;
 		}
-		eta_avg += eta * dday / 365.;
+		eta_avg += eta * dday / (legacy_day_max - legacy_day_min);
 	}
 	return eta_avg;
 }
@@ -758,7 +755,7 @@ int difrate_dS2_Xenon1T(const double *E, const double *rate_shell, double mchi, 
 	- signal_out, n_bkg_out, n_obs_out: signal, background and observed events in the ROI
 	  (-1 if mchi is outside the mass range of the results table)
 	Output: number of S2 bins, or -1 on error.*/
-	const double exposure = 356524.7; // kg day (0.97678 tonne years)
+	const double exposure = 356770.; // kg day (0.97678 tonne years, XENON1T data release)
 	double E_resp[LEN_E_RESP_XENON1T], E_lo[LEN_E_RESP_XENON1T], E_hi[LEN_E_RESP_XENON1T];
 	static double s2_resp[LEN_E_RESP_XENON1T][S2_BIN_MAX_XENON1T];
 	char path[1024];

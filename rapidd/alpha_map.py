@@ -294,16 +294,20 @@ def jchi_from_dm_spin(dm_spin):
 def ce_dm_electron(alphas, mchi, m_e, dm_spin):
     '''NREFT DM-electron coefficients c1, c4 [GeV units of the legacy MadDM
     get_dm_response] from alphas["alpha_e"] = (aSIe, aSIo, aSDe, aSDo).
-    The unit factors (gev_to_pb*pb_to_cm2, and GeV_to_kg^2 for scalar DM) are applied
-    in the C function dm_response_electron. Vector DM is not implemented: returns -1, -1.'''
+    The unit factor gev_to_pb*pb_to_cm2 is applied in the C function dm_response_electron.
+    Vector DM is not implemented: returns -1, -1.'''
     aSIe, aSIo, aSDe, aSDo = [float(a) for a in alphas["alpha_e"]]
     dm_spin = int(round(dm_spin))
     if dm_spin == 1:
-        c1 = 2*m_e*(aSIe + 2*mchi*aSIo)
+        # The scalar effective operator already contains the DM mass (2*mchi*phi^dag phi ebar e),
+        # so in terms of the alphas the matching is the same as for the fermion SI case
+        c1 = 4*mchi*m_e*(aSIo + aSIe)
         c4 = 0.0
     elif dm_spin == 2:
         c1 = 4*mchi*m_e*(aSIo + aSIe)
-        c4 = 16*mchi*m_e*(2*aSDo - aSDe)
+        # The alphas are projections on the axial x axial operator: the DM-e- amplitude is
+        # (aSDe + aSDo) times it, as for c1 (a tensor term gives aSDo = -2 C_T)
+        c4 = 16*mchi*m_e*(aSDo + aSDe)
     else:
         return -1.0, -1.0
     return c1, c4

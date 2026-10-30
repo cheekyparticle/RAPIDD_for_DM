@@ -25,13 +25,13 @@ const double static s_w = 0.4895916665957459;
 const double static g_n = -3.83;
 const double static g_p = 5.59;
 
-// DM-electron scattering (same values as the legacy MadDM Fortran, in double precision)
+// DM-electron scattering (exact double-precision values, as in the MadDM Fortran)
 const double static c_light_cms = 29979245800.; // speed of light in cm/s
-const double static GeV_to_kg = 1.78e-27; // GeV/c^2 -> kg
-const double static GeV_to_J = 1.6022e-10; // GeV -> J
-const double static atomic_mass_unit_kg = 1.660539e-27; // u -> kg
+const double static GeV_to_kg = 1.78266192e-27; // GeV/c^2 -> kg
+const double static GeV_to_J = 1.602176634e-10; // GeV -> J
+const double static atomic_mass_unit_kg = 1.66053906660e-27; // u -> kg
 const double static m_Xe_avg_au = 131.293; // Xenon mass, average over all isotopes (u)
-const double static gev_to_pb = 3.89e+8; // GeV^-2 -> pb
+const double static gev_to_pb = 3.893793721e+8; // (hbar c)^2: GeV^-2 -> pb
 const double static pb_to_cm2 = 1.e-36; // pb -> cm^2
 const double static m_to_cm = 100.; // m -> cm
 const double static day_to_sec = 86400.; // day -> s
