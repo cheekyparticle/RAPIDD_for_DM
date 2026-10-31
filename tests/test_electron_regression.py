@@ -2,6 +2,7 @@
 direct_electron_port (tests/data/regression_direct_electron_port, see generate_reference.py):
 MadDM only uses this path, which must not change.'''
 import os
+import re
 import shutil
 
 import numpy as np
@@ -28,8 +29,18 @@ def reference():
     return np.load(os.path.join(REF_DIR, "reference.npz"))
 
 
+@pytest.fixture
+def w2_convention(request):
+    '''Sign of W_2 for the test, restored to the default afterwards'''
+    rapidd.set_w2_sign(request.param)
+    yield request.param
+    rapidd.set_w2_sign("Liang")
+
+
+# the SI/SD path of MadDM uses only W_1: it must not depend on the sign convention of W_2
+@pytest.mark.parametrize("w2_convention", ("Liang", "Catena"), indirect=True)
 @pytest.mark.parametrize("label,c1,c4,m,jchi", CASES)
-def test_rates_and_signals(reference, default_halo, label, c1, c4, m, jchi):
+def test_rates_and_signals(reference, default_halo, w2_convention, label, c1, c4, m, jchi):
     rapidd.set_any_Ecoeff(c1, 1)
     rapidd.set_any_Ecoeff(c4, 4)
     key = "%s_m%g_j%g/" % (label, m, jchi)
@@ -50,11 +61,14 @@ def test_rates_and_signals(reference, default_halo, label, c1, c4, m, jchi):
 
 
 def _numbers(path):
-    '''All the numbers of a text file, in order'''
+    '''All the numbers of a text file, in order. The numpy scalar wrappers written by repr with
+    numpy >= 2 (e.g. np.float64(0.1) in result.txt) are removed first, so that the files written
+    with numpy 1 and 2 give the same numbers.'''
     out = []
     with open(path) as f:
         for line in f:
-            for tok in line.replace(',', ' ').split():
+            line = re.sub(r"np\.(float|int)\d*\(([^()]*)\)", r"\2", line)
+            for tok in line.replace(',', ' ').replace('[', ' ').replace(']', ' ').split():
                 try:
                     out.append(float(tok))
                 except ValueError:
