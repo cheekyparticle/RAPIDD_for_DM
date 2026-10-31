@@ -119,7 +119,9 @@ double shm_halo(double vmin, double vesc, double v0, double ve, int i){
 			return pow(M_PI, 1.5) * pow(v0, 2.) / (2. * xe * norm3d)
 			       * (gsl_sf_erf(xmin + xe) - gsl_sf_erf(xmin - xe) - 4. * xe / sqrt(M_PI) * expesc);
 		}
-		if (xmin > fabs(xesc - xe) && (xe + xesc) > xmin) {
+		/* here xmin >= xesc - xe up to rounding: no test on xmin > xesc - xe, which can fail
+		   at vmin = vesc - ve together with the one above */
+		if ((xe <= xesc || xmin > xe - xesc) && (xe + xesc) > xmin) {
 			return pow(M_PI, 1.5) * pow(v0, 2.) / (2. * xe * norm3d)
 			       * (gsl_sf_erf(xesc) + gsl_sf_erf(xe - xmin) - 2. / sqrt(M_PI) * expesc * (xesc + xe - xmin));
 		}
