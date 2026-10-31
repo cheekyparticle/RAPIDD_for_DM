@@ -35,6 +35,7 @@ const double static gev_to_pb = 3.893793721e+8; // (hbar c)^2: GeV^-2 -> pb
 const double static pb_to_cm2 = 1.e-36; // pb -> cm^2
 const double static m_to_cm = 100.; // m -> cm
 const double static day_to_sec = 86400.; // day -> s
+const double static alpha_em = 7.2973525643e-3; // fine-structure constant (CODATA 2022), q_ref = alpha_em m_e
 
 const double static isotopes_Ar[1] = {1.0};
 const int static atomic_numbers_Ar[1] = {40};

@@ -5,6 +5,7 @@
 double Cp(int i);
 double Cn(int i);
 double Ce(int i);
+double Ce_LR(int i);
 double Cp_trace(int i);
 double Cn_trace(int i);
 double give_mass();
@@ -29,6 +30,7 @@ void set_coeffs_matching_Standard_all( double mchi, double sigma_p,double sigma_
 void set_any_coeffs(double C, int i);
 void set_any_Ncoeff(double input, int i, char* nucleon);
 void set_any_Ecoeff(double input, int i);
+void set_any_Ecoeff_LR(double input, int i);
 void set_med_mass(double med_mass);
 void set_any_coeffs_trace(double input, int i, char*nucleon);
 void set_coeffs_anapole(double mchi, double ANAPOLE);

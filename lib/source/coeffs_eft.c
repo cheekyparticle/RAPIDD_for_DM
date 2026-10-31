@@ -29,7 +29,8 @@ Set EFT coefficients for calculations here
 double C[OPERATOR_NUMBER];
 double CP[OPERATOR_NUMBER];
 double CN[OPERATOR_NUMBER];
-double CE[OPERATOR_NUMBER]; // DM-electron NREFT coefficients
+double CE[OPERATOR_NUMBER]; // DM-electron NREFT coefficients, contact
+double CE_LR[OPERATOR_NUMBER]; // DM-electron NREFT coefficients, long-range
 double CP_trace[OPERATOR_NUMBER];
 double CN_trace[OPERATOR_NUMBER];
 double C0[OPERATOR_NUMBER];
@@ -112,7 +113,10 @@ void set_coeffs(){
 	CP[15] = 0.0;
 	CN[15] = 0.0;
 	//Electron coefficients
-	for (int i = 0; i < OPERATOR_NUMBER; i++) CE[i] = 0.0;
+	for (int i = 0; i < OPERATOR_NUMBER; i++) {
+		CE[i] = 0.0;
+		CE_LR[i] = 0.0;
+	}
 	//Mass
 	MASS = 0.0;
   //MED_MASS = 0.0;
@@ -128,8 +132,14 @@ double Cn(int i){
 }
 
 double Ce(int i){
-	/*Returns the i-th DM-electron NREFT coefficient (i = 1..15).*/
+	/*Returns the i-th DM-electron NREFT coefficient (i = 1..15), contact interaction c_i^s.*/
 	return CE[i];
+}
+
+double Ce_LR(int i){
+	/*Returns the i-th DM-electron NREFT coefficient (i = 1..15), long-range interaction c_i^l
+	of arXiv:1912.08204: c_i(q) = c_i^s + (q_ref/q)^2 c_i^l, with q_ref = alpha m_e.*/
+	return CE_LR[i];
 }
 
 double Cp_trace(int i){
@@ -176,6 +186,10 @@ void print_coeffs() {
   for (int i = 0; i < OPERATOR_NUMBER; i++) {
     if (fabs(CE[i])>0)
       printf("Set parameters for operator %i: %e (electron)\n",i, CE[i]);
+  }
+  for (int i = 0; i < OPERATOR_NUMBER; i++) {
+    if (fabs(CE_LR[i])>0)
+      printf("Set parameters for operator %i: %e (electron, long-range)\n",i, CE_LR[i]);
   }
 }
 
@@ -390,6 +404,15 @@ void set_any_Ecoeff(double input, int i){
 	Inputs: input (coefficient value), i (operator index).*/
 	if (i >= 0 && i < OPERATOR_NUMBER){
 		CE[i] = input;
+	}
+}
+
+void set_any_Ecoeff_LR(double input, int i){
+	/*Sets the i-th long-range DM-electron NREFT coefficient c_i^l (i = 1..15), which
+	enters as (q_ref/q)^2 c_i^l with q_ref = alpha m_e (arXiv:1912.08204).
+	Inputs: input (dimensionless coefficient value), i (operator index).*/
+	if (i >= 0 && i < OPERATOR_NUMBER){
+		CE_LR[i] = input;
 	}
 }
 
