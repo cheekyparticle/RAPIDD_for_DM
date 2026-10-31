@@ -392,6 +392,35 @@ _difrate_electron_dEr_all = _crapidd.difrate_electron_dEr_all
 _difrate_electron_dEr_all.argtypes = [ctypes.c_double] * 4 + [_dbl_p] * 3
 _difrate_electron_dEr_all.restype = ctypes.c_int
 
+_set_electron_w2_sign = _crapidd.set_electron_w2_sign
+_set_electron_w2_sign.argtypes = [ctypes.c_int]
+_set_electron_w2_sign.restype = None
+_electron_w2_sign_value = _crapidd.electron_w2_sign_value
+_electron_w2_sign_value.argtypes = []
+_electron_w2_sign_value.restype = ctypes.c_int
+
+W2_CONVENTIONS = {"Liang": -1, "Catena": 1}
+
+def set_w2_sign(convention="Liang"):
+    '''
+    Sign of the tabulated atomic response W_2 in the DM-electron rate.
+
+    Parameters
+    ----------
+    convention : {"Liang", "Catena"} or {-1, +1}
+        "Liang" (-1, default): sign of the vector atomic form factor corrected in
+        arXiv:2405.04855. "Catena" (+1): W_2 as in arXiv:1912.08204 (to reproduce its
+        figures). Only the operators O_7, O_8, O_12, O_13, O_14 (R_2 != 0) are affected.
+    '''
+    sign = W2_CONVENTIONS.get(convention, convention)
+    if sign not in (1, -1):
+        raise ValueError(f"convention must be one of {list(W2_CONVENTIONS)} or +1/-1")
+    _set_electron_w2_sign(int(sign))
+
+def w2_sign():
+    '''Sign of W_2 currently used in the DM-electron rate (-1: Liang, +1: Catena)'''
+    return _electron_w2_sign_value()
+
 _difrate_electron_dEr_resp = _crapidd.difrate_electron_dEr_resp
 _difrate_electron_dEr_resp.argtypes = [ctypes.c_double] * 4 + [ctypes.c_int] + [_dbl_p] * 3
 _difrate_electron_dEr_resp.restype = ctypes.c_int

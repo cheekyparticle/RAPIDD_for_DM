@@ -603,6 +603,26 @@ static double legacy_eta(double vmin){
 }
 #endif
 
+/* Sign of the tabulated atomic response W_2: -1 (default) corrects the sign of the vector
+form factor of arXiv:1912.08204 found in arXiv:2405.04855 (Liang et al.), +1 uses W_2 as in
+arXiv:1912.08204 (Catena et al.). R_2 is the same in the two works. */
+static double electron_w2_sign = -1.;
+
+void set_electron_w2_sign(int sign){
+	/*Sets the sign of the atomic response W_2 in the DM-electron rate.
+	Inputs: sign (-1: arXiv:2405.04855, default; +1: arXiv:1912.08204).*/
+	if (sign != 1 && sign != -1) {
+		fprintf(stderr, "set_electron_w2_sign: sign must be +1 or -1\n");
+		return;
+	}
+	electron_w2_sign = (double)sign;
+}
+
+int electron_w2_sign_value(){
+	/*Returns the sign of W_2 used in the DM-electron rate (+1 or -1).*/
+	return (int)electron_w2_sign;
+}
+
 static int coeff_e_set(int i){
 	/*Returns 1 if the contact or the long-range DM-electron coefficient i is not zero.*/
 	return Ce(i) != 0. || Ce_LR(i) != 0.;
@@ -660,6 +680,7 @@ static double difrate_electron_dEr_w(int shell, int ik, const double *E, const d
 		for (j = 0; j < N_ATOMIC_RESP; j++) {
 			if (!needed[j]) continue;
 			double W = atomic_response(j + 1, shell, ik, iq);
+			if (j == 1) W *= electron_w2_sign;
 			double ioniz_amplitude = W * (R[j] * gev_to_pb * pb_to_cm2) * SQR(GeV_to_kg);
 			dRdlogE += pref * eta * ioniz_amplitude / (m_Xe_avg_au * atomic_mass_unit_kg);
 			if (j == 0 && gs2 != NULL) {

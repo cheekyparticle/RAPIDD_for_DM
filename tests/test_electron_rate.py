@@ -32,14 +32,15 @@ def shm_speed_distribution(v):
     return 2 * np.pi * v**2 * ang / (nesc * np.pi**1.5 * V0**3)
 
 
-def independent_dRdlnE(coeffs, mchi, rho, ik_list, drop_vperp_const=False, resp=(1, 2, 3, 4)):
+def independent_dRdlnE(coeffs, mchi, rho, ik_list, drop_vperp_const=False, resp=(1, 2, 3, 4), w2_sign=-1):
     '''dR/dlnE [events/kg/day] of the shell 5p from Eqs. (ionization spectrum) and (RW):
     n_chi/(128 pi mchi^2 m_e^2) int dq q int d^3v f(v)/v Theta(v - vmin) sum_j R_j(v) W_j,
     with R_j evaluated at each v with the full (v_el^perp)^2 (or with (v_el^perp)^2 = v^2 if
     drop_vperp_const, to check that the constant part matters), summing the terms j in resp.
-    Same grids and q quadrature (left sum) as RAPIDD.'''
+    W_2 is multiplied by w2_sign. Same grids and q quadrature (left sum) as RAPIDD.'''
     base = os.path.join(rapidd.core.atomic_resp_dir, "atomic_response_%i", "Xe_5p.txt")
     W = [np.loadtxt(base % j, comments="//") for j in (1, 2, 3, 4)]
+    W[1] = w2_sign * W[1]
     k = np.exp(np.log(1e-7) + np.log(1e3) * np.arange(101) / 99)
     E = np.sqrt(M_E**2 + k**2) - M_E
     q = np.exp(np.log(1e-6) + np.log(1e3) * np.arange(201) / 199)
@@ -74,16 +75,19 @@ def independent_dRdlnE(coeffs, mchi, rho, ik_list, drop_vperp_const=False, resp=
                                          ({(7, "contact"): 1e-3}, 0.1),
                                          ({(13, "long-range"): 1e-3}, 0.1),
                                          ({(3, "contact"): 1e-3, (5, "contact"): 2e-3}, 1.0)])
-def test_velocity_integral(paper_halo, coeffs, mchi):
+@pytest.mark.parametrize("convention,sign", [("Liang", -1), ("Catena", 1)])
+def test_velocity_integral(paper_halo, coeffs, mchi, convention, sign):
     '''Both the v^2 and the constant part of (v_el^perp)^2 are in the rate (e.g. O_7, 10 MeV)'''
+    rapidd.set_w2_sign(convention)
     for (op, inter), val in coeffs.items():
         rapidd.set_any_Ecoeff(val, op, interaction=inter)
     r = rapidd.difrate_electron(0.4, mchi, 0.5, shells=["5p"])
+    rapidd.set_w2_sign("Liang")
     ik = [i for i in (5, 25, 45, 60) if r['dRdlnE'][i] > 1e-3 * r['dRdlnE'].max()]
     assert len(ik) >= 2
-    ref = independent_dRdlnE(coeffs, mchi, 0.4, ik)
+    ref = independent_dRdlnE(coeffs, mchi, 0.4, ik, w2_sign=sign)
     np.testing.assert_allclose(r['dRdlnE'][ik], ref, rtol=5e-3)
-    if mchi == 0.01:
+    if mchi == 0.01 and sign == -1:
         # R_1 W_1 alone; dropping q^2/(4 mu^2)(mchi - m_e)/(mchi + m_e) - dE/mu (i.e. keeping only
         # the v^2 integrated with halo(vmin, 2)) changes it completely for light DM
         r1 = rapidd.difrate_electron(0.4, mchi, 0.5, shells=["5p"], resp=1)['dRdlnE'][ik]
@@ -206,3 +210,24 @@ def test_limits_scaling(paper_halo):
     np.testing.assert_allclose(rapidd.electron_limit(sig, coupling=2.), 2. * np.sqrt(2.302585092994046 / 10.))
     assert np.isnan(rapidd.electron_limit({'signal': -1., 'n_obs': -1, 'n_bkg': -1.}))
     assert np.isinf(rapidd.electron_limit({'signal': np.zeros(7), 'n_obs': np.zeros(7, dtype=int)}))
+
+
+def test_w2_sign(paper_halo):
+    '''Default: sign of arXiv:2405.04855; only R_2 W_2 changes sign. For O_7 at 10 MeV R_2 W_2 and
+    R_3 W_3 then nearly cancel and the rate is close to R_1 W_1 alone (Fig. 2 of arXiv:2405.04855)'''
+    assert rapidd.w2_sign() == -1
+    rapidd.set_any_Ecoeff(1e-3, 7)
+    liang = {j: rapidd.difrate_electron(0.4, 0.01, resp=j)['dRdE'] for j in (1, 2, 3)}
+    tot_liang = rapidd.difrate_electron(0.4, 0.01)['dRdE']
+    rapidd.set_w2_sign("Catena")
+    catena = {j: rapidd.difrate_electron(0.4, 0.01, resp=j)['dRdE'] for j in (1, 2, 3)}
+    tot_catena = rapidd.difrate_electron(0.4, 0.01)['dRdE']
+    rapidd.set_w2_sign("Liang")
+    np.testing.assert_allclose(liang[2], -catena[2], rtol=1e-12)
+    for j in (1, 3):
+        np.testing.assert_allclose(liang[j], catena[j], rtol=1e-12)
+    peak = np.argmax(tot_catena)
+    assert tot_liang[peak] < 0.5 * tot_catena[peak]
+    assert abs(tot_liang[peak] / liang[1][peak] - 1) < 0.5
+    with pytest.raises(ValueError):
+        rapidd.set_w2_sign(2)

@@ -16,6 +16,8 @@ Findings (see the README / report of the electron_nreft branch):
   against the observed band instead.
 - Fig. 6, O_3: for jchi = 1/2 the DM responses of the paper give exactly the same rate for O_3
   and O_5, while the paper's O_3 bars are 5-50 times larger than O_5 (and than RAPIDD).
+- All the comparisons use the sign of W_2 of the paper (set_w2_sign("Catena")); arXiv:2405.04855
+  corrects it (RAPIDD default) and also finds Fig. 7 to be ~3/4 of the formula.
 - XENON1T: the paper uses 4 S2 bins with g2 = 33, RAPIDD the S2-only data release response and
   its mass dependent ROI: only the order of magnitude is compared.
 '''
@@ -29,6 +31,14 @@ import rapidd
 from conftest import load_csv, PAPER_DIR, PAPER_HALO
 
 YR = 365.25
+
+
+@pytest.fixture(autouse=True, scope="module")
+def catena_w2_sign():
+    '''The figures of arXiv:1912.08204 use its sign of W_2'''
+    rapidd.set_w2_sign("Catena")
+    yield
+    rapidd.set_w2_sign("Liang")
 RHO = 0.4
 SHELLS = rapidd.XE_SHELLS_PAPER
 OFFSET_REASON = ("Figs. 5-7 of arXiv:1912.08204 are 1.1-1.45 times below Eq. (ionization spectrum) "

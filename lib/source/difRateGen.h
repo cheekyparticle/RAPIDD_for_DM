@@ -18,6 +18,8 @@ double difrate_dER_python(double rhochi, double mass, double logenergy, char* mo
 double difrate_dER_python_2(double rhochi, double mass, double energy, char* model, char* Target, char*ISO_switch);
 
 // DM-electron scattering
+void set_electron_w2_sign(int sign);
+int electron_w2_sign_value();
 double dm_response_electron(int resp, double q, double dE, double mchi, double jchi, double m_e, double *R_v2);
 double difrate_electron_dEr(int shell, int ik, double rhochi, double mchi, double jchi, double m_e);
 int difrate_electron_dEr_resp(double rhochi, double mchi, double jchi, double m_e, int resp_mask,

@@ -11,10 +11,12 @@ Conventions
   spectrum) and (RW)), with the atomic responses W_1 ... W_4 of the 11 Xenon shells.
 - Units: masses in GeV, energies in keV, rates in events/kg/day(/keV), rhoDM in GeV/cm^3.
 - The halo table must contain halo(vmin, 2) (i >= 2) for the operators depending on v_el^perp.
+- W_2: by default with the sign corrected in arXiv:2405.04855 (Liang et al.); set_w2_sign("Catena")
+  uses the sign of arXiv:1912.08204 (affects O_7, O_8, O_12, O_13, O_14).
 """
 import numpy as np
 
-from .core import (set_any_Ecoeff, read_atomic_responses, difrate_electron_dEr_all, difrate_dS2,
+from .core import (set_any_Ecoeff, set_w2_sign, w2_sign, read_atomic_responses, difrate_electron_dEr_all, difrate_dS2,
                    calc_halo, read_halo, M_ELECTRON, XE_SHELLS, N_SHELL_XE, N_ATOMIC_RESP,
                    ELECTRON_OPERATORS, ELECTRON_INTERACTIONS)
 from .stats import poisson_upper_limit
