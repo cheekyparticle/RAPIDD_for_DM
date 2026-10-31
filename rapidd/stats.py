@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import optimize
 from scipy.interpolate import interp1d
-from scipy.stats import poisson
+from scipy.stats import poisson, chi2
 import csv
 
 
@@ -49,3 +49,9 @@ def poisson_pvalue(observed, expected):
 def binned_poisson_pvalue_min(observed, expected):
     '''smallest p-value among the bins of a binned Poisson counting experiment'''
     return min(poisson_pvalue(obs, exp) for obs, exp in zip(observed, expected))
+
+
+def poisson_upper_limit(observed, cl=0.9):
+    '''Classical upper limit mu_up on the mean of a Poisson counting experiment (no background
+    subtraction): P(n <= observed | mu_up) = 1 - cl, i.e. mu_up = chi2.ppf(cl, 2(observed+1))/2'''
+    return 0.5 * chi2.ppf(cl, 2 * (np.asarray(observed) + 1))

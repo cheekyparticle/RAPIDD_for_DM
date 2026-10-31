@@ -55,7 +55,7 @@ VALID_PROFILES = ("SHM", "SHM_numeric", "SHM_beta", "SHM_wLMC", "Lisanti")
   
 def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
                v0_lsr=238., v_pec=(11.1, 12.2, 7.3), k_lisanti=1.5, i=2,
-               t0=151., T=None, w=0.006, vb=570., cosb=-0.71, sigb=100., vcut=200., table_dir=None):
+               t0=151., T=None, w=0.006, vb=570., cosb=-0.71, sigb=100., vcut=200., table_dir=None, ve=None):
     """
     Compute the dark matter halo velocity-integral table and write it to disk
     (calls define_and_write_halo if T is None, define_and_write_halo_time
@@ -109,6 +109,9 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
         Only used when T is not None: directory where the daily tables
         halo_table_<t>.dat are written. If None, they are written in
         halo_table/ relative to the current working directory.
+    ve : float or None
+        Only used when T is None: speed of the Earth in the galactic rest frame [km/s].
+        If None (default), it is the annual average computed from v0_lsr and v_pec.
     """
     if profile not in VALID_PROFILES:  
         raise ValueError(f"Profile must be one of {VALID_PROFILES}")
@@ -120,7 +123,8 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
   
     v_pec_c = (ctypes.c_double * 3)(*v_pec)
     if T is None:
-        ve = _lab_frame_speed_annual_avg(v0_lsr, v_pec_c)
+        if ve is None:
+            ve = _lab_frame_speed_annual_avg(v0_lsr, v_pec_c)
         _define_and_write_halo(
             table_path.encode(), profile.encode(),
             vesc, v0, beta, ve, k_lisanti, i, w,
@@ -199,21 +203,55 @@ _Ce = _crapidd.Ce
 _Ce.argtypes = [ctypes.c_int]
 _Ce.restype = ctypes.c_double
 
+_set_any_Ecoeff_LR = _crapidd.set_any_Ecoeff_LR
+_set_any_Ecoeff_LR.argtypes = [ctypes.c_double, ctypes.c_int]
+_set_any_Ecoeff_LR.restype = None
+
+_Ce_LR = _crapidd.Ce_LR
+_Ce_LR.argtypes = [ctypes.c_int]
+_Ce_LR.restype = ctypes.c_double
+
 def set_any_Ncoeff(coeff, op, nuc):
     '''coeff, op, nuc'''
     _set_any_Ncoeff(coeff, op, nuc.encode())
     return 
 
-def set_any_Ecoeff(coeff, op):
-    '''Set the DM-electron NREFT coefficient of operator op'''
-    _set_any_Ecoeff(coeff, op)
+ELECTRON_OPERATORS = (1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+ELECTRON_INTERACTIONS = ("contact", "long-range")
+
+def set_any_Ecoeff(coeff, op, interaction="contact"):
+    '''
+    Set the DM-electron NREFT coefficient of an operator of arXiv:1912.08204.
+
+    The amplitude is M = sum_i (c_i^s + (q_ref/q)^2 c_i^l) <O_i>, with q_ref = alpha m_e
+    and dimensionless c_i (e.g. c_1 = 4 m_chi m_e a_SI for a contact SI coupling a_SI
+    [GeV^-2]). Note that the limits on c_i^l depend on the choice of q_ref.
+
+    Parameters
+    ----------
+    coeff : float
+        The dimensionless coefficient c_i^s (contact) or c_i^l (long-range).
+    op : int
+        The operator index: 1, 3-15 (O_2, O_16 and O_17-O_20 do not enter the DM responses
+        of arXiv:1912.08204 and are ignored by the rate).
+    interaction : {"contact", "long-range"}
+        Contact (c_i^s) or long-range (c_i^l) coefficient.
+    '''
+    if interaction == "contact":
+        _set_any_Ecoeff(coeff, op)
+    elif interaction == "long-range":
+        _set_any_Ecoeff_LR(coeff, op)
+    else:
+        raise ValueError(f"interaction must be one of {ELECTRON_INTERACTIONS}")
     return
 
 def reset_coefficients() :
+    '''Set to zero all the DM-nucleon and DM-electron (contact and long-range) coefficients'''
     for i in range(16):
         set_any_Ncoeff(0, i, "p")
         set_any_Ncoeff(0, i, "n")    
         set_any_Ecoeff(0, i)
+        set_any_Ecoeff(0, i, interaction="long-range")
     return
 
 def Cp_val(op):
@@ -223,7 +261,12 @@ def Cn_val(op):
     return _Cn(op)
 
 def Ce_val(op):
+    '''Contact DM-electron coefficient c_op^s'''
     return _Ce(op)
+
+def Ce_LR_val(op):
+    '''Long-range DM-electron coefficient c_op^l'''
+    return _Ce_LR(op)
 
 def isofromneuc(cp, cn):
     ''' Simply takes coeffs from p n basis to 0 1 basis '''
@@ -268,6 +311,8 @@ XE_SHELLS = ("1s", "2p", "2s", "3d", "3p", "3s", "4d", "4p", "4s", "5p", "5s")
 S2_MAX_XENON10 = 203
 N_BINS_XENON10 = 7
 S2_BIN_MAX_XENON1T = 63
+N_ATOMIC_RESP = 4
+M_ELECTRON = 0.51099895000e-3 # electron mass [GeV] (CODATA 2018)
 
 atomic_resp_dir = os.path.join(base_dir, '..', 'lib', 'atomic_responses')
 experiments_dir = os.path.join(base_dir, '..', 'lib', 'experiments')
@@ -276,40 +321,102 @@ _read_atomic_responses = _crapidd.read_atomic_responses
 _read_atomic_responses.argtypes = [ctypes.c_char_p, ctypes.c_int]
 _read_atomic_responses.restype = ctypes.c_int
 
-def read_atomic_responses(path=atomic_resp_dir, response_index=1):
-    '''Read the Xenon atomic response W_<response_index> from
-    path/atomic_response_<response_index>/Xe_<shell>.txt'''
-    resp_dir = os.path.join(path, 'atomic_response_%i' % response_index)
-    err = _read_atomic_responses(resp_dir.encode(), response_index)
-    if err != 0:
-        raise IOError("Could not read the atomic responses in %s (error %i)" % (resp_dir, err))
+def read_atomic_responses(path=atomic_resp_dir, response_index=None):
+    '''
+    Read the Xenon atomic responses W_j(k', q) of arXiv:1912.08204 from
+    path/atomic_response_<j>/Xe_<shell>.txt.
+
+    Parameters
+    ----------
+    path : str
+        Directory containing atomic_response_1 ... atomic_response_4.
+    response_index : int, iterable of int or None
+        Response(s) j to read (1-4). None reads all the four responses (W_1 is the only
+        one needed by O_1, O_4 and the other operators that do not depend on v_el^perp).
+    '''
+    if response_index is None:
+        indices = range(1, N_ATOMIC_RESP + 1)
+    elif np.ndim(response_index) == 0:
+        indices = [int(response_index)]
+    else:
+        indices = [int(j) for j in response_index]
+    for j in indices:
+        resp_dir = os.path.join(path, 'atomic_response_%i' % j)
+        err = _read_atomic_responses(resp_dir.encode(), j)
+        if err != 0:
+            raise IOError("Could not read the atomic responses in %s (error %i)" % (resp_dir, err))
     return
 
 _dm_response_electron = _crapidd.dm_response_electron
-_dm_response_electron.argtypes = [ctypes.c_int, ctypes.c_double, ctypes.c_double, ctypes.c_double]
-_dm_response_electron.restype = ctypes.c_double
-
-def dm_response_electron(mchi, jchi, resp=1, q=0.0):
-    '''DM response R_resp built from the electron coefficients Ce (legacy MadDM normalisation)'''
-    return _dm_response_electron(resp, q, mchi, jchi)
-
 _dbl_p = ctypes.POINTER(ctypes.c_double)
 _int_p = ctypes.POINTER(ctypes.c_int)
+_dm_response_electron.argtypes = [ctypes.c_int] + [ctypes.c_double] * 5 + [_dbl_p]
+_dm_response_electron.restype = ctypes.c_double
+
+def dm_response_electron(mchi, jchi, resp=1, q=0.0, dE=0.0, m_e=M_ELECTRON, return_v2=False):
+    '''
+    DM response R_resp of arXiv:1912.08204 built from the electron coefficients Ce
+    (contact) and Ce_LR (long-range), times the legacy MadDM normalisation
+    gev_to_pb*pb_to_cm2 [GeV^-2 -> cm^2].
+
+    Parameters
+    ----------
+    mchi : float
+        DM mass [GeV].
+    jchi : float
+        DM spin (0 or 1/2).
+    resp : int
+        Response index (1-4).
+    q : float
+        Exchanged momentum [GeV]. Must be > 0 if a long-range coefficient is set.
+    dE : float
+        Deposited energy E_B + E_e [GeV] (enters through v_el^perp at k = 0).
+    m_e : float
+        Electron mass [GeV].
+    return_v2 : bool
+        If True, also return the coefficient of v^2 (v in units of c), not zero only for R_1.
+
+    Returns
+    -------
+    float or (float, float)
+        The v independent part of R_resp (and the coefficient of v^2 if return_v2).
+        With q = dE = 0 and only c_1, c_4 contact, R_1 = c_1^2 + jchi(jchi+1)/4 c_4^2 as in MadDM.
+    '''
+    R_v2 = ctypes.c_double(0.0)
+    R = _dm_response_electron(resp, q, dE, mchi, jchi, m_e, ctypes.byref(R_v2))
+    if return_v2:
+        return R, R_v2.value
+    return R
 
 _difrate_electron_dEr_all = _crapidd.difrate_electron_dEr_all
 _difrate_electron_dEr_all.argtypes = [ctypes.c_double] * 4 + [_dbl_p] * 3
 _difrate_electron_dEr_all.restype = ctypes.c_int
 
-def difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e):
+_difrate_electron_dEr_resp = _crapidd.difrate_electron_dEr_resp
+_difrate_electron_dEr_resp.argtypes = [ctypes.c_double] * 4 + [ctypes.c_int] + [_dbl_p] * 3
+_difrate_electron_dEr_resp.restype = ctypes.c_int
+
+_electron_rate_errors = {1: "a needed atomic response W_j has not been read (read_atomic_responses)",
+                         2: "the halo table has no halo(vmin, 2) column, needed by the operators "
+                            "depending on v_el^perp (write it with i >= 2)",
+                         3: "wrong resp_mask"}
+
+def difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, resp_mask=15):
     '''Returns k [GeV] (GRIDSIZE_K+1), E [GeV] (GRIDSIZE_K+1) and the per-shell
-    dR/dE [events/kg/day/GeV] (N_SHELL_XE x GRIDSIZE_K) for DM-electron scattering in Xenon'''
+    dR/dE [events/kg/day/GeV] (N_SHELL_XE x GRIDSIZE_K) for DM-electron scattering in Xenon.
+    resp_mask selects the terms R_j W_j (bit j-1 set: included; 15: all).'''
     k = np.zeros(GRIDSIZE_K + 1)
     E = np.zeros(GRIDSIZE_K + 1)
     rate = np.zeros(N_SHELL_XE * GRIDSIZE_K)
-    err = _difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, k.ctypes.data_as(_dbl_p),
-                                    E.ctypes.data_as(_dbl_p), rate.ctypes.data_as(_dbl_p))
+    if resp_mask == 15:
+        err = _difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, k.ctypes.data_as(_dbl_p),
+                                        E.ctypes.data_as(_dbl_p), rate.ctypes.data_as(_dbl_p))
+    else:
+        err = _difrate_electron_dEr_resp(rhoDM, mDM, jchi, m_e, int(resp_mask), k.ctypes.data_as(_dbl_p),
+                                         E.ctypes.data_as(_dbl_p), rate.ctypes.data_as(_dbl_p))
     if err != 0:
-        raise RuntimeError("difrate_electron_dEr_all failed (error %i)" % err)
+        raise RuntimeError("difrate_electron_dEr_all failed (error %i): %s"
+                           % (err, _electron_rate_errors.get(err, "unknown error")))
     return k, E, rate.reshape(N_SHELL_XE, GRIDSIZE_K)
 
 _xenon10_bins = _crapidd.xenon10_bins
