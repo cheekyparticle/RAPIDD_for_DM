@@ -115,7 +115,7 @@ double shm_halo(double vmin, double vesc, double v0, double ve, int i){
 		double xe   = ve / v0;
 		double norm3d = pow(M_PI, 1.5) * pow(v0, 3.) * Nesc; /* == norm_shm(vesc,v0,0.0) */
 
-		if ((xe + xmin) < xesc) {
+		if ((xe + xmin) <= xesc) { // <=: eta is continuous at vmin = vesc - ve
 			return pow(M_PI, 1.5) * pow(v0, 2.) / (2. * xe * norm3d)
 			       * (gsl_sf_erf(xmin + xe) - gsl_sf_erf(xmin - xe) - 4. * xe / sqrt(M_PI) * expesc);
 		}
