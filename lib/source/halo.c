@@ -55,6 +55,7 @@ and E. Gerstmayr.
 
 float vel[length];
 float fv[power][length];
+static int fv_max_power = -1; // highest velocity power index i tabulated in fv (-1: none)
 
 #define Narray 50
 double pQ[Narray + 1];
@@ -560,6 +561,7 @@ int fv_v(char *profile, double vesc, double v0, double beta, double ve, double k
 				fv[m][j] = halo_f(profile, vel[j], vesc, v0, beta, ve, k, m, w, vb, cosb, sigb, vcut);
 			}
 		}
+	fv_max_power = i;
 	return 0;
 }
 
@@ -607,6 +609,12 @@ double halo_w(double vmin, gsl_interp_accel *ga, gsl_spline *gs){
 	else { // f(v) data out of the range
 		return 0.;
 	}
+}
+
+int halo_table_power(){
+	/*Returns the highest velocity power index i tabulated in fv[][] (by read_halo or
+	define_and_write_halo), i.e. halo(vmin, j) is available for j <= i. -1 if no table.*/
+	return fv_max_power;
 }
 
 int halo_table(int i, double *v_out, double *f_out){
@@ -716,6 +724,7 @@ void read_halo(char *path){
 	}
 
 	fclose(table);
+	fv_max_power = (i >= 0 && i <= 2) ? i : -1;
 }
 
 /*########################################################################################

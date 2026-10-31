@@ -18,8 +18,10 @@ double difrate_dER_python(double rhochi, double mass, double logenergy, char* mo
 double difrate_dER_python_2(double rhochi, double mass, double energy, char* model, char* Target, char*ISO_switch);
 
 // DM-electron scattering
-double dm_response_electron(int resp, double q, double mchi, double jchi);
+double dm_response_electron(int resp, double q, double dE, double mchi, double jchi, double m_e, double *R_v2);
 double difrate_electron_dEr(int shell, int ik, double rhochi, double mchi, double jchi, double m_e);
+int difrate_electron_dEr_resp(double rhochi, double mchi, double jchi, double m_e, int resp_mask,
+							  double *k_out, double *E_out, double *rate_shell_out);
 int difrate_electron_dEr_all(double rhochi, double mchi, double jchi, double m_e, double *k_out, double *E_out, double *rate_shell_out);
 int xenon10_bins(int *bins_out);
 int difrate_dS2_Xenon10(const double *E, const double *rate_shell, const char *exp_dir,

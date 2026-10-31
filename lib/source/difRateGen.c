@@ -421,9 +421,10 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 
 /*########################################################################################
 DM-ELECTRON SCATTERING
-Ionization rate of Xenon from DM-electron scattering and XENON10 / XENON1T (S2-only)
-detector response. Port of the legacy MadDM Fortran (dm_response_direct_e.f and
-electron_recoil_signal.f).
+Ionization rate of Xenon from DM-electron scattering for the NREFT operators O_1, O_3 ... O_15
+of arXiv:1912.08204 (contact and long-range couplings, atomic responses W_1 ... W_4) and
+XENON10 / XENON1T (S2-only) detector response. The SI/SD rate and the detector response are
+a port of the legacy MadDM Fortran (dm_response_direct_e.f and electron_recoil_signal.f).
 Please cite: arXiv:1912.08204, arXiv:1509.01598
 ########################################################################################*/
 
@@ -449,19 +450,81 @@ static const double S2_val_Xenon1T[S2_BIN_MAX_XENON1T] = {
 	215.3025, 219.1299, 223.0254, 226.9901, 231.0254, 235.1323, 239.3123, 243.5665,
 	247.8964, 252.3033, 256.7885, 261.3535, 265.9996, 270.7282};
 
-double dm_response_electron(int resp, double q, double mchi, double jchi){
-	/*DM response R_resp of arXiv:1912.08204 built from the DM-electron NREFT
-	coefficients Ce(i), times the legacy MadDM normalisation:
-	R_1 = (Ce(1)^2 + jchi(jchi+1)/4 Ce(4)^2) * gev_to_pb * pb_to_cm2, for scalar and fermion DM.
-	This is the only place where the unit factors are applied.
-	TODO: R_2 ... R_4 and the other operators (q and mchi dependence) of arXiv:1912.08204.
-	Inputs: resp (1..4), q (exchanged momentum, GeV), mchi (GeV), jchi (DM spin).
-	Output: DM response (0 for the responses not implemented yet).*/
-	(void)q;
-	(void)mchi;
-	if (resp != 1) return 0.;
-	double R1 = SQR(Ce(1)) + jchi * (jchi + 1.) / 4. * SQR(Ce(4));
-	return R1 * gev_to_pb * pb_to_cm2;
+static double ce_q(int i, double q, double m_e){
+	/*DM-electron coupling c_i(q) = c_i^s + (q_ref/q)^2 c_i^l of arXiv:1912.08204, with
+	q_ref = alpha m_e. The long-range part is added only if c_i^l is not zero, so that
+	contact interactions can be evaluated at q = 0.
+	Inputs: i (operator index), q (exchanged momentum, GeV), m_e (GeV).*/
+	double ci = Ce(i);
+	if (Ce_LR(i) != 0.) ci += SQR(alpha_em * m_e / q) * Ce_LR(i);
+	return ci;
+}
+
+static void dm_responses_electron(double q, double dE, double mchi, double jchi, double m_e,
+								  double *R, double *R1_v2){
+	/*DM responses R_1 ... R_4 of arXiv:1912.08204 (Eqs. (DM response 1-4), real couplings,
+	operators O_1, O_3 ... O_15) without unit factors. v_el^perp is evaluated at k = 0 (the k
+	dependence is in the atomic responses W_2 ... W_4) and energy conservation gives (App. C)
+	    (v_el^perp)^2 = v^2 + q^2/(4 mu^2) (mchi - m_e)/(mchi + m_e) - dE/mu,
+	    v_el^perp . q = dE - q^2/(2 m_e),
+	with velocities in units of c and mu the DM-electron reduced mass. R_1 is split as
+	R_1 = R[0] + R1_v2 v^2: R[0] is integrated with eta_0 = int f/v and R1_v2 with
+	int f v. R_2, R_3 and R_4 do not depend on v at fixed q and dE.
+	Inputs: q (GeV), dE = E_B + E_e (GeV), mchi (GeV), jchi (DM spin), m_e (GeV).
+	Outputs: R[0..3] (v independent parts of R_1 ... R_4), *R1_v2 (coefficient of v^2 in R_1).*/
+	double c[OPERATOR_NUMBER];
+	for (int i = 1; i < OPERATOR_NUMBER; i++) c[i] = ce_q(i, q, m_e);
+	double jj = jchi * (jchi + 1.);
+	double mu = mchi * m_e / (mchi + m_e);
+	double q2 = SQR(q / m_e);                          // (q/m_e)^2
+	double qv = (dE - q * q / (2. * m_e)) / m_e;       // (q/m_e) . v_el^perp
+	double vperp2_const = q * q / (4. * mu * mu) * (mchi - m_e) / (mchi + m_e) - dE / mu; // (v_el^perp)^2 - v^2
+
+	// coefficients of (v_el^perp)^2 and of ((q/m_e) . v_el^perp)^2 in R_1: they coincide with R_3 and R_4
+	double A = SQR(c[3]) / 4. * q2 + SQR(c[7]) / 4.
+			   + jj / 12. * (4. * SQR(c[8]) + 2. * SQR(c[12])
+							 + (4. * SQR(c[5]) + SQR(c[13]) + SQR(c[14]) - 2. * c[12] * c[15]) * q2
+							 + SQR(c[15]) * q2 * q2);
+	double B = -SQR(c[3]) / 4.
+			   + jj / 12. * (-4. * SQR(c[5]) - SQR(c[15]) * q2 + 2. * c[12] * c[15] + 2. * c[13] * c[14]);
+
+	// R_1 without the v_el^perp terms (c_1 and c_4 first, as in the legacy SI/SD expression)
+	double R1 = SQR(c[1]) + jj / 4. * SQR(c[4]);
+	R1 += SQR(c[10]) / 4. * q2
+		  + jj / 12. * (SQR(c[6]) * q2 * q2 + (2. * SQR(c[9]) + 4. * SQR(c[11]) + 2. * c[4] * c[6]) * q2);
+	R[0] = R1 + A * vperp2_const + B * qv * qv;
+	*R1_v2 = A;
+
+	// R_2: the (q/m_e)^-2 terms are evaluated only if their couplings are not zero
+	double R2_inv_q2 = SQR(c[7]) / 2. + jj / 6. * (4. * SQR(c[8]) + 2. * SQR(c[12]));
+	double R2 = -jj / 6. * SQR(c[13] + c[14]);
+	if (R2_inv_q2 != 0.) R2 -= R2_inv_q2 / q2;
+	R[1] = qv * R2;
+	R[2] = A;
+	R[3] = B;
+}
+
+double dm_response_electron(int resp, double q, double dE, double mchi, double jchi, double m_e, double *R_v2){
+	/*DM response R_resp of arXiv:1912.08204 built from the DM-electron NREFT coefficients
+	Ce(i) (contact) and Ce_LR(i) (long-range), times the legacy MadDM normalisation
+	gev_to_pb * pb_to_cm2. This is the only place where the unit factors are applied.
+	For contact c_1, c_4 only, R_1 = (Ce(1)^2 + jchi(jchi+1)/4 Ce(4)^2) * gev_to_pb * pb_to_cm2
+	at any q (legacy SI/SD expression, used by MadDM at q = 0).
+	Excluded operators: O_2 and O_16 (as in arXiv:1912.08204) and O_17 ... O_20 (spin-1 DM,
+	not in the DM responses of the paper).
+	Inputs: resp (1..4), q (exchanged momentum, GeV), dE (deposited energy E_B + E_e, GeV),
+	mchi (GeV), jchi (DM spin), m_e (GeV), R_v2 (can be NULL).
+	Output: v independent part of R_resp; *R_v2 is the coefficient of v^2 (v in units of c),
+	not zero only for resp = 1. 0 for a wrong resp.*/
+	if (resp < 1 || resp > N_ATOMIC_RESP) {
+		fprintf(stderr, "dm_response_electron: resp must be in [1, %d]\n", N_ATOMIC_RESP);
+		if (R_v2 != NULL) *R_v2 = 0.;
+		return 0.;
+	}
+	double R[N_ATOMIC_RESP], R1_v2;
+	dm_responses_electron(q, dE, mchi, jchi, m_e, R, &R1_v2);
+	if (R_v2 != NULL) *R_v2 = (resp == 1) ? R1_v2 * gev_to_pb * pb_to_cm2 : 0.;
+	return R[resp - 1] * gev_to_pb * pb_to_cm2;
 }
 
 static void electron_grids(double m_e, double *k, double *E, double *q){
@@ -540,48 +603,135 @@ static double legacy_eta(double vmin){
 }
 #endif
 
+static int coeff_e_set(int i){
+	/*Returns 1 if the contact or the long-range DM-electron coefficient i is not zero.*/
+	return Ce(i) != 0. || Ce_LR(i) != 0.;
+}
+
+static void electron_responses_needed(int resp_mask, int *needed, int *needs_v2){
+	/*Selects the terms R_j W_j to compute: needed[j-1] = 1 if bit j-1 of resp_mask is set
+	and R_j is not identically zero for the coefficients set (R_1 W_1 is always computed
+	when selected). *needs_v2 = 1 if the v^2 part of R_1 (integrated with halo(vmin, 2))
+	is needed.*/
+	int vperp = coeff_e_set(3) || coeff_e_set(5) || coeff_e_set(7) || coeff_e_set(8) || coeff_e_set(12)
+				|| coeff_e_set(13) || coeff_e_set(14) || coeff_e_set(15);
+	needed[0] = (resp_mask & 1) != 0;
+	needed[1] = (resp_mask & 2) != 0 && (coeff_e_set(7) || coeff_e_set(8) || coeff_e_set(12)
+										 || coeff_e_set(13) || coeff_e_set(14));
+	needed[2] = (resp_mask & 4) != 0 && vperp;
+	needed[3] = (resp_mask & 8) != 0 && (coeff_e_set(3) || coeff_e_set(5) || coeff_e_set(15)
+										 || (coeff_e_set(12) && coeff_e_set(15))
+										 || (coeff_e_set(13) && coeff_e_set(14)));
+	*needs_v2 = needed[0] && vperp;
+}
+
 static double difrate_electron_dEr_w(int shell, int ik, const double *E, const double *q, double rhochi,
-									 double mchi, double R_DM, double m_e, gsl_interp_accel *ga, gsl_spline *gs){
-	/*Kernel of difrate_electron_dEr with the grids, the DM response R_DM and the halo
-	spline already built. Rectangular sum over the q grid, as in the legacy Fortran.
+									 double mchi, double jchi, double m_e, const int *needed,
+									 gsl_interp_accel *ga, gsl_spline *gs, gsl_interp_accel *ga2, gsl_spline *gs2){
+	/*Kernel of difrate_electron_dEr with the grids and the halo splines already built:
+	dR/dlnE = n_chi/(128 pi mchi^2 m_e^2) int dq q sum_j [R_j eta_0 + delta_j1 R_1^(v2) eta_2] W_j
+	(arXiv:1912.08204), with eta_0 = halo(vmin, 0) (spline ga, gs) and eta_2 = halo(vmin, 2)
+	(spline ga2, gs2, can be NULL if the v^2 part of R_1 is not needed). Only the terms with
+	needed[j-1] = 1 are summed. Rectangular sum over the q grid, as in the legacy Fortran.
 	Output: dR/dE in events/(kg day GeV).*/
 	double nDM = rhochi / mchi; // cm^-3
 	double const_integral = nDM / (128. * M_PI * SQR(mchi * GeV_to_kg) * SQR(m_e * GeV_to_kg));
 	double Eb = shell_binding_energy(shell);
 	double conv = GeV_to_J * SQR(m_to_cm) / c_light_cms;
 	double dRdlogE = 0.;
-	int iq;
+	int iq, j;
 	for (iq = 0; iq < GRIDSIZE_Q; iq++) {
 		double dq = q[iq + 1] - q[iq];
 		double vmin = ((E[ik] + Eb) / q[iq] + q[iq] / (2. * mchi)) * c_light_cms; // cm/s
 #ifdef ER_VALIDATE_LEGACY_HALO
 		(void)ga;
 		(void)gs;
+		(void)ga2;
 		double eta = legacy_eta(vmin);
+		double eta2 = 0.;
 #else
 		double eta = halo_w(vmin * 1.e-5, ga, gs) * 1.e-5; // (km/s)^-1 -> s/cm
+		// int f v d^3v in km/s -> int f/v (v/c)^2 d^3v in s/cm
+		double eta2 = (gs2 != NULL) ? halo_w(vmin * 1.e-5, ga2, gs2) / SQR(c) * 1.e-5 : 0.;
 #endif
-		double ioniz_amplitude = atomic_response(1, shell, ik, iq) * R_DM * SQR(GeV_to_kg);
-		dRdlogE += const_integral * (dq * conv) * (q[iq] * conv) * eta * ioniz_amplitude
-				   / (m_Xe_avg_au * atomic_mass_unit_kg);
+		double R[N_ATOMIC_RESP], R1_v2;
+		dm_responses_electron(q[iq], E[ik] + Eb, mchi, jchi, m_e, R, &R1_v2);
+		double pref = const_integral * (dq * conv) * (q[iq] * conv);
+		for (j = 0; j < N_ATOMIC_RESP; j++) {
+			if (!needed[j]) continue;
+			double W = atomic_response(j + 1, shell, ik, iq);
+			double ioniz_amplitude = W * (R[j] * gev_to_pb * pb_to_cm2) * SQR(GeV_to_kg);
+			dRdlogE += pref * eta * ioniz_amplitude / (m_Xe_avg_au * atomic_mass_unit_kg);
+			if (j == 0 && gs2 != NULL) {
+				double ioniz_amplitude_v2 = W * (R1_v2 * gev_to_pb * pb_to_cm2) * SQR(GeV_to_kg);
+				dRdlogE += pref * eta2 * ioniz_amplitude_v2 / (m_Xe_avg_au * atomic_mass_unit_kg);
+			}
+		}
 	}
 	return dRdlogE * day_to_sec / E[ik];
 }
 
-static gsl_spline * electron_halo_spline(gsl_interp_accel **ga){
-	/*Builds once the cubic spline of the halo integral eta_0 = halo(vmin, 0) read by read_halo.*/
+static gsl_spline * electron_halo_spline(int i, gsl_interp_accel **ga){
+	/*Builds once the cubic spline of the halo integral halo(vmin, i) read by read_halo.*/
 	double v[1000], f[1000];
-	int n = halo_table(0, v, f);
+	int n = halo_table(i, v, f);
 	*ga = gsl_interp_accel_alloc();
 	gsl_spline *gs = gsl_spline_alloc(gsl_interp_cspline, n);
 	gsl_spline_init(gs, v, f, n);
 	return gs;
 }
 
+struct electron_rate_setup { int needed[N_ATOMIC_RESP]; gsl_interp_accel *ga, *ga2; gsl_spline *gs, *gs2; };
+
+static int electron_rate_setup_init(const char *caller, int resp_mask, struct electron_rate_setup *st){
+	/*Checks the inputs needed by the terms R_j W_j selected by resp_mask and the coefficients
+	set, and builds the halo splines.
+	Output: 0 on success, 1 if a needed atomic response W_j has not been read, 2 if the halo
+	table has no halo(vmin, 2) column while the v^2 part of R_1 is needed, 3 for a wrong resp_mask.*/
+	int needs_v2, j;
+	st->ga = st->ga2 = NULL;
+	st->gs = st->gs2 = NULL;
+	if (resp_mask <= 0 || resp_mask > 15) {
+		fprintf(stderr, "%s: resp_mask must be in [1, 15] (bit j-1 selects R_j W_j)\n", caller);
+		return 3;
+	}
+	electron_responses_needed(resp_mask, st->needed, &needs_v2);
+	for (j = 0; j < N_ATOMIC_RESP; j++) {
+		if (st->needed[j] && !atomic_responses_loaded(j + 1)) {
+			fprintf(stderr, "%s: the atomic response W_%d is needed by the coefficients set: "
+					"call read_atomic_responses first\n", caller, j + 1);
+			return 1;
+		}
+	}
+#ifdef ER_VALIDATE_LEGACY_HALO
+	if (needs_v2) {
+		fprintf(stderr, "%s: the legacy (debug) halo has only eta_0, the v^2 part of R_1 cannot be computed\n", caller);
+		return 2;
+	}
+#else
+	if (needs_v2 && halo_table_power() < 2) {
+		fprintf(stderr, "%s: the operators set need halo(vmin, 2): read a halo table with i >= 2\n", caller);
+		return 2;
+	}
+#endif
+	st->gs = electron_halo_spline(0, &st->ga);
+	if (needs_v2) st->gs2 = electron_halo_spline(2, &st->ga2);
+	return 0;
+}
+
+static void electron_rate_setup_free(struct electron_rate_setup *st){
+	/*Frees the halo splines built by electron_rate_setup_init.*/
+	if (st->gs != NULL) gsl_spline_free(st->gs);
+	if (st->ga != NULL) gsl_interp_accel_free(st->ga);
+	if (st->gs2 != NULL) gsl_spline_free(st->gs2);
+	if (st->ga2 != NULL) gsl_interp_accel_free(st->ga2);
+}
+
 double difrate_electron_dEr(int shell, int ik, double rhochi, double mchi, double jchi, double m_e){
 	/*Differential ionization rate dR/dE for one Xenon shell at the outgoing electron
-	energy E(ik), using the coefficients Ce(i), the atomic response W_1 (read with
-	read_atomic_responses) and the halo read with read_halo (eta = halo(vmin, 0)).
+	energy E(ik), using the coefficients Ce(i), Ce_LR(i), the atomic responses W_j (read
+	with read_atomic_responses) and the halo read with read_halo (eta_0 = halo(vmin, 0),
+	and halo(vmin, 2) for the operators depending on v_el^perp).
 	Parameters:
 	- shell: Xenon shell index (0-based, see xe_shells in atomic_resp.c)
 	- ik: index of the k' grid (0..GRIDSIZE_K-1)
@@ -589,44 +739,62 @@ double difrate_electron_dEr(int shell, int ik, double rhochi, double mchi, doubl
 	- mchi: dark matter mass in GeV
 	- jchi: dark matter spin
 	- m_e: electron mass in GeV
-	Output: dR/dE in events/(kg day GeV).*/
+	Output: dR/dE in events/(kg day GeV), 0 if the inputs are missing.*/
 	double k[GRIDSIZE_K + 1], E[GRIDSIZE_K + 1], q[GRIDSIZE_Q + 1];
+	struct electron_rate_setup st;
+	if (electron_rate_setup_init("difrate_electron_dEr", 15, &st) != 0) {
+		electron_rate_setup_free(&st);
+		return 0.;
+	}
 	electron_grids(m_e, k, E, q);
-	gsl_interp_accel *ga;
-	gsl_spline *gs = electron_halo_spline(&ga);
-	double R_DM = dm_response_electron(1, 0., mchi, jchi);
-	double rate = difrate_electron_dEr_w(shell, ik, E, q, rhochi, mchi, R_DM, m_e, ga, gs);
-	gsl_spline_free(gs);
-	gsl_interp_accel_free(ga);
+	double rate = difrate_electron_dEr_w(shell, ik, E, q, rhochi, mchi, jchi, m_e, st.needed, st.ga, st.gs, st.ga2, st.gs2);
+	electron_rate_setup_free(&st);
 	return rate;
+}
+
+int difrate_electron_dEr_resp(double rhochi, double mchi, double jchi, double m_e, int resp_mask,
+							  double *k_out, double *E_out, double *rate_shell_out){
+	/*Fills in a single call the k' and E grids and dR/dE of all the Xenon shells, keeping
+	only the terms R_j W_j selected by resp_mask (bit j-1 set: R_j W_j included; 15: all, 1: only
+	R_1 W_1, 2: only R_2 W_2, ...). The single contributions can be negative.
+	Parameters:
+	- rhochi, mchi, jchi, m_e: see difrate_electron_dEr
+	- resp_mask: selection of the terms R_j W_j (1..15)
+	- k_out: outgoing electron momenta in GeV [GRIDSIZE_K+1]
+	- E_out: outgoing electron energies in GeV [GRIDSIZE_K+1]
+	- rate_shell_out: dR/dE in events/(kg day GeV) [N_SHELL_XE*GRIDSIZE_K], shell-major
+	Output: 0 on success, 1 if a needed atomic response W_j has not been read, 2 if the halo
+	table has no halo(vmin, 2) column while needed, 3 for a wrong resp_mask.*/
+	struct electron_rate_setup st;
+	int err = electron_rate_setup_init("difrate_electron_dEr_resp", resp_mask, &st);
+	if (err != 0) {
+		electron_rate_setup_free(&st);
+		return err;
+	}
+	double q[GRIDSIZE_Q + 1];
+	electron_grids(m_e, k_out, E_out, q);
+	for (int s = 0; s < N_SHELL_XE; s++) {
+		for (int ik = 0; ik < GRIDSIZE_K; ik++) {
+			rate_shell_out[s * GRIDSIZE_K + ik] = difrate_electron_dEr_w(s, ik, E_out, q, rhochi, mchi, jchi, m_e,
+																		 st.needed, st.ga, st.gs, st.ga2, st.gs2);
+		}
+	}
+	electron_rate_setup_free(&st);
+	return 0;
 }
 
 int difrate_electron_dEr_all(double rhochi, double mchi, double jchi, double m_e,
 							 double *k_out, double *E_out, double *rate_shell_out){
-	/*Fills in a single call the k' and E grids and dR/dE of all the Xenon shells.
+	/*Fills in a single call the k' and E grids and dR/dE of all the Xenon shells (all the
+	terms R_j W_j, see difrate_electron_dEr_resp).
 	Parameters:
 	- rhochi, mchi, jchi, m_e: see difrate_electron_dEr
 	- k_out: outgoing electron momenta in GeV [GRIDSIZE_K+1]
 	- E_out: outgoing electron energies in GeV [GRIDSIZE_K+1]
 	- rate_shell_out: dR/dE in events/(kg day GeV) [N_SHELL_XE*GRIDSIZE_K], shell-major
-	Output: 0 on success, 1 if the atomic response W_1 has not been read.*/
-	if (!atomic_responses_loaded(1)) {
-		fprintf(stderr, "difrate_electron_dEr_all: call read_atomic_responses first\n");
-		return 1;
-	}
-	double q[GRIDSIZE_Q + 1];
-	electron_grids(m_e, k_out, E_out, q);
-	gsl_interp_accel *ga;
-	gsl_spline *gs = electron_halo_spline(&ga);
-	double R_DM = dm_response_electron(1, 0., mchi, jchi);
-	for (int s = 0; s < N_SHELL_XE; s++) {
-		for (int ik = 0; ik < GRIDSIZE_K; ik++) {
-			rate_shell_out[s * GRIDSIZE_K + ik] = difrate_electron_dEr_w(s, ik, E_out, q, rhochi, mchi, R_DM, m_e, ga, gs);
-		}
-	}
-	gsl_spline_free(gs);
-	gsl_interp_accel_free(ga);
-	return 0;
+	Output: 0 on success, 1 if a needed atomic response W_j has not been read (W_1 is always
+	needed), 2 if the halo table has no halo(vmin, 2) column while needed.*/
+	return difrate_electron_dEr_resp(rhochi, mchi, jchi, m_e, 15, k_out, E_out, rate_shell_out);
 }
 
 static double binomial_prob(int k, int n, double p){

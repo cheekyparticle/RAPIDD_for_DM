@@ -34,6 +34,7 @@ double Nk_uncert(double vesc, double v0, double k);
 double halo(double vmin, int i);
 double halo_w(double vmin, gsl_interp_accel *ga, gsl_spline * gs);
 int halo_table(int i, double *v_out, double *f_out);
+int halo_table_power();
 double halo_f(char * profile, double vmin, double vesc, double v0, double beta, double ve, double k, int i, double w, double vb, double cosb, double sigb, double vcut);
 
 void define_and_write_halo(char* path, char * profile, double vesc, double v0, double beta, double ve, double k, int i, double w, double vb, double cosb, double sigb, double vcut);
