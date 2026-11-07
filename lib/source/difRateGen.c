@@ -88,7 +88,8 @@ double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, in
 	double Er_GeV = Er * 1.e-6;
 	double delta_GeV = delta * 1.e-6;
 	double vmin = c * fabs((mTarget * Er_GeV / muN) + delta_GeV) / sqrt(2. * mTarget * Er_GeV);
-	double c_p_i, c_n_i, c_p_j, c_n_j;
+	// real (re) and imaginary (im) parts of the coefficients of the two nucleon states
+	double re_p_i, re_n_i, re_p_j, re_n_j, im_p_i, im_n_i, im_p_j, im_n_j;
 
 	char p_name[2] = "";
 	char n_name[2] = "";
@@ -97,35 +98,57 @@ double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, in
 	if (strncmp(nuclear_framework, "pn", 2) == 0) {
 		strcpy(p_name, "p");
 		strcpy(n_name, "n");
-		c_p_i = Cp(i_coeff);  // c_proton
-		c_n_i = Cn(i_coeff);  // c_neutron
-		c_p_j = Cp(j_coeff);  // c_proton
-		c_n_j = Cn(j_coeff);  // c_neutron
+		re_p_i = Cp(i_coeff);    im_p_i = Cp_im(i_coeff);  // c_proton
+		re_n_i = Cn(i_coeff);    im_n_i = Cn_im(i_coeff);  // c_neutron
+		re_p_j = Cp(j_coeff);    im_p_j = Cp_im(j_coeff);  // c_proton
+		re_n_j = Cn(j_coeff);    im_n_j = Cn_im(j_coeff);  // c_neutron
 	} else if (strncmp(nuclear_framework, "iso", 3) == 0) {
 		strcpy(p_name, "+");
 		strcpy(n_name, "-");
-		c_p_i = (Cp(i_coeff)+Cn(i_coeff))/2.; // c_plus = (c_proton + c_neutron)/2
-		c_n_i = (Cp(i_coeff)-Cn(i_coeff))/2.; // c_minus = (c_proton - c_neutron)/2
-		c_p_j = (Cp(j_coeff)+Cn(j_coeff))/2.; // c_plus = (c_proton + c_neutron)/2
-		c_n_j = (Cp(j_coeff)-Cn(j_coeff))/2.; // c_minus = (c_proton - c_neutron)/2
+		// c_plus = (c_proton + c_neutron)/2, c_minus = (c_proton - c_neutron)/2
+		re_p_i = (Cp(i_coeff) + Cn(i_coeff)) / 2.;    im_p_i = (Cp_im(i_coeff) + Cn_im(i_coeff)) / 2.;
+		re_n_i = (Cp(i_coeff) - Cn(i_coeff)) / 2.;    im_n_i = (Cp_im(i_coeff) - Cn_im(i_coeff)) / 2.;
+		re_p_j = (Cp(j_coeff) + Cn(j_coeff)) / 2.;    im_p_j = (Cp_im(j_coeff) + Cn_im(j_coeff)) / 2.;
+		re_n_j = (Cp(j_coeff) - Cn(j_coeff)) / 2.;    im_n_j = (Cp_im(j_coeff) - Cn_im(j_coeff)) / 2.;
 	} else {
 		fprintf(stderr, "nuclear_framework must start with 'pn' or 'iso' to be valid: %s\n", nuclear_framework);
 		exit(1);
 	}
 
+	/* The coefficients can be complex (e.g. the inelastic matching of arXiv:1409.0536, Table I).
+	The nuclear response functions (eq. 42 of 1409.0536) depend on them only through
+	Re[c_i^tau c_j^tau'^*] = Re c_i^tau Re c_j^tau' + Im c_i^tau Im c_j^tau', which reduces to
+	c_i^tau c_j^tau' for real coefficients. */
+	double cc_pp = re_p_i * re_p_j + im_p_i * im_p_j;
+	double cc_nn = re_n_i * re_n_j + im_n_i * im_n_j;
+	double cc_pn = re_p_i * re_n_j + im_p_i * im_n_j;
+	double cc_np = re_n_i * re_p_j + im_n_i * im_p_j;
+
+	/* eta_0 = int_{v>vmin} f(v)/v d^3v in (km/s)^-1.
+	FormFact_v2 is the coefficient of (v_T^perp)^2, not of v^2. Elastic: (v_T^perp)^2 = v^2 - q^2/(4 mu_T^2)
+	= v^2 - vmin^2 (arXiv:1308.6288). Inelastic: the operators are written with
+	v_inel^perp = v + q/(2 mu) + delta q/|q|^2, orthogonal to q, and |v_inel,T^perp|^2 = v^2 - vmin^2
+	with vmin = |q/(2 mu_T) + delta/q| (eqs. 5, 13 of arXiv:1409.0536), i.e. the vmin above.
+	The v^2 term is then integrated with
+	eta_perp = int_{v>vmin} (v^2 - vmin^2) f(v)/v d^3v = halo(vmin, 2) - vmin^2 halo(vmin, 0)
+	in km/s (the units of halo(vmin, 2) and conv_factor_v2). eta_perp >= 0 analytically; the
+	clamp only removes the spline round-off near vmin = vesc + vE, where both terms vanish. */
+	double eta_0 = halo(vmin, 0);
+	double eta_perp = MAX(halo(vmin, 2) - vmin * vmin * eta_0, 0.);
+
 	double v0term = (
-		c_p_i * c_p_j * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, p_name, Er, mchi, jchi) +
-		c_n_i * c_n_j * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, n_name, Er, mchi, jchi) +
-		c_p_i * c_n_j * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, n_name, Er, mchi, jchi) +
-		c_n_i * c_p_j * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, p_name, Er, mchi, jchi))
-		* halo(vmin, 0) * conv_factor_v0;
-	
+		cc_pp * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, p_name, Er, mchi, jchi) +
+		cc_nn * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, n_name, Er, mchi, jchi) +
+		cc_pn * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, n_name, Er, mchi, jchi) +
+		cc_np * FormFact_v0(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, p_name, Er, mchi, jchi))
+		* eta_0 * conv_factor_v0;
+
 	double v2term = (
-		c_p_i * c_p_j * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, p_name, Er, mchi, jchi) +
-		c_n_i * c_n_j * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, n_name, Er, mchi, jchi) +
-		c_p_i * c_n_j * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, n_name, Er, mchi, jchi) +
-		c_n_i * c_p_j * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, p_name, Er, mchi, jchi))
-		* halo(vmin, 2) * conv_factor_v2;
+		cc_pp * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, p_name, Er, mchi, jchi) +
+		cc_nn * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, n_name, Er, mchi, jchi) +
+		cc_pn * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, p_name, n_name, Er, mchi, jchi) +
+		cc_np * FormFact_v2(nuclear_framework, A, Z, i_coeff, j_coeff, n_name, p_name, Er, mchi, jchi))
+		* eta_perp * conv_factor_v2;
 
 	double coeff_times_v_avg_formfact = v0term + v2term;
 	double difrate = rhochi / (2. * M_PI * mchi * v_h4) * coeff_times_v_avg_formfact;
@@ -140,7 +163,7 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 	int i;
 	for ( i = 1; i < 16; i++)
         {
-          if (Cp(i) != 0. || Cn(i) != 0.){
+          if (Ncoeff_is_set(i)){
 			rate += difrate_isotope_dEr(A, Z, rhochi, val_difcros, i, i);
           }
         }
@@ -149,25 +172,25 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 	// as they already include both contributions in their definition.
 	// For the ones that comes from the same nuclear responses, we need to explicitly add moth ij and ji terms.
 	// see eq. 38 and 89 of https://arxiv.org/abs/1308.6288
-	if ((Cp(1) != 0. || Cn(1) != 0.) && (Cp(3) != 0. || Cn(3) != 0.)){
+	if (Ncoeff_is_set(1) && Ncoeff_is_set(3)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 1, 3);
 	}
-	if ((Cp(4) != 0. || Cn(4) != 0.) && (Cp(5) != 0. || Cn(5) != 0.)){
+	if (Ncoeff_is_set(4) && Ncoeff_is_set(5)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 5);
 	}
-	if ((Cp(4) != 0. || Cn(4) != 0.) && (Cp(6) != 0. || Cn(6) != 0.)){
+	if (Ncoeff_is_set(4) && Ncoeff_is_set(6)){
 		rate += (difrate_isotope_dEr(A, Z, rhochi, input_difcros, 4, 6) + difrate_isotope_dEr(A, Z, rhochi, input_difcros, 6, 4));
 	}
-	if ((Cp(8) != 0. || Cn(8) != 0.) && (Cp(9) != 0. || Cn(9) != 0.)){
+	if (Ncoeff_is_set(8) && Ncoeff_is_set(9)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 8, 9);
 	}
-	if ((Cp(11) != 0. || Cn(11) != 0.) && (Cp(12) != 0. || Cn(12) != 0.)){
+	if (Ncoeff_is_set(11) && Ncoeff_is_set(12)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 11, 12);
 	}
-	if ((Cp(11) != 0. || Cn(11) != 0.) && (Cp(15) != 0. || Cn(15) != 0.)){
+	if (Ncoeff_is_set(11) && Ncoeff_is_set(15)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 11, 15);
 	}
-	if ((Cp(12) != 0. || Cn(12) != 0.) && (Cp(15) != 0. || Cn(15) != 0.)){
+	if (Ncoeff_is_set(12) && Ncoeff_is_set(15)){
 		rate += difrate_isotope_dEr(A, Z, rhochi, input_difcros, 12, 15);
 	}
 

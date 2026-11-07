@@ -29,6 +29,11 @@ Set EFT coefficients for calculations here
 double C[OPERATOR_NUMBER];
 double CP[OPERATOR_NUMBER];
 double CN[OPERATOR_NUMBER];
+// Imaginary parts of the DM-nucleon coefficients. They are generated e.g. by the inelastic
+// (delta != 0) matching of arXiv:1409.0536 (Table I: O7 -> + i m_N delta/q^2 O10, ...).
+// The rate depends on the coefficients through Re[c_i c_j^*] only (eq. 42 of 1409.0536).
+double CP_IM[OPERATOR_NUMBER];
+double CN_IM[OPERATOR_NUMBER];
 double CE[OPERATOR_NUMBER]; // DM-electron NREFT coefficients, contact
 double CE_LR[OPERATOR_NUMBER]; // DM-electron NREFT coefficients, long-range
 double CP_trace[OPERATOR_NUMBER];
@@ -112,6 +117,11 @@ void set_coeffs(){
 	C[15] = 0.0;
 	CP[15] = 0.0;
 	CN[15] = 0.0;
+	//Imaginary parts of the DM-nucleon coefficients
+	for (int i = 0; i < OPERATOR_NUMBER; i++) {
+		CP_IM[i] = 0.0;
+		CN_IM[i] = 0.0;
+	}
 	//Electron coefficients
 	for (int i = 0; i < OPERATOR_NUMBER; i++) {
 		CE[i] = 0.0;
@@ -129,6 +139,22 @@ double Cp(int i){
 
 double Cn(int i){
 	return CN[i];
+}
+
+double Cp_im(int i){
+	/*Imaginary part of the i-th DM-proton coefficient.*/
+	return CP_IM[i];
+}
+
+double Cn_im(int i){
+	/*Imaginary part of the i-th DM-neutron coefficient.*/
+	return CN_IM[i];
+}
+
+int Ncoeff_is_set(int i){
+	/*1 if the real or the imaginary part of the i-th DM-proton or DM-neutron coefficient
+	is not zero, 0 otherwise.*/
+	return CP[i] != 0. || CN[i] != 0. || CP_IM[i] != 0. || CN_IM[i] != 0.;
 }
 
 double Ce(int i){
@@ -397,6 +423,14 @@ void set_any_Ncoeff(double input, int i, char* nucleon){
 		CP[i] = input;
 		//printf("%s %i %lf", nucleon, i, CP[i]);
 	}
+}
+
+void set_any_Ncoeff_im(double input, int i, char* nucleon){
+	/*Sets the imaginary part of the i-th DM-nucleon coefficient (nucleon "p" or "n"),
+	leaving its real part (set_any_Ncoeff) unchanged.*/
+	if (i < 0 || i >= OPERATOR_NUMBER) return;
+	if (strncmp(nucleon, "n", 10) == 0) CN_IM[i] = input;
+	if (strncmp(nucleon, "p", 10) == 0) CP_IM[i] = input;
 }
 
 void set_any_Ecoeff(double input, int i){

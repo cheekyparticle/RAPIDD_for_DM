@@ -1770,7 +1770,9 @@ General form factors
 ########################################################################################*/
 
 /*The following form factors are those with zeroth order dependence on the velocity.
-Other dependences should be included separately like FormFact_v2 function which depends on v^2.
+Other dependences should be included separately like FormFact_v2 function, the coefficient of
+(v_T^perp)^2 = v^2 - vmin^2 (also for inelastic scattering, arXiv:1409.0536): difrate_isotope_dEr
+integrates it with halo(vmin, 2) - vmin^2 halo(vmin, 0).
 The expressions for the prefactors have been extrapolated from eq. 37 and 38 of arXiv:1308.6288v1.*/
 
 double FormFact_v0(char* NR_framework, int A, int Z, int i, int j, char* N1, char* N2, double Er, double mchi, double jchi) {

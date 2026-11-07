@@ -196,6 +196,18 @@ _Cn = _crapidd.Cn
 _Cn.argtypes = [ctypes.c_int]
 _Cn.restype = ctypes.c_double
 
+_set_any_Ncoeff_im = _crapidd.set_any_Ncoeff_im
+_set_any_Ncoeff_im.argtypes = [ctypes.c_double, ctypes.c_int, ctypes.c_char_p]
+_set_any_Ncoeff_im.restype = None
+
+_Cp_im = _crapidd.Cp_im
+_Cp_im.argtypes = [ctypes.c_int]
+_Cp_im.restype = ctypes.c_double
+
+_Cn_im = _crapidd.Cn_im
+_Cn_im.argtypes = [ctypes.c_int]
+_Cn_im.restype = ctypes.c_double
+
 _set_any_Ecoeff = _crapidd.set_any_Ecoeff
 _set_any_Ecoeff.argtypes = [ctypes.c_double, ctypes.c_int]
 _set_any_Ecoeff.restype = None
@@ -218,15 +230,27 @@ def set_any_Ncoeff(coeff, op, nuc):
     
     Parameters
     ----------
-    coeff : float
-        The coefficient value to set.
+    coeff : float or complex
+        The coefficient value to set. Both its real and imaginary parts are set (a float
+        sets the imaginary part to zero). Complex coefficients arise e.g. in the inelastic
+        matching of arXiv:1409.0536; the rate depends on them through Re[c_i c_j^*].
     op : int
         The operator index (1-15), 2 excluded.
     nuc : str
         The nucleon type ('p' for proton, 'n' for neutron).
     '''
-    _set_any_Ncoeff(coeff, op, nuc.encode())
-    return 
+    coeff = complex(coeff)
+    _set_any_Ncoeff(coeff.real, op, nuc.encode())
+    _set_any_Ncoeff_im(coeff.imag, op, nuc.encode())
+    return
+
+def set_any_Ncoeff_im(coeff_im, op, nuc):
+    '''
+    Set only the imaginary part of the coefficient of operator op for nucleon nuc
+    ('p' or 'n'), leaving its real part unchanged.
+    '''
+    _set_any_Ncoeff_im(coeff_im, op, nuc.encode())
+    return
 
 ELECTRON_OPERATORS = (1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 ELECTRON_INTERACTIONS = ("contact", "long-range")
@@ -266,11 +290,16 @@ def reset_coefficients() :
         set_any_Ecoeff(0, i, interaction="long-range")
     return
 
+def _real_or_complex(re, im):
+    return complex(re, im) if im != 0. else re
+
 def Cp_val(op):
-    return _Cp(op)
+    '''DM-proton coefficient of op: a float, or a complex if its imaginary part is not zero'''
+    return _real_or_complex(_Cp(op), _Cp_im(op))
 
 def Cn_val(op):
-    return _Cn(op)
+    '''DM-neutron coefficient of op: a float, or a complex if its imaginary part is not zero'''
+    return _real_or_complex(_Cn(op), _Cn_im(op))
 
 def Ce_val(op):
     '''Contact DM-electron coefficient c_op^s'''
@@ -284,9 +313,20 @@ def isofromneuc(cp, cn):
     ''' Simply takes coeffs from p n basis to 0 1 basis '''
     return (cp+cn)/2, (cp-cn)/2
 
-def set_any_N_EFT_coeff(lagr_num, m_chi, m_M, nucl, E, nucleon, c=1.0):
+def set_any_N_EFT_coeff(lagr_num, m_chi, m_M, nucl, E, nucleon, c=1.0, delta=0.0):
     """\
     Set the EFT coefficients from Table 1 of https://arxiv.org/pdf/1308.6288
+    For inelastic DM (delta != 0) the Lagrangians 7, 13, 16, 18 and 19 also generate the
+    delta dependent, imaginary coefficients of Table I of https://arxiv.org/abs/1409.0536
+    (the NR operators are then those of 1409.0536, written with v_inel^perp, orthogonal to q):
+        7:  c10 = i (m_N delta / q^2) c7
+        13: c11 = i (m_N delta / q^2) c8
+        16: c6  = -i (m_N delta / q^2) c13
+        18: c9  = -i 4 c m_N delta / m_M^2
+        19: c6  = -i (m_N delta / q^2) c14,  c4 = i (delta / m_N) c14
+    Only the imaginary parts of these coefficients are set (to 0 if delta = 0), so the real
+    parts set by other Lagrangians are kept. As for the other q dependent coefficients, q is
+    computed with the mean nuclear mass of nucl.
     lagr_num: int, the number of the Lagrangian
     E: float, recoil energy in keV
     m_M: float, mediator mass in GeV
@@ -294,6 +334,7 @@ def set_any_N_EFT_coeff(lagr_num, m_chi, m_M, nucl, E, nucleon, c=1.0):
     m_chi: float, DM mass in GeV. Required for j in {3,4,5,6,7,8,9,12}
     c: float, coupling to the nucleon (default is 1)
     nucleon: str, the type of nucleon ('p' for proton, 'n' for neutron)
+    delta: float, DM mass splitting m_chi2 - m_chi1 in keV (default 0, elastic), as in difrate_dER
     Returns:
         cNRp: dict, NREFT coefficients for protons
         cNRn: dict, NREFT coefficients for neutrons
@@ -318,6 +359,8 @@ def set_any_N_EFT_coeff(lagr_num, m_chi, m_M, nucl, E, nucleon, c=1.0):
     q_ratio2 = (q / m_M)**2
     mN_ratio1 = m_N / m_M
     mN_ratio2 = (m_N / m_M)**2
+    delta_GeV = delta * 1e-6
+    inel = m_N * delta_GeV / q**2  # m_N delta / q^2 of 1409.0536, Table I
 
     # set the coefficients based on the Lagrangian number (c = user-defined coupling)
     if lagr_num == 1:
@@ -335,6 +378,7 @@ def set_any_N_EFT_coeff(lagr_num, m_chi, m_M, nucl, E, nucleon, c=1.0):
         set_any_Ncoeff(c * 4 * m_chi * m_N / m_M**2, 3, nucleon)
     elif lagr_num == 7:
         set_any_Ncoeff(-c * 4 * m_chi / m_M, 7, nucleon)
+        set_any_Ncoeff_im(inel * (-c * 4 * m_chi / m_M), 10, nucleon)
     elif lagr_num == 8:
         set_any_Ncoeff(c * 4 * m_chi * m_N / m_M**2, 10, nucleon)
     elif lagr_num == 9:
@@ -351,19 +395,25 @@ def set_any_N_EFT_coeff(lagr_num, m_chi, m_M, nucl, E, nucleon, c=1.0):
         set_any_Ncoeff(c * 4 * mN_ratio2, 15, nucleon)
     elif lagr_num == 13:
         set_any_Ncoeff(c * 4 * mN_ratio1, 8, nucleon)
+        set_any_Ncoeff_im(inel * c * 4 * mN_ratio1, 11, nucleon)
     elif lagr_num == 14:
         set_any_Ncoeff(c * 4 * mN_ratio1, 9, nucleon)
     elif lagr_num == 15:
         set_any_Ncoeff(-c * 4, 4, nucleon)
     elif lagr_num == 16:
         set_any_Ncoeff(c * 4 * mN_ratio1, 13, nucleon)
+        set_any_Ncoeff_im(-inel * c * 4 * mN_ratio1, 6, nucleon)
     elif lagr_num == 17:
         set_any_Ncoeff(-c * 4 * mN_ratio2, 11, nucleon)
     elif lagr_num == 18:
         set_any_Ncoeff(c * q_ratio2, 11, nucleon)
         set_any_Ncoeff(c * 4 * mN_ratio2, 15, nucleon)
+        set_any_Ncoeff_im(-c * 4 * m_N * delta_GeV / m_M**2, 9, nucleon)
     elif lagr_num == 19:
         set_any_Ncoeff(c * 4 * mN_ratio1, 14, nucleon)
+        # c4 O4 + c6 O6 = i (delta/m_N) c14 [S_chi.S_N - (S_chi.q^)(S_N.q^)]: transverse spins only
+        set_any_Ncoeff_im(-inel * c * 4 * mN_ratio1, 6, nucleon)
+        set_any_Ncoeff_im(delta_GeV / m_N * c * 4 * mN_ratio1, 4, nucleon)
     elif lagr_num == 20:
         set_any_Ncoeff(-c * 4 * mN_ratio2, 6, nucleon)
     else:
