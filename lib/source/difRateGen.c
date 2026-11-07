@@ -58,6 +58,21 @@ double difrate_SI_standard(double rho, int A, int Z, double fp, double fn, doubl
 Below are the functions for the EFT. 
 #####################################################################################*/
 
+static void nucleon_basis_coeffs(int op, double q2, int isospin_basis, double re[2], double im[2]){
+	/*Real and imaginary parts of the op-th DM-nucleon coefficient at q^2 = q2 (GeV^2).
+	isospin_basis = 0: re/im[0] proton, [1] neutron.
+	isospin_basis = 1: re/im[0] c_plus = (c_p + c_n)/2, [1] c_minus = (c_p - c_n)/2.*/
+	double re_p = Ncoeff_re(op, "p", q2), re_n = Ncoeff_re(op, "n", q2);
+	double im_p = Ncoeff_im(op, "p", q2), im_n = Ncoeff_im(op, "n", q2);
+	if (isospin_basis) {
+		re[0] = (re_p + re_n) / 2.;  re[1] = (re_p - re_n) / 2.;
+		im[0] = (im_p + im_n) / 2.;  im[1] = (im_p - im_n) / 2.;
+	} else {
+		re[0] = re_p;  re[1] = re_n;
+		im[0] = im_p;  im[1] = im_n;
+	}
+}
+
 double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, int i_coeff, int j_coeff){
 	/*Calculate the differential rate dR/dE_R in events/(keV*kg*day) given the NREFT coefficients
 	specified by the indexes i_coeff and j_coeff.
@@ -88,41 +103,39 @@ double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, in
 	double Er_GeV = Er * 1.e-6;
 	double delta_GeV = delta * 1.e-6;
 	double vmin = c * fabs((mTarget * Er_GeV / muN) + delta_GeV) / sqrt(2. * mTarget * Er_GeV);
-	// real (re) and imaginary (im) parts of the coefficients of the two nucleon states
-	double re_p_i, re_n_i, re_p_j, re_n_j, im_p_i, im_n_i, im_p_j, im_n_j;
-
 	char p_name[2] = "";
 	char n_name[2] = "";
+	int isospin_basis;
 
 	// Check the nuclear framework and set the names for basis accordingly (pn: proton/neutron, iso: isospin (+/-))
 	if (strncmp(nuclear_framework, "pn", 2) == 0) {
 		strcpy(p_name, "p");
 		strcpy(n_name, "n");
-		re_p_i = Cp(i_coeff);    im_p_i = Cp_im(i_coeff);  // c_proton
-		re_n_i = Cn(i_coeff);    im_n_i = Cn_im(i_coeff);  // c_neutron
-		re_p_j = Cp(j_coeff);    im_p_j = Cp_im(j_coeff);  // c_proton
-		re_n_j = Cn(j_coeff);    im_n_j = Cn_im(j_coeff);  // c_neutron
+		isospin_basis = 0;
 	} else if (strncmp(nuclear_framework, "iso", 3) == 0) {
 		strcpy(p_name, "+");
 		strcpy(n_name, "-");
-		// c_plus = (c_proton + c_neutron)/2, c_minus = (c_proton - c_neutron)/2
-		re_p_i = (Cp(i_coeff) + Cn(i_coeff)) / 2.;    im_p_i = (Cp_im(i_coeff) + Cn_im(i_coeff)) / 2.;
-		re_n_i = (Cp(i_coeff) - Cn(i_coeff)) / 2.;    im_n_i = (Cp_im(i_coeff) - Cn_im(i_coeff)) / 2.;
-		re_p_j = (Cp(j_coeff) + Cn(j_coeff)) / 2.;    im_p_j = (Cp_im(j_coeff) + Cn_im(j_coeff)) / 2.;
-		re_n_j = (Cp(j_coeff) - Cn(j_coeff)) / 2.;    im_n_j = (Cp_im(j_coeff) - Cn_im(j_coeff)) / 2.;
+		isospin_basis = 1;
 	} else {
 		fprintf(stderr, "nuclear_framework must start with 'pn' or 'iso' to be valid: %s\n", nuclear_framework);
 		exit(1);
 	}
 
+	/* Coefficients at the momentum transfer of this isotope, q^2 = 2 m_T E_R (the q of FormFact_v0/v2),
+	in the basis of the nuclear framework: index 0 = proton or "+", index 1 = neutron or "-". */
+	double q2 = 2. * mTarget * Er_GeV;
+	double re_i[2], im_i[2], re_j[2], im_j[2];
+	nucleon_basis_coeffs(i_coeff, q2, isospin_basis, re_i, im_i);
+	nucleon_basis_coeffs(j_coeff, q2, isospin_basis, re_j, im_j);
+
 	/* The coefficients can be complex (e.g. the inelastic matching of arXiv:1409.0536, Table I).
 	The nuclear response functions (eq. 42 of 1409.0536) depend on them only through
 	Re[c_i^tau c_j^tau'^*] = Re c_i^tau Re c_j^tau' + Im c_i^tau Im c_j^tau', which reduces to
 	c_i^tau c_j^tau' for real coefficients. */
-	double cc_pp = re_p_i * re_p_j + im_p_i * im_p_j;
-	double cc_nn = re_n_i * re_n_j + im_n_i * im_n_j;
-	double cc_pn = re_p_i * re_n_j + im_p_i * im_n_j;
-	double cc_np = re_n_i * re_p_j + im_n_i * im_p_j;
+	double cc_pp = re_i[0] * re_j[0] + im_i[0] * im_j[0];
+	double cc_nn = re_i[1] * re_j[1] + im_i[1] * im_j[1];
+	double cc_pn = re_i[0] * re_j[1] + im_i[0] * im_j[1];
+	double cc_np = re_i[1] * re_j[0] + im_i[1] * im_j[0];
 
 	/* eta_0 = int_{v>vmin} f(v)/v d^3v in (km/s)^-1.
 	FormFact_v2 is the coefficient of (v_T^perp)^2, not of v^2. Elastic: (v_T^perp)^2 = v^2 - q^2/(4 mu_T^2)

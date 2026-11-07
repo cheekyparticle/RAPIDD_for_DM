@@ -29,11 +29,19 @@ Set EFT coefficients for calculations here
 double C[OPERATOR_NUMBER];
 double CP[OPERATOR_NUMBER];
 double CN[OPERATOR_NUMBER];
-// Imaginary parts of the DM-nucleon coefficients. They are generated e.g. by the inelastic
-// (delta != 0) matching of arXiv:1409.0536 (Table I: O7 -> + i m_N delta/q^2 O10, ...).
-// The rate depends on the coefficients through Re[c_i c_j^*] only (eq. 42 of 1409.0536).
-double CP_IM[OPERATOR_NUMBER];
-double CN_IM[OPERATOR_NUMBER];
+/* q dependence and imaginary parts of the DM-nucleon coefficients.
+Each coefficient is c(q) = c_{-2} / q^2 + c_0 + c_2 q^2 (q in GeV), with complex c_k:
+- the q^2 terms come from the matching of relativistic operators (Table 1 of arXiv:1308.6288),
+- the imaginary 1/q^2 (and q^0) terms from the inelastic matching (Table I of arXiv:1409.0536).
+The real q^0 part is CP/CN (set by set_any_Ncoeff and read by Cp/Cn, as before); the other
+five parts are stored in NCOEFF_P/NCOEFF_N[part][power index][operator].
+The rate evaluates c(q) for the q of each isotope (Ncoeff_re, Ncoeff_im) and depends on the
+coefficients only through Re[c_i c_j^*] (eq. 42 of arXiv:1409.0536). */
+#define RE_PART 0
+#define IM_PART 1
+#define Q_POWERS 3 // q^-2, q^0, q^2
+static double NCOEFF_P[2][Q_POWERS][OPERATOR_NUMBER];
+static double NCOEFF_N[2][Q_POWERS][OPERATOR_NUMBER];
 double CE[OPERATOR_NUMBER]; // DM-electron NREFT coefficients, contact
 double CE_LR[OPERATOR_NUMBER]; // DM-electron NREFT coefficients, long-range
 double CP_trace[OPERATOR_NUMBER];
@@ -117,11 +125,9 @@ void set_coeffs(){
 	C[15] = 0.0;
 	CP[15] = 0.0;
 	CN[15] = 0.0;
-	//Imaginary parts of the DM-nucleon coefficients
-	for (int i = 0; i < OPERATOR_NUMBER; i++) {
-		CP_IM[i] = 0.0;
-		CN_IM[i] = 0.0;
-	}
+	//q dependent and imaginary parts of the DM-nucleon coefficients
+	memset(NCOEFF_P, 0, sizeof(NCOEFF_P));
+	memset(NCOEFF_N, 0, sizeof(NCOEFF_N));
 	//Electron coefficients
 	for (int i = 0; i < OPERATOR_NUMBER; i++) {
 		CE[i] = 0.0;
@@ -141,20 +147,63 @@ double Cn(int i){
 	return CN[i];
 }
 
-double Cp_im(int i){
-	/*Imaginary part of the i-th DM-proton coefficient.*/
-	return CP_IM[i];
+static double *Ncoeff_slot(int i, char *nucleon, int part, int q_power){
+	/*Pointer to the storage of one part of the i-th DM-nucleon coefficient.
+	Inputs: i (operator), nucleon ("p" or "n"), part (RE_PART or IM_PART),
+	q_power (-2, 0 or 2). Output: NULL for invalid inputs.*/
+	if (i < 0 || i >= OPERATOR_NUMBER) return NULL;
+	if (q_power != -2 && q_power != 0 && q_power != 2) return NULL;
+	int is_p = (strncmp(nucleon, "p", 10) == 0);
+	if (!is_p && strncmp(nucleon, "n", 10) != 0) return NULL;
+	if (part == RE_PART && q_power == 0) return is_p ? &CP[i] : &CN[i];
+	int k = (q_power + 2) / 2;
+	return is_p ? &NCOEFF_P[part][k][i] : &NCOEFF_N[part][k][i];
 }
 
-double Cn_im(int i){
-	/*Imaginary part of the i-th DM-neutron coefficient.*/
-	return CN_IM[i];
+void set_any_Ncoeff_q(double re, double im, int q_power, int i, char *nucleon){
+	/*Sets the q^q_power term (q_power = -2, 0, 2) of the i-th DM-nucleon coefficient,
+	c(q) = c_{-2}/q^2 + c_0 + c_2 q^2 with q in GeV, to re + i im.
+	Inputs: re, im, q_power, i (operator), nucleon ("p" or "n").*/
+	double *slot_re = Ncoeff_slot(i, nucleon, RE_PART, q_power);
+	double *slot_im = Ncoeff_slot(i, nucleon, IM_PART, q_power);
+	if (slot_re == NULL || slot_im == NULL) {
+		fprintf(stderr, "set_any_Ncoeff_q: invalid operator %d, nucleon %s or q power %d\n", i, nucleon, q_power);
+		return;
+	}
+	*slot_re = re;
+	*slot_im = im;
+}
+
+double Ncoeff_part(int i, char *nucleon, int part, int q_power){
+	/*Real (part = 0) or imaginary (part = 1) part of the q^q_power term of the i-th
+	DM-nucleon coefficient (0 for invalid inputs).*/
+	double *slot = Ncoeff_slot(i, nucleon, part, q_power);
+	return slot == NULL ? 0. : *slot;
+}
+
+static double Ncoeff_at_q(int i, char *nucleon, int part, double q2){
+	return Ncoeff_part(i, nucleon, part, -2) / q2
+	       + Ncoeff_part(i, nucleon, part, 0)
+	       + Ncoeff_part(i, nucleon, part, 2) * q2;
+}
+
+double Ncoeff_re(int i, char *nucleon, double q2){
+	/*Real part of the i-th DM-nucleon coefficient (nucleon "p" or "n") at q^2 = q2 (GeV^2).*/
+	return Ncoeff_at_q(i, nucleon, RE_PART, q2);
+}
+
+double Ncoeff_im(int i, char *nucleon, double q2){
+	/*Imaginary part of the i-th DM-nucleon coefficient (nucleon "p" or "n") at q^2 = q2 (GeV^2).*/
+	return Ncoeff_at_q(i, nucleon, IM_PART, q2);
 }
 
 int Ncoeff_is_set(int i){
-	/*1 if the real or the imaginary part of the i-th DM-proton or DM-neutron coefficient
-	is not zero, 0 otherwise.*/
-	return CP[i] != 0. || CN[i] != 0. || CP_IM[i] != 0. || CN_IM[i] != 0.;
+	/*1 if any part of the i-th DM-proton or DM-neutron coefficient is not zero, 0 otherwise.*/
+	for (int part = RE_PART; part <= IM_PART; part++)
+		for (int q_power = -2; q_power <= 2; q_power += 2)
+			if (Ncoeff_part(i, "p", part, q_power) != 0. || Ncoeff_part(i, "n", part, q_power) != 0.)
+				return 1;
+	return 0;
 }
 
 double Ce(int i){
@@ -423,14 +472,6 @@ void set_any_Ncoeff(double input, int i, char* nucleon){
 		CP[i] = input;
 		//printf("%s %i %lf", nucleon, i, CP[i]);
 	}
-}
-
-void set_any_Ncoeff_im(double input, int i, char* nucleon){
-	/*Sets the imaginary part of the i-th DM-nucleon coefficient (nucleon "p" or "n"),
-	leaving its real part (set_any_Ncoeff) unchanged.*/
-	if (i < 0 || i >= OPERATOR_NUMBER) return;
-	if (strncmp(nucleon, "n", 10) == 0) CN_IM[i] = input;
-	if (strncmp(nucleon, "p", 10) == 0) CP_IM[i] = input;
 }
 
 void set_any_Ecoeff(double input, int i){

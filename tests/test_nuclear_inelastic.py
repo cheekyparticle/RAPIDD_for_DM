@@ -75,18 +75,15 @@ def test_lagrangian_13_inelastic(default_halo, mchi, delta, E):
     vm = vmin_kms(mchi, E, delta)
     eta0, eta2 = _halo(vm, 0), _halo(vm, 2)
     rapidd.reset_coefficients()
-    rapidd.set_any_N_EFT_coeff(13, mchi, m_M, "ar", E, "p", delta=delta)
+    rapidd.set_any_N_EFT_coeff(13, mchi, m_M, nucleon="p", delta=delta)
     c8 = rapidd.Cp_val(8)
-    c11 = rapidd.Cp_val(11)
-    q_py2 = 2. * 39.948 * rapidd.core.amu * E * 1e-6       # q^2 of set_any_N_EFT_coeff
-    q_c2 = 2. * _mass_nucleus(A_AR, Z_AR) * E * 1e-6         # q^2 of FormFact_v0
-    assert c11 == pytest.approx(1j * rapidd.core.mproton * delta * 1e-6 / q_py2 * c8)
+    assert rapidd.Cp_val(11, q_power=-2) == pytest.approx(1j * rapidd.core.mproton * delta * 1e-6 * c8)
     r13 = rate(mchi, E, delta=delta)
     set_op(1, c8, 0.)
     r1 = rate(mchi, E, delta=delta)
+    q2 = 2. * _mass_nucleus(A_AR, Z_AR) * E * 1e-6
     vperp2 = max(eta2 - vm**2 * eta0, 0.) * CONV_V2 / (eta0 * CONV_V0)
-    vpar2 = (rapidd.core.mproton * delta * 1e-6 / q_py2)**2 * q_c2 / rapidd.core.mproton**2  # = delta^2/q^2
-    assert r13 / r1 == pytest.approx(JCHI * (JCHI + 1.) / 3. * (vperp2 + vpar2), rel=1e-9)
+    assert r13 / r1 == pytest.approx(JCHI * (JCHI + 1.) / 3. * (vperp2 + (delta * 1e-6)**2 / q2), rel=1e-9)
 
 
 @pytest.mark.parametrize("delta", [0., 40.])
@@ -118,23 +115,57 @@ def test_complex_coefficients_set_and_reset():
     assert rapidd.Cp_val(7) == 1. + 2.j and rapidd.Cn_val(7) == 0.
     rapidd.set_any_Ncoeff(3., 7, "p")              # a real value also clears the imaginary part
     assert rapidd.Cp_val(7) == 3. and isinstance(rapidd.Cp_val(7), float)
-    rapidd.set_any_Ncoeff_im(-1., 7, "n")
-    assert rapidd.Cn_val(7) == -1.j
+    rapidd.set_any_Ncoeff(-1.j, 7, "n", q_power=-2)
+    rapidd.set_any_Ncoeff(0.5, 7, "n", q_power=2)
+    assert rapidd.Cn_val(7) == 0. and rapidd.Cn_val(7, q_power=-2) == -1.j and rapidd.Cn_val(7, q_power=2) == 0.5
+    with pytest.raises(ValueError):
+        rapidd.set_any_Ncoeff(1., 7, "p", q_power=1)
     rapidd.reset_coefficients()
-    assert rapidd.Cp_val(7) == 0. and rapidd.Cn_val(7) == 0.
+    assert all(rapidd.Cp_val(7, k) == 0. and rapidd.Cn_val(7, k) == 0. for k in (-2, 0, 2))
 
 
 def test_lagrangian_19_inelastic_coefficients():
     '''c4 O4 + c6 O6 of L19 is i (delta/m_N) c14 [S_chi.S_N - (S_chi.q^)(S_N.q^)] (1409.0536)'''
     rapidd.reset_coefficients()
-    mchi, m_M, E, delta = 100., 5., 20., 25.
-    rapidd.set_any_N_EFT_coeff(19, mchi, m_M, "xe", E, "n", delta=delta)
-    c14, c4, c6 = rapidd.Cn_val(14), rapidd.Cn_val(4), rapidd.Cn_val(6)
-    q2 = 2. * 131.293 * rapidd.core.amu * E * 1e-6
+    mchi, m_M, delta = 100., 5., 25.
+    rapidd.set_any_N_EFT_coeff(19, mchi, m_M, nucleon="n", delta=delta)
+    c14, c4, c6 = rapidd.Cn_val(14), rapidd.Cn_val(4), rapidd.Cn_val(6, q_power=-2)
     mN = rapidd.core.mneutron
     assert c4 == pytest.approx(1j * delta * 1e-6 / mN * c14)
-    # O6 = (S_chi.q/m_N)(S_N.q/m_N): c6 q^2/m_N^2 = -c4
-    assert c6 * q2 / mN**2 == pytest.approx(-c4)
-    rapidd.set_any_N_EFT_coeff(19, mchi, m_M, "xe", E, "n", delta=0.)
-    assert rapidd.Cn_val(4) == 0. and rapidd.Cn_val(6) == 0.
+    # O6 = (S_chi.q/m_N)(S_N.q/m_N): c6(q) q^2/m_N^2 = -c4 at every q
+    assert c6 / mN**2 == pytest.approx(-c4)
+    rapidd.set_any_N_EFT_coeff(19, mchi, m_M, nucleon="n", delta=0.)
+    assert rapidd.Cn_val(4) == 0. and rapidd.Cn_val(6, q_power=-2) == 0.
+    rapidd.reset_coefficients()
+
+
+@pytest.mark.parametrize("q_power", [-2, 2])
+@pytest.mark.parametrize("E", [2., 20.])
+def test_q_power_evaluated_at_isotope_q(default_halo, q_power, E):
+    '''On a single isotope, c_k q^k (k = -2, 2) gives the same rate as the q independent
+    coefficient c_k q^k evaluated at q^2 = 2 m_T E_R'''
+    mchi, a = 100., 0.3 + 0.4j
+    q2 = 2. * _mass_nucleus(A_AR, Z_AR) * E * 1e-6
+    rapidd.reset_coefficients()
+    for nuc in "pn":
+        rapidd.set_any_Ncoeff(a, 1, nuc, q_power=q_power)
+    r_q = rate(mchi, E)
+    set_op(1, a * q2**(q_power // 2))
+    assert r_q == pytest.approx(rate(mchi, E), rel=1e-12)
+
+
+def test_eft_coefficients_independent_of_energy(default_halo):
+    '''L6 (q^2 dependent c1): one call of set_any_N_EFT_coeff is valid at all energies, and the
+    deprecated nucl and E arguments are ignored'''
+    mchi, m_M = 100., 1.
+    rapidd.reset_coefficients()
+    for nuc in "pn":
+        rapidd.set_any_N_EFT_coeff(6, mchi, m_M, nucleon=nuc)
+    rates = [rate(mchi, E, target="Xe", basis="iso_GCN5082") for E in (2., 20.)]
+    rapidd.reset_coefficients()
+    for E, r in zip((2., 20.), rates):
+        with pytest.warns(DeprecationWarning):
+            for nuc in "pn":
+                rapidd.set_any_N_EFT_coeff(6, mchi, m_M, "xe", E, nuc)
+        assert rate(mchi, E, target="Xe", basis="iso_GCN5082") == pytest.approx(r, rel=1e-12)
     rapidd.reset_coefficients()

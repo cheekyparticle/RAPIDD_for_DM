@@ -4,8 +4,9 @@
 
 double Cp(int i);
 double Cn(int i);
-double Cp_im(int i);
-double Cn_im(int i);
+double Ncoeff_re(int i, char *nucleon, double q2);
+double Ncoeff_im(int i, char *nucleon, double q2);
+double Ncoeff_part(int i, char *nucleon, int part, int q_power);
 int Ncoeff_is_set(int i);
 double Ce(int i);
 double Ce_LR(int i);
@@ -32,7 +33,7 @@ void set_coeffs_matching_Standard( double mchi, double sigma, double sigmaSD);
 void set_coeffs_matching_Standard_all( double mchi, double sigma_p,double sigma_n, double sigmaSD_p, double sigmaSD_n);
 void set_any_coeffs(double C, int i);
 void set_any_Ncoeff(double input, int i, char* nucleon);
-void set_any_Ncoeff_im(double input, int i, char* nucleon);
+void set_any_Ncoeff_q(double re, double im, int q_power, int i, char *nucleon);
 void set_any_Ecoeff(double input, int i);
 void set_any_Ecoeff_LR(double input, int i);
 void set_med_mass(double med_mass);
