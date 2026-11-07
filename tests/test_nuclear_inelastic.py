@@ -155,17 +155,34 @@ def test_q_power_evaluated_at_isotope_q(default_halo, q_power, E):
 
 
 def test_eft_coefficients_independent_of_energy(default_halo):
-    '''L6 (q^2 dependent c1): one call of set_any_N_EFT_coeff is valid at all energies, and the
-    deprecated nucl and E arguments are ignored'''
+    '''L6 (q^2 dependent c1): one call of set_any_N_EFT_coeff is valid at all energies: the
+    q^2 term is the same as c1 = c_2 q^2 set by hand at each energy'''
     mchi, m_M = 100., 1.
     rapidd.reset_coefficients()
     for nuc in "pn":
         rapidd.set_any_N_EFT_coeff(6, mchi, m_M, nucleon=nuc)
-    rates = [rate(mchi, E, target="Xe", basis="iso_GCN5082") for E in (2., 20.)]
+    c1_q2 = {"p": rapidd.Cp_val(1, q_power=2), "n": rapidd.Cn_val(1, q_power=2)}   # m_N differs for p, n
+    c3 = {"p": rapidd.Cp_val(3), "n": rapidd.Cn_val(3)}
+    for E in (2., 20.):
+        r = rate(mchi, E)
+        q2 = 2. * _mass_nucleus(A_AR, Z_AR) * E * 1e-6
+        rapidd.reset_coefficients()
+        for nuc in "pn":
+            rapidd.set_any_Ncoeff(c1_q2[nuc] * q2, 1, nuc)
+            rapidd.set_any_Ncoeff(c3[nuc], 3, nuc)
+        assert rate(mchi, E) == pytest.approx(r, rel=1e-12)
+        rapidd.reset_coefficients()
+        for nuc in "pn":
+            rapidd.set_any_N_EFT_coeff(6, mchi, m_M, nucleon=nuc)
     rapidd.reset_coefficients()
-    for E, r in zip((2., 20.), rates):
-        with pytest.warns(DeprecationWarning):
-            for nuc in "pn":
-                rapidd.set_any_N_EFT_coeff(6, mchi, m_M, "xe", E, nuc)
-        assert rate(mchi, E, target="Xe", basis="iso_GCN5082") == pytest.approx(r, rel=1e-12)
+
+
+def test_eft_coefficients_old_signature_rejected():
+    '''The removed nucl and E arguments are no longer accepted: an old call fails loudly'''
+    with pytest.raises(ValueError):
+        rapidd.set_any_N_EFT_coeff(6, 100., 1., "xe", 10., "p")
+    with pytest.raises(TypeError):
+        rapidd.set_any_N_EFT_coeff(6, 100., 1., nucl="xe", E=10., nucleon="p")
+    with pytest.raises(ValueError):
+        rapidd.set_any_N_EFT_coeff(6, 100., 1., "xe")
     rapidd.reset_coefficients()
