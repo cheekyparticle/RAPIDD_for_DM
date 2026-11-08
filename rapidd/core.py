@@ -41,32 +41,70 @@ _define_and_write_halo.restype = ctypes.c_void_p
 _lab_frame_speed_annual_avg = _crapidd.lab_frame_speed_annual_avg  
 _lab_frame_speed_annual_avg.argtypes = [ctypes.c_double, ctypes.c_double * 3]  
 _lab_frame_speed_annual_avg.restype = ctypes.c_double  
-_define_and_write_halo_time = _crapidd.define_and_write_halo_time  
+_dbl_p = ctypes.POINTER(ctypes.c_double)
+_define_and_write_halo_time = _crapidd.define_and_write_halo_time
 _define_and_write_halo_time.argtypes = [
-    ctypes.c_char_p, ctypes.c_double, ctypes.c_double, ctypes.c_double,
-    ctypes.c_double, ctypes.c_double * 3, ctypes.c_double, ctypes.c_int,
-    ctypes.c_double, ctypes.c_double,
-    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,
+    ctypes.c_char_p, ctypes.c_double, ctypes.c_double, ctypes.c_double,    # profile, vesc, v0, beta
+    ctypes.c_double, ctypes.c_double * 3, ctypes.c_double,                 # v0_lsr, v_pec, v_earth_avg
+    ctypes.c_double, ctypes.c_int, _dbl_p, ctypes.c_int,                   # k, i, times, n_times
+    ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double, ctypes.c_double,  # w, vb, cosb, sigb, vcut
+    ctypes.c_int,                                                          # verbose
 ]
-  
+_define_and_write_halo_time.restype = None
 _define_and_write_halo_time_path = _crapidd.define_and_write_halo_time_path
 _define_and_write_halo_time_path.argtypes = [ctypes.c_char_p] + _define_and_write_halo_time.argtypes
+_define_and_write_halo_time_path.restype = None
 
-VALID_PROFILES = ("SHM", "SHM_numeric", "SHM_beta", "SHM_wLMC", "Lisanti")  
-  
+VALID_PROFILES = ("SHM", "SHM_numeric", "SHM_beta", "SHM_wLMC", "Lisanti")
+
+_lab_frame_speed = _crapidd.lab_frame_speed
+_lab_frame_speed.argtypes = [ctypes.c_double, ctypes.c_double * 3, ctypes.c_double, ctypes.c_double]
+_lab_frame_speed.restype = ctypes.c_double
+
+# Length of the year used for the annual modulation [days] (RAPIDD_YEAR_DAYS of lib/source/halo.h):
+# omega = 2 pi / YEAR_DAYS in the Earth velocity and Delta t = YEAR_DAYS / day_bins
+YEAR_DAYS = 365.24
+
+# halo parameters of the default table halo_path (calc_halo defaults)
+default_halo_vesc = 544.
+default_halo_v0 = 238.
+default_halo_v_pec = (11.1, 12.2, 7.3)
+# modulus of the Earth velocity [km/s] (Table 1 of arXiv:2105.00599): used only by the
+# time-dependent (modulation) tables, not by the annual-average table halo_path
+default_halo_v_earth = 29.8
+
+@np.vectorize
+def lab_frame_speed(t, v0_lsr=238., v_pec=(11.1, 12.2, 7.3), v_earth=29.8):
+    '''Lab-frame speed [km/s] at t days since March 22, 2018 (Eqs. 10-11 of arXiv:2105.00599),
+    as used by the modulation tables of calc_halo (v_earth: modulus of the Earth velocity)'''
+    return _lab_frame_speed(v0_lsr, (ctypes.c_double * 3)(*v_pec), v_earth, t)
+
+def lab_frame_speed_annual_avg(v0_lsr=238., v_pec=(11.1, 12.2, 7.3)):
+    '''Lab-frame speed [km/s] of the annual-average table (Earth velocity vector of March 9,
+    Eq. 12 of arXiv:2105.00599, independent of v_earth)'''
+    return _lab_frame_speed_annual_avg(v0_lsr, (ctypes.c_double * 3)(*v_pec))
+
 def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
                v0_lsr=238., v_pec=(11.1, 12.2, 7.3), k_lisanti=1.5, i=2,
-               t0=151., T=None, w=0.006, vb=570., cosb=-0.71, sigb=100., vcut=200., table_dir=None, ve=None):
+               times=None, v_earth=default_halo_v_earth, w=0.006, vb=570., cosb=-0.71, sigb=100., vcut=200.,
+               table_dir=None, ve=None, verbose=False):
     """
-    Compute the dark matter halo velocity-integral table and write it to disk
-    (calls define_and_write_halo if T is None, define_and_write_halo_time
+    Compute the dark matter halo velocity-integral table(s) and write them to disk
+    (calls define_and_write_halo if times is None, define_and_write_halo_time(_path)
     otherwise).
+
+    Two Earth velocities are used (arXiv:2105.00599):
+      - annual-average table (times is None): the lab-frame speed is |v_LSR + v_pec + v_E|
+        with the fixed Earth velocity vector of Eq. 12, v_E = (29.2, -0.1, 5.9) km/s
+        (March 9). It does not depend on v_earth.
+      - modulation tables (times given): v_E(t) of Eq. 11, with modulus v_earth and a
+        direction that changes during the year (omega = 2 pi / YEAR_DAYS).
 
     Parameters
     ----------
     table_path : str
-        Destination path for the output table.
-    profile : {"SHM", "SHM_beta", "SHM_wLMC", "Lisanti"}
+        Destination path of the annual-average table (ignored if times is not None).
+    profile : {"SHM", "SHM_numeric", "SHM_beta", "SHM_wLMC", "Lisanti"}
         Halo velocity-distribution model.
     vesc : float
         Galactic escape velocity [km/s].
@@ -89,13 +127,13 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
         i - 1 is the highest power of v included in the tabulated halo integrals:
         eta_i(vmin) = int_{vmin}^infty v^{i-1} f(vec{v}) d^3v.
         i=2 includes all the integrals for the usual differential-rate calculation.
-    t0 : float
-        Reference day offset (days since March 22, 2018) used only when
-        T is not None, to phase the annual modulation.
-    T : int or None
-        If None, write a single annual-average (static) table. If an
-        integer, write T daily-modulated tables (halo_table_0.dat ...
-        halo_table_{T-1}.dat), one per day from t=0 to T-1.
+    times : array of floats or None
+        If None, write a single annual-average (static) table in table_path. Otherwise
+        write one table per time, halo_table_<j>.dat for times[j] (days since March 22,
+        2018, not necessarily integers; see modulation.modulation_times).
+    v_earth : float
+        Modulus of the Earth velocity around the Sun [km/s] (vEarth_mod of the MadDM card).
+        Used only when times is not None.
     w : float
         Weight fraction (w:[0,1], eg. 0.6%->w=0.006). Only used for SHM_wLMC.
     vb : float
@@ -107,23 +145,25 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
     vcut : float
         Max velocity distance from vb. Only used for SHM_wLMC.
     table_dir : str or None
-        Only used when T is not None: directory where the daily tables
-        halo_table_<t>.dat are written. If None, they are written in
-        halo_table/ relative to the current working directory.
+        Only used when times is not None: directory where the tables halo_table_<j>.dat
+        are written. If None, they are written in halo_table/ relative to the current
+        working directory.
     ve : float or None
-        Only used when T is None: speed of the Earth in the galactic rest frame [km/s].
+        Only used when times is None: speed of the Earth in the galactic rest frame [km/s].
         If None (default), it is the annual average computed from v0_lsr and v_pec.
+    verbose : bool
+        Only used when times is not None: print the progress of the loop over the times.
     """
-    if profile not in VALID_PROFILES:  
+    if profile not in VALID_PROFILES:
         raise ValueError(f"Profile must be one of {VALID_PROFILES}")
 
     if profile == "Lisanti" and k_lisanti <= 0:
         raise ValueError(
             "For profile='Lisanti', k must be > 0. Typical range: k in [0.5, 3.5]."
         )
-  
+
     v_pec_c = (ctypes.c_double * 3)(*v_pec)
-    if T is None:
+    if times is None:
         if ve is None:
             ve = _lab_frame_speed_annual_avg(v0_lsr, v_pec_c)
         _define_and_write_halo(
@@ -131,19 +171,15 @@ def calc_halo(table_path, profile="SHM", vesc=544, v0=238., beta=0.,
             vesc, v0, beta, ve, k_lisanti, i, w,
             vb, cosb, sigb, vcut
         )
-    elif table_dir is None:
-        _define_and_write_halo_time(
-            profile.encode(), vesc, v0, beta,
-            v0_lsr, v_pec_c, k_lisanti, i, t0, T,
-            w, vb, cosb, sigb, vcut
-        )
+        return
+    times = np.ascontiguousarray(np.atleast_1d(times), dtype=np.float64)
+    args = (profile.encode(), vesc, v0, beta, v0_lsr, v_pec_c, v_earth, k_lisanti, i,
+            times.ctypes.data_as(_dbl_p), len(times), w, vb, cosb, sigb, vcut, int(bool(verbose)))
+    if table_dir is None:
+        _define_and_write_halo_time(*args)
     else:
         os.makedirs(table_dir, exist_ok=True)
-        _define_and_write_halo_time_path(
-            os.path.abspath(table_dir).encode(), profile.encode(), vesc, v0, beta,
-            v0_lsr, v_pec_c, k_lisanti, i, t0, T,
-            w, vb, cosb, sigb, vcut
-        )
+        _define_and_write_halo_time_path(os.path.abspath(table_dir).encode(), *args)
 
 _read_halo = _crapidd.read_halo
 _read_halo.argtypes = [ctypes.c_char_p]
@@ -154,11 +190,6 @@ def read_halo(path = halo_path):
     _read_halo(path.encode())
     return
 
-# halo parameters of the default table halo_path (calc_halo defaults)
-default_halo_vesc = 544.
-default_halo_v0 = 238.
-default_halo_v_pec = (11.1, 12.2, 7.3)
-
 def halo_path_from_card(card, table_dir):
     """
     Annual-average SHM table for the halo parameters of the MadDM card.
@@ -166,6 +197,11 @@ def halo_path_from_card(card, table_dir):
     Returns halo_path if vescape, vmp and (vSun_r, vSun_phi, vSun_theta) are the
     default ones, otherwise computes the table in table_dir/SHM.dat and returns
     its path. vmp is used both as v0 and as the LSR speed.
+
+    vEarth_mod is not used: the annual-average table uses the fixed Earth velocity vector
+    of March 9 of arXiv:2105.00599 (Eq. 12), so it is never recomputed when only vEarth_mod
+    changes. vEarth_mod enters only the modulation tables (modulation.modulation_halo_from_card),
+    through the time-dependent Earth velocity of Eq. 11.
     """
     card_pars = (card['vescape'], card['vmp'], card['vSun_r'], card['vSun_phi'], card['vSun_theta'])
     if np.allclose(card_pars, (default_halo_vesc, default_halo_v0) + default_halo_v_pec, rtol=1e-9, atol=0.):
@@ -486,7 +522,6 @@ def read_atomic_responses(path=atomic_resp_dir, response_index=None):
     return
 
 _dm_response_electron = _crapidd.dm_response_electron
-_dbl_p = ctypes.POINTER(ctypes.c_double)
 _int_p = ctypes.POINTER(ctypes.c_int)
 _dm_response_electron.argtypes = [ctypes.c_int] + [ctypes.c_double] * 5 + [_dbl_p]
 _dm_response_electron.restype = ctypes.c_double

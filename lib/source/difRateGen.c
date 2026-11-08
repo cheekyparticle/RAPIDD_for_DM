@@ -579,30 +579,29 @@ static void electron_grids(double m_e, double *k, double *E, double *q){
 }
 
 #ifdef ER_VALIDATE_LEGACY_HALO
-/* Debug only: analytic SHM eta averaged over the day bins with the legacy Earth velocity,
-as in the legacy Fortran (get_dRdlogE + get_vEarth). Used to validate the port. */
+/* Debug only: analytic SHM eta averaged over legacy_day_bins day bins covering the whole year
+(0 -> RAPIDD_YEAR_DAYS days since March 22, 2018) with the legacy Earth velocity, as in the legacy
+Fortran (get_dRdlogE + get_vEarth). Used to validate the port. */
 static double legacy_vMP = 238., legacy_vesc = 544., legacy_vEarth_mod = 29.8;
 static double legacy_vSun[3] = {11.1, 12.2, 7.3};
-static double legacy_day_min = 0., legacy_day_max = 365.;
-static int legacy_day_bins = 10;
+static int legacy_day_bins = 12;
 
 void set_legacy_halo_params(double vMP, double vesc, double vEarth_mod, double vSun_r, double vSun_phi,
-							double vSun_theta, double day_min, double day_max, int day_bins){
-	/*Sets the parameters of the legacy (debug) halo, as in the maddm_card.*/
+							double vSun_theta, int day_bins){
+	/*Sets the parameters of the legacy (debug) halo, as in the maddm_card; the average is
+	always over the whole year, divided in day_bins bins (default 12).*/
 	legacy_vMP = vMP;
 	legacy_vesc = vesc;
 	legacy_vEarth_mod = vEarth_mod;
 	legacy_vSun[0] = vSun_r;
 	legacy_vSun[1] = vSun_phi;
 	legacy_vSun[2] = vSun_theta;
-	legacy_day_min = day_min;
-	legacy_day_max = day_max;
 	legacy_day_bins = day_bins;
 }
 
 static double legacy_vEarth(double days){
 	/*Legacy get_vEarth: Earth speed in the galactic frame (km/s), days since March 22, 2018.*/
-	double omega = 0.0172;
+	double omega = 2. * M_PI / RAPIDD_YEAR_DAYS;
 	double cosdt = cos(omega * days);
 	double sindt = sin(omega * days);
 	double v1 = legacy_vSun[0] + legacy_vEarth_mod * (0.9941 * cosdt - 0.0504 * sindt);
@@ -616,10 +615,10 @@ static double legacy_eta(double vmin){
 	double v0 = legacy_vMP * 1.e5;
 	double vesc = legacy_vesc * 1.e5;
 	double kNorm = (v0 * v0 * v0) * M_PI * (sqrt(M_PI) * erf(vesc / v0) - 2. * (vesc / v0) * exp(-SQR(vesc / v0)));
-	double dday = (legacy_day_max - legacy_day_min) / (double)legacy_day_bins;
+	double dday = RAPIDD_YEAR_DAYS / (double)legacy_day_bins;
 	double eta_avg = 0.;
 	for (int id = 0; id < legacy_day_bins; id++) {
-		double daymid = legacy_day_min + ((double)id + 0.5) * dday;
+		double daymid = ((double)id + 0.5) * dday;
 		double vE = legacy_vEarth(daymid) * 1.e5;
 		double eta;
 		if (vmin <= (vesc - vE)) {
@@ -633,7 +632,7 @@ static double legacy_eta(double vmin){
 		else {
 			eta = 0.;
 		}
-		eta_avg += eta * dday / (legacy_day_max - legacy_day_min);
+		eta_avg += eta / (double)legacy_day_bins;
 	}
 	return eta_avg;
 }

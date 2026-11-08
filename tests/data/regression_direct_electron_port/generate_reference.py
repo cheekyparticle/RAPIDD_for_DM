@@ -5,7 +5,14 @@ Run from the repository root with the library of direct_electron_port built:
     python tests/data/regression_direct_electron_port/generate_reference.py
 It writes reference.npz and the DDrate_electron_save outputs (ddrate_<case>/) next to
 this script. Do not regenerate it with a later version of the code.
+
+Exception: the annual-modulation case ddrate_spin2_m0.1_mod follows the modulation scheme of
+rapidd.modulation (day_bins time bins centered at t_i = (i + 0.5) 365.24/day_bins, omega = 2 pi/365.24,
+vEarth_mod from the card), which postdates direct_electron_port. Only that case is regenerated with
+the current code by
+    python tests/data/regression_direct_electron_port/generate_reference.py --modulation-only
 """
+import sys
 import os
 import shutil
 import numpy as np
@@ -24,13 +31,17 @@ COEFFS = (("c1", 1.0e-3, 0.0), ("c4", 0.0, 1.0e-3), ("c1c4", 1.0e-3, 2.0e-3))
 CARD = {'rhoDM': RHO, 'vmp': 238., 'vescape': 544., 'vSun_r': 11.1, 'vSun_phi': 12.2, 'vSun_theta': 7.3}
 ALPHAS = {"alpha_e": (1.0e-4, 2.0e-4, 1.5e-4, 0.5e-4)}
 DD_CASES = ((2, 0.1, False), (2, 1.0, False), (1, 0.05, False), (2, 0.1, True))  # (MadDM dm_spin, mDM, modulation)
+DAY_BINS = 4  # time bins of the modulation case
 
 
 def case_key(label, m, jchi):
     return "%s_m%g_j%g" % (label, m, jchi)
 
 
-def main():
+def main(modulation_only=False):
+    if modulation_only:
+        write_ddrate_cases(modulation_only=True)
+        return
     ref = {}
     rapidd.read_halo(rapidd.halo_path)
     rapidd.read_atomic_responses(response_index=1)
@@ -56,13 +67,18 @@ def main():
                 ref[key + "/X1T_bkg"] = np.array(x1t['n_bkg'])
                 ref[key + "/X1T_obs"] = np.array(x1t['n_obs'])
     np.savez(os.path.join(HERE, "reference.npz"), **ref)
+    write_ddrate_cases()
 
+
+def write_ddrate_cases(modulation_only=False):
     for dm_spin, m, modulation in DD_CASES:
+        if modulation_only and not modulation:
+            continue
         out = os.path.join(HERE, "ddrate_spin%i_m%g%s" % (dm_spin, m, "_mod" if modulation else ""))
         shutil.rmtree(out, ignore_errors=True)
         os.makedirs(out)
         res = DDrate_electron_save(CARD, ALPHAS, dm_spin, M_E, m, out, halo_path=rapidd.halo_path,
-                                   modulation=modulation, days=[0, 100] if modulation else None)
+                                   modulation=modulation, day_bins=DAY_BINS)
         shutil.rmtree(os.path.join(out, "halo_table_modulation"), ignore_errors=True)
         with open(os.path.join(out, "result.txt"), "w") as f:
             for key in sorted(res):
@@ -70,4 +86,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(modulation_only="--modulation-only" in sys.argv[1:])

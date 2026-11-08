@@ -22,6 +22,7 @@ CASES = [(label, c1, c4, m, j) for label, c1, c4 in COEFFS for m in (0.05, 0.1, 
 CARD = {'rhoDM': RHO, 'vmp': 238., 'vescape': 544., 'vSun_r': 11.1, 'vSun_phi': 12.2, 'vSun_theta': 7.3}
 ALPHAS = {"alpha_e": (1.0e-4, 2.0e-4, 1.5e-4, 0.5e-4)}
 DD_CASES = ((2, 0.1, False), (2, 1.0, False), (1, 0.05, False), (2, 0.1, True))
+DAY_BINS = 4  # time bins of the modulation case (as in generate_reference.py)
 
 
 @pytest.fixture(scope="module")
@@ -84,7 +85,7 @@ def test_DDrate_electron_save(tmp_path, dm_spin, m, modulation):
     out = tmp_path / name
     out.mkdir()
     res = DDrate_electron_save(CARD, ALPHAS, dm_spin, M_E, m, str(out), halo_path=rapidd.halo_path,
-                               modulation=modulation, days=[0, 100] if modulation else None)
+                               modulation=modulation, day_bins=DAY_BINS)
     shutil.rmtree(out / "halo_table_modulation", ignore_errors=True)
     with open(out / "result.txt", "w") as f:
         for key in sorted(res):

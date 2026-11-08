@@ -733,18 +733,17 @@ void read_halo(char *path){
 ANNUAL MODULATION / TIME-DEPENDENT LAB-FRAME VELOCITY
 ########################################################################################*/
 
-double lab_frame_speed(double v0_lsr, const double v_pec[3], double v_earth_avg, double t0, int t){
-	/*Computes the lab-frame speed |v_lab| = |v0_lsr_vec + v_pec + v_earth(t)| for a
-	given day. Reference: Eq. 10-11 of arXiv:2105.00599.
+double lab_frame_speed(double v0_lsr, const double v_pec[3], double v_earth_avg, double t){
+	/*Computes the lab-frame speed |v_lab| = |v0_lsr_vec + v_pec + v_earth(t)| at time t.
+	Reference: Eq. 10-11 of arXiv:2105.00599.
 	Inputs: v0_lsr (local standard of rest speed, phi component only, km/s; Table 1: 238),
-	v_pec[3] (solar peculiar velocity vector: vr, vphi, heta, km/s; Table 1: 11.1, 12.2, 7.3),
-	v_earth_avg (<|v_earth|>, km/s; Table 1: 29.8),
-	t0 (reference day offset from March 22 2018, i.e. the day corresponding to t=0),
-	t (day index).
-	Output: lab-frame speed at day t.*/
-	double delta_t = t - t0;
+	v_pec[3] (solar peculiar velocity vector: vr, vphi, vtheta, km/s; Table 1: 11.1, 12.2, 7.3),
+	v_earth_avg (<|v_earth|>, km/s; Table 1: 29.8): modulus of the Earth velocity, whose
+	direction changes during the year as in Eq. 11,
+	t (days since March 22, 2018, not necessarily an integer).
+	Output: lab-frame speed at time t.*/
 	double v_earth[3];
-	earth_velocity_vector(delta_t, v_earth_avg, v_earth);
+	earth_velocity_vector(t, v_earth_avg, v_earth);
 
 	double vx = 0.0    + v_pec[0] + v_earth[0];
 	double vy = v0_lsr + v_pec[1] + v_earth[1];
@@ -756,7 +755,8 @@ double lab_frame_speed(double v0_lsr, const double v_pec[3], double v_earth_avg,
 double lab_frame_speed_annual_avg(double v0_lsr, const double v_pec[3]){
 	/*Annual-average lab-frame speed, using the fixed Earth-velocity vector evaluated
 	at March 9 (recommended for analyses not targeting annual modulation).
-	Reference: Eq. 12 of arXiv:2105.00599.
+	Reference: Eq. 12 of arXiv:2105.00599. The vector is the one of the paper and does
+	not depend on v_earth_avg: the annual-average halo is the same for any vEarth_mod.
 	Inputs: v0_lsr, v_pec[3] (see lab_frame_speed).
 	Output: annual-average lab-frame speed.*/
 	double v_earth_mar9[3] = {29.2, -0.1, 5.9}; // Eq. 12
@@ -770,59 +770,65 @@ double lab_frame_speed_annual_avg(double v0_lsr, const double v_pec[3]){
 
 void earth_velocity_vector(double delta_t, double v_earth_avg, double v_out[3]){
 	/*Computes the vector Earth velocity relative to the Sun in the galactic frame,
-	components (vr, vphi, heta): r points radially inward, phi points in the
-	direction of the Milky Way's rotation. Reference: Eq. 11 of arXiv:2105.00599.
+	components (vr, vphi, vtheta): r points radially inward, phi points in the
+	direction of the Milky Way's rotation. Reference: Eq. 11 of arXiv:2105.00599,
+	with omega = 2 pi / RAPIDD_YEAR_DAYS.
 	Inputs: delta_t (days since March 22, 2018, arbitrary reference date),
 	v_earth_avg (<|v_earth|> = 29.8 km/s, Table 1).
 	Output: v_out[3] filled with the Earth velocity vector.*/
-	double omega = 0.0172; // rad/day
+	double omega = 2. * M_PI / RAPIDD_YEAR_DAYS; // rad/day
 	v_out[0] = v_earth_avg * (0.9941 * cos(omega * delta_t) - 0.0504 * sin(omega * delta_t));
 	v_out[1] = v_earth_avg * (0.1088 * cos(omega * delta_t) + 0.4946 * sin(omega * delta_t));
 	v_out[2] = v_earth_avg * (0.0042 * cos(omega * delta_t) - 0.8677 * sin(omega * delta_t));
 }
 
 void define_and_write_halo_time(char *profile, double vesc, double v0, double beta,
-                                 double v0_lsr, const double v_pec[3],
-                                 double k, int i, double t0, double T,
-								 double w, double vb, double cosb, double sigb, double vcut){
-	/*Computes and writes halo tables for a time series of days T, using the
-	time-dependent lab-frame Earth velocity (for annual-modulation studies).
-	Inputs: profile, vesc, v0, beta, v0_lsr, v_pec[3], k, i (max velocity power),
-	t0 (reference day offset), T (number of days to compute), w, vb, cosb, sigb, vcut.
-	Output: none (writes one table file per day under halo_table/, relative to the cwd).*/
-	define_and_write_halo_time_path("halo_table", profile, vesc, v0, beta, v0_lsr, v_pec, k, i, t0, T,
-									w, vb, cosb, sigb, vcut);
+                                 double v0_lsr, const double v_pec[3], double v_earth_avg,
+                                 double k, int i, const double *times, int n_times,
+								 double w, double vb, double cosb, double sigb, double vcut, int verbose){
+	/*Computes and writes one halo table for each of the n_times times (for annual-modulation
+	studies), using the time-dependent lab-frame Earth velocity of lab_frame_speed.
+	Inputs: profile, vesc, v0, beta, v0_lsr, v_pec[3], v_earth_avg (modulus of the Earth
+	velocity, km/s), k, i (max velocity power), times[n_times] (days since March 22, 2018),
+	w, vb, cosb, sigb, vcut, verbose (0: no output on stdout).
+	Output: none (writes halo_table/halo_table_<j>.dat, j = 0 ... n_times-1, relative to the cwd).*/
+	define_and_write_halo_time_path("halo_table", profile, vesc, v0, beta, v0_lsr, v_pec, v_earth_avg, k, i,
+									times, n_times, w, vb, cosb, sigb, vcut, verbose);
 }
 
 void define_and_write_halo_time_path(char *dir, char *profile, double vesc, double v0, double beta,
-                                      double v0_lsr, const double v_pec[3],
-                                      double k, int i, double t0, double T,
-									  double w, double vb, double cosb, double sigb, double vcut){
-	/*Same as define_and_write_halo_time, writing the tables to dir/halo_table_<t>.dat.
+                                      double v0_lsr, const double v_pec[3], double v_earth_avg,
+                                      double k, int i, const double *times, int n_times,
+									  double w, double vb, double cosb, double sigb, double vcut, int verbose){
+	/*Same as define_and_write_halo_time, writing the tables to dir/halo_table_<j>.dat, where j
+	is the index of the time in times[].
 	Inputs: dir (output directory, e.g. an absolute path), then as define_and_write_halo_time.
-	Output: none (writes one table file per day under dir).*/
+	Output: none (writes one table file per time under dir).*/
 	if (i > power - 1) {
 		printf("Please select a power in velocity up to %d or change the definition of power in source/halo.c\n", power - 1);
 	}
 	else {
-		printf("Calculating halo integrals for %s up to order %d in v...\n", profile, i);
+		if (verbose) printf("Calculating halo integrals for %s up to order %d in v...\n", profile, i);
 
 		clock_t start, end;
 		double cpu_time_used;
 		start = clock();
 
-		int t;
-		for (t = 0; t < T; t++) {
+		int j;
+		for (j = 0; j < n_times; j++) {
 			char path[1024];
-			snprintf(path, sizeof(path), "%s/halo_table_%i.dat", dir, t);
-			printf("Calculating for t=%i...\n", t);
-			double ve_t = lab_frame_speed(v0_lsr, v_pec, 29.8, t0, t); // v_earth_avg = 29.8 km/s, Table 1
+			snprintf(path, sizeof(path), "%s/halo_table_%i.dat", dir, j);
+			if (verbose) printf("Calculating for t=%g days...\n", times[j]);
+			double ve_t = lab_frame_speed(v0_lsr, v_pec, v_earth_avg, times[j]);
 			write_fv_v(path, profile, vesc, v0, beta, ve_t, k, i, w, vb, cosb, sigb, vcut);
 		}
 
-		printf("Done!\n");
 		end = clock();
 		cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
-		printf("Elapsed time: %f seconds\n", cpu_time_used);
+		if (verbose) {
+			printf("Done!\n");
+			printf("Elapsed time: %f seconds\n", cpu_time_used);
+		}
+		fflush(stdout);
 	}
 }

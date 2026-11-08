@@ -34,5 +34,5 @@ int difrate_dS2(const char *experiment, const double *E, const double *rate_shel
 				double *S2_out, double *dRdS2_out, double *dRdS2_shell_out, double *signal_out, double *n_bkg_out, int *n_obs_out);
 #ifdef ER_VALIDATE_LEGACY_HALO
 void set_legacy_halo_params(double vMP, double vesc, double vEarth_mod, double vSun_r, double vSun_phi,
-							double vSun_theta, double day_min, double day_max, int day_bins);
+							double vSun_theta, int day_bins);
 #endif
