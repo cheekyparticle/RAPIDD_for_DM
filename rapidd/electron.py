@@ -133,8 +133,8 @@ def total_rate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELEC
     Total ionization rate [events/kg/day]: integral of dR/dlnE over ln E on the grid of
     difrate_electron (trapezoidal rule in ln E, from E = 0.01 eV to the kinematic end point).
     If rate (the output of difrate_electron) is given, the other arguments are ignored.
-    Note: the XENON10 response uses the legacy left sum dR/dE(E_i) (E_{i+1} - E_i), which on
-    this log grid is ~7% larger.
+    The XENON10 response integrates the same spectrum (power-law interpolation between the grid
+    points, from the first to the last point of the grid).
     '''
     if rate is None:
         rate = difrate_electron(rhoDM, mDM, jchi=jchi, shells=shells, resp=resp, m_e=m_e)

@@ -1,16 +1,17 @@
-"""Reference outputs of the DM-electron scattering of the branch direct_electron_port
-(SI/SD only: Ce(1), Ce(4), atomic response W_1), used by tests/test_electron_regression.py.
+"""Reference outputs of the DM-electron scattering (SI/SD only: Ce(1), Ce(4), atomic response W_1),
+used by tests/test_electron_regression.py. They were first produced with the branch
+direct_electron_port and regenerated on 2026-11-09 with the current code, after the fixes listed in
+tests/test_electron_regression.py (XENON1T deposited energy, q quadrature, Xe_4d tables, XENON10
+E integral).
 
-Run from the repository root with the library of direct_electron_port built:
+Run from the repository root with the library built:
     python tests/data/regression_direct_electron_port/generate_reference.py
-It writes reference.npz and the DDrate_electron_save outputs (ddrate_<case>/) next to
-this script. Do not regenerate it with a later version of the code.
-
-Exception: the annual-modulation case ddrate_spin2_m0.1_mod follows the modulation scheme of
-rapidd.modulation (day_bins time bins centered at t_i = (i + 0.5) 365.24/day_bins, omega = 2 pi/365.24,
-vEarth_mod from the card), which postdates direct_electron_port. Only that case is regenerated with
-the current code by
-    python tests/data/regression_direct_electron_port/generate_reference.py --modulation-only
+It writes reference.npz and the DDrate_electron_save outputs (ddrate_<case>/) next to this
+script. Regenerate it only after a documented change of the results. Options:
+    --ddrate-only      only the DDrate_electron_save outputs
+    --modulation-only  only the annual-modulation case ddrate_spin2_m0.1_mod (day_bins time bins
+                       centered at t_i = (i + 0.5) 365.24/day_bins, omega = 2 pi/365.24, vEarth_mod
+                       from the card)
 """
 import sys
 import os
@@ -38,9 +39,9 @@ def case_key(label, m, jchi):
     return "%s_m%g_j%g" % (label, m, jchi)
 
 
-def main(modulation_only=False):
-    if modulation_only:
-        write_ddrate_cases(modulation_only=True)
+def main(modulation_only=False, ddrate_only=False):
+    if modulation_only or ddrate_only:
+        write_ddrate_cases(modulation_only=modulation_only)
         return
     ref = {}
     rapidd.read_halo(rapidd.halo_path)
@@ -86,4 +87,4 @@ def write_ddrate_cases(modulation_only=False):
 
 
 if __name__ == "__main__":
-    main(modulation_only="--modulation-only" in sys.argv[1:])
+    main(modulation_only="--modulation-only" in sys.argv[1:], ddrate_only="--ddrate-only" in sys.argv[1:])

@@ -4,22 +4,46 @@ tests/data/extract_paper_figures.py into tests/data/paper_1912.08204).
 Settings of the paper: SHM with v0 = 220, vesc = 544, vE = 244 km/s, rho = 0.4 GeV/cm^3, jchi = 1/2,
 the 5 outer Xenon shells (4s, 4p, 4d, 5s, 5p), dR/dlnE in kg^-1 yr^-1, g_e = 2.
 
-Findings (see the README / report of the electron_nreft branch):
-- The XENON10 limits (Figs. 8, 10) agree within 1% at low masses and within 25% everywhere, and
-  the model spectra (Fig. 9) within ~20%.
-- The spectra of Figs. 5 and 7 and the integrated rates of Fig. 6 are ~1.1-1.45 times smaller in
-  the paper than Eq. (ionization spectrum) with the paper's own atomic responses, halo and
-  couplings (RAPIDD agrees with an independent evaluation of that equation to 1e-4, and its W_1 of
-  5p with Fig. 2 of the paper). The offset depends on the kinematics (~1.45 when the rate comes
-  from the tail of the velocity distribution, ~1.1 in the bulk), so it cannot be a convention
-  factor: these comparisons are expected failures (xfail) at the 20% level, and are checked
-  against the observed band instead.
-- Fig. 6, O_3: for jchi = 1/2 the DM responses of the paper give exactly the same rate for O_3
-  and O_5, while the paper's O_3 bars are 5-50 times larger than O_5 (and than RAPIDD).
+Findings (see examples/checks_ER_rates.ipynb):
+- Figs. 5-7 use rho = 0.3 GeV/cm^3, not the 0.4 stated in the text: the spectra of Figs. 5 and 7 and
+  the integrated rates of Fig. 6 are 0.752 times RAPIDD at rho = 0.4 (0.75 = 0.3/0.4), flat in E_e
+  and the same for all the operators, masses and responses, while Figs. 8-10 (rho = 0.4) agree with
+  RAPIDD at rho = 0.4. arXiv:2405.04855 also finds Fig. 7 to be ~3/4 of the formula. The values of
+  Figs. 5-7 are therefore multiplied by RHO_FIX = 0.4/0.3 before the comparison: they then agree
+  within 2% (0.5% for most curves and bars).
+- The XENON10 limits (Figs. 8, 10), with the paper's sign of W_2, agree within 4% at all the
+  extracted points (4-850 MeV): RAPIDD/paper is 0.99-1.04. Contact couplings at m > 100 MeV agree
+  within 1%; at m < 20 MeV and for the long-range couplings, where the lowest S2 bin dominates, RAPIDD
+  is 3.7% weaker. With the legacy left sum in E_e of the XENON10 response (dR/dE(E_i) (E_{i+1} - E_i)
+  on the log grid of E_e, ~7.5% more rate, replaced by the integral of the interpolated spectrum in
+  each bin of the number of quanta) RAPIDD/paper was 0.97-1.00, with the opposite pattern. With the
+  sign of W_2 of arXiv:2405.04855 the limits on c_8, c_13 and the anapole are 1.4-3.8 times weaker.
+- The model spectra (Fig. 9, rho = 0.4) agree within 1% (median), 7% at the end points.
+- The previous excess of the paper at large q (contact interactions at 100 MeV - 1 GeV, amplified
+  for O_5, O_15 by the cancellation between R_3 W_3 and R_4 W_4) came from the RAPIDD tables of Xe
+  4d, produced with DarkART before its fix of the 4d binding energy (Dec. 2022); with the regenerated
+  tables it is gone.
+- Exception (not resolved): at 1 GeV the contact O_5, O_6, O_13, O_14 (and O_3 with +c_3^2/4) bars
+  of the paper (times 0.4/0.3) are 6-9% higher than RAPIDD, and O_15 is 38% higher (the other bars
+  at 1 GeV agree within 1.5%). These rates come from large q: 9% (O_5), ~40% (O_6, O_13, O_15) from
+  q > 500 keV, and 2% (O_5), 17% (O_6, O_13), 13% (O_15) from the last cell of the tables
+  (707 keV < q <= 1 MeV), with an integrand still large at q = 1 MeV; for O_5 and O_15 they are
+  also the difference of R_3 W_3 and R_4 W_4, 30 and 77 times larger than the result. They thus
+  depend on the q range of the atomic responses (q <= 1 MeV) and on the accuracy of W_3, W_4 at
+  large q. The interpolation of the tables is not the cause (DarkART tables with 399 q points
+  change these rates by < 0.04%).
+- Fig. 6, O_3: for jchi = 1/2 the DM responses of the paper give exactly the same rate for O_3 and
+  O_5 (both in arXiv:1912.08204 and in arXiv:2405.04855, where the c_3^2 and c_5^2 terms of a_1,
+  a_2 coincide), while the paper's O_3 bars are 3-60 times larger than O_5. They are reproduced
+  (as all the other bars) with the opposite sign of the c_3^2 term of
+  R_4, i.e. R_3 W_3 + R_4 W_4 -> c_3^2/4 (q^2/m_e^2 W_3 + W_4) instead of
+  c_3^2/4 (q^2/m_e^2 W_3 - W_4) = c_3^2/4 sum |q/m_e x f|^2 >= 0: the figure, not Eq. (DM response 4),
+  has the wrong sign. Only the bars with the opposite sign are tested.
 - All the comparisons use the sign of W_2 of the paper (set_w2_sign("Catena")); arXiv:2405.04855
   corrects it (RAPIDD default) and also finds Fig. 7 to be ~3/4 of the formula.
 - XENON1T: the paper uses 4 S2 bins with g2 = 33, RAPIDD the S2-only data release response and
-  its mass dependent ROI: only the order of magnitude is compared.
+  its mass dependent ROI: only the order of magnitude is compared (RAPIDD is validated against the
+  data release in test_electron_xenon1t.py).
 '''
 import os
 
@@ -41,8 +65,9 @@ def catena_w2_sign():
     rapidd.set_w2_sign("Liang")
 RHO = 0.4
 SHELLS = rapidd.XE_SHELLS_PAPER
-OFFSET_REASON = ("Figs. 5-7 of arXiv:1912.08204 are 1.1-1.45 times below Eq. (ionization spectrum) "
-                 "evaluated with the paper's inputs (kinematics dependent offset, see module docstring)")
+RHO_FIX = 0.4 / 0.3   # Figs. 5-7 use rho = 0.3: their values are multiplied by 0.4/0.3 (module docstring)
+# contact at 1 GeV, paper above RAPIDD (rescaled) by 6-38% (large q, module docstring): RAPIDD/paper
+LARGE_Q_1GEV = {"3+": 0.931, 5: 0.944, 6: 0.913, 13: 0.924, 14: 0.924, 15: 0.724}
 
 
 def spectrum(m, coeffs, resp=None):
@@ -71,24 +96,19 @@ SPECTRA = [("Xe_coup_13_C__m%s" % lab, m, C13, None) for lab, m in (("1000MeV", 
     + [("Xe_coup_15_L_mDM_100__%s" % lab, .1, L15, resp) for lab, resp in (("total", None), ("res1", 1), ("res3", 3), ("res4_negative", 4))]
 
 
-@pytest.mark.xfail(strict=True, reason=OFFSET_REASON)
 @pytest.mark.parametrize("name,m,coeffs,resp", SPECTRA, ids=[s[0] for s in SPECTRA])
 def test_spectra_figs_5_7(paper_halo, name, m, coeffs, resp):
-    E, y = spectrum(m, coeffs, resp)
-    r = ratio(name, E, y)
-    assert np.all(np.abs(r - 1) < 0.2)
-
-
-@pytest.mark.parametrize("name,m,coeffs,resp", SPECTRA, ids=[s[0] for s in SPECTRA])
-def test_spectra_figs_5_7_offset_band(paper_halo, name, m, coeffs, resp):
-    '''Guard: shape and sign as in the paper, normalization within the observed offset band'''
+    '''Shape and sign as in the paper, with the paper's curves rescaled by RHO_FIX = 0.4/0.3: within 2%
+    (5% close to the end points of the 1 GeV spectra; O_13 contact at 1 GeV: large q, see module
+    docstring)'''
     E, y = spectrum(m, coeffs, resp)
     if name.endswith("res4_negative"):
         assert np.all(y <= 0)   # dagger in Fig. 7: negative contribution
-    r = ratio(name, E, y)
-    # the total of O_15 is a cancellation between R_3 W_3 and R_4 W_4: it amplifies the offset
-    lo = 0.55 if name == "Xe_coup_15_L_mDM_100__total" else 0.95
-    assert np.all((r > lo) & (r < 1.4)), r
+    r = ratio(name, E, y) / RHO_FIX
+    if name == "Xe_coup_13_C__m1000MeV":  # as the bar of O_13 contact at 1 GeV, down to 0.59 at the end point
+        assert abs(np.median(r) - LARGE_Q_1GEV[13]) < 0.01 and np.all((r > 0.55) & (r < 0.95)), r
+    else:
+        assert np.all((r > 0.95) & (r < 1.02)), r
 
 
 MODELS = [("Spectrum_Anapole", "anapole", 1e-2, (8, 9)),
@@ -100,15 +120,15 @@ MODEL_CURVES = [(fig, model, g, ops) for fig, model, g, all_ops in MODELS for op
 @pytest.mark.parametrize("fig,model,g,ops", MODEL_CURVES,
                          ids=["%s_%s" % (c[0], "total" if c[3] is None else "O%d" % c[3][0]) for c in MODEL_CURVES])
 def test_model_spectra_fig_9(paper_halo, fig, model, g, ops):
-    '''Fig. 9 (mDM = 100 MeV): median within 25%, every point within 50% (the largest deviations
-    are close to the end point, e.g. O_5 of the magnetic dipole)'''
+    '''Fig. 9 (mDM = 100 MeV, rho = 0.4): median within 2%, every point within 10% (the largest
+    deviations are close to the end point)'''
     rapidd.reset_coefficients()
     rapidd.set_any_E_EFT_coeff(model, 0.1, g, operators=ops)
     r = rapidd.difrate_electron(RHO, 0.1, 0.5, shells=SHELLS)
     name = "%s__%s" % (fig, "total" if ops is None else "O%d" % ops[0])
     rr = ratio(name, r['E'] * 1e3, r['dRdlnE'] * YR)
-    assert abs(np.median(rr) - 1) < 0.25, np.median(rr)
-    assert np.all(np.abs(rr - 1) < 0.5), rr
+    assert abs(np.median(rr) - 1) < 0.02, np.median(rr)
+    assert np.all(np.abs(rr - 1) < 0.1), rr
 
 
 def total_rate_rows():
@@ -120,6 +140,8 @@ def total_rate_rows():
 
 @pytest.fixture(scope="module")
 def total_rate_ratios():
+    '''RAPIDD/paper for the Xenon bars of Fig. 6, keyed by (interaction, operator, mDM [MeV]); for O_3
+    also with the opposite sign of R_4 W_4 (key (interaction, "3+", mDM))'''
     rapidd.read_halo(PAPER_HALO)
     rapidd.read_atomic_responses()
     out = {}
@@ -127,31 +149,40 @@ def total_rate_ratios():
         rapidd.reset_coefficients()
         rapidd.set_any_Ecoeff(1.0, op, interaction=inter)
         out[(inter, op, m)] = rapidd.total_rate_electron(RHO, m / 1e3, 0.5, shells=SHELLS) * YR / val
+        if op == 3:
+            r4 = rapidd.total_rate_electron(RHO, m / 1e3, 0.5, shells=SHELLS, resp=4) * YR / val
+            out[(inter, "3+", m)] = out[(inter, op, m)] - 2 * r4
     rapidd.reset_coefficients()
     rapidd.read_halo(rapidd.halo_path)
     return out
 
 
-@pytest.mark.xfail(strict=True, reason=OFFSET_REASON)
 def test_total_rates_fig_6(total_rate_ratios):
-    r = np.array([v for (inter, op, m), v in total_rate_ratios.items() if op != 3])
-    assert np.all(np.abs(r - 1) < 0.2)
-
-
-def test_total_rates_fig_6_offset_band(total_rate_ratios):
-    '''Guard: all the operators but O_3, O_5, O_15 within the observed offset band'''
+    '''All the operators but O_3, paper's bars rescaled by RHO_FIX = 0.4/0.3: within 2%, except the
+    contact O_5, O_6, O_13, O_14, O_15 at 1 GeV (large q, see module docstring), checked against
+    their current values within 1%'''
     for (inter, op, m), v in total_rate_ratios.items():
-        if op in (3, 5, 15):
+        if op in (3, "3+"):
             continue
-        assert 0.95 < v < 1.4, (inter, op, m, v)
+        r = v / RHO_FIX
+        if (inter, m) == ("contact", 1000.) and op in LARGE_Q_1GEV:
+            assert abs(r - LARGE_Q_1GEV[op]) < 0.01, (inter, op, m, r)
+        else:
+            assert 0.98 < r < 1.02, (inter, op, m, r)
 
 
-@pytest.mark.xfail(strict=True, reason="Fig. 6: the paper's O_3 bars are 5-50 times above O_5, while the DM "
-                                       "responses of the paper give the same rate for O_3 and O_5 (jchi = 1/2)")
-def test_total_rate_O3_fig_6(total_rate_ratios):
+def test_total_rate_O3_fig_6_opposite_R4_sign(total_rate_ratios):
+    '''The paper's O_3 bars (3-60 times above O_5, while Eq. (DM response 4) gives O_3 = O_5 for
+    jchi = 1/2) are reproduced, as the other bars, with the opposite sign of R_4 W_4, i.e. with
+    +c_3^2/4 in R_4 (see module docstring). The comparison with the sign of the paper's equation
+    (that of RAPIDD) is not tested.'''
     for inter in ("contact", "long-range"):
         for m in (10., 100., 1000.):
-            assert abs(total_rate_ratios[(inter, 3, m)] - 1) < 0.2
+            r = total_rate_ratios[(inter, "3+", m)] / RHO_FIX
+            if (inter, m) == ("contact", 1000.):
+                assert abs(r - LARGE_Q_1GEV["3+"]) < 0.01, r
+            else:
+                assert 0.98 < r < 1.02, (inter, m, r)
 
 
 def test_O3_equals_O5(paper_halo):
@@ -187,10 +218,10 @@ def limit_ratios(name, exp, setter):
 @pytest.mark.parametrize("name,exp,setter", [l for l in LIMITS if l[1] == "XENON10"],
                          ids=[l[0] for l in LIMITS if l[1] == "XENON10"])
 def test_xenon10_limits(paper_halo, name, exp, setter):
-    '''Figs. 8 and 10, XENON10: within 30%'''
+    '''Figs. 8 and 10, XENON10: within 4%'''
     m, r = limit_ratios(name, exp, setter)
     assert np.all(np.isfinite(r)), (m, r)
-    assert np.all(np.abs(r - 1) < 0.3), (m, r)
+    assert np.all(np.abs(r - 1) < 0.04), (m, r)
 
 
 @pytest.mark.parametrize("name,exp,setter", [l for l in LIMITS if l[1] == "XENON1T"],

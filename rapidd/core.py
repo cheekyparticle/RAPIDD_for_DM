@@ -482,6 +482,10 @@ GRIDSIZE_K = 100
 GRIDSIZE_Q = 200
 N_SHELL_XE = 11
 XE_SHELLS = ("1s", "2p", "2s", "3d", "3p", "3s", "4d", "4p", "4s", "5p", "5s")
+_crapidd.shell_binding_energy.argtypes = [ctypes.c_int]
+_crapidd.shell_binding_energy.restype = ctypes.c_double
+# binding energies [GeV] of the Xenon shells (same order as XE_SHELLS), from the C library
+XE_BINDING_ENERGIES = tuple(_crapidd.shell_binding_energy(s) for s in range(N_SHELL_XE))
 S2_MAX_XENON10 = 203
 N_BINS_XENON10 = 7
 S2_BIN_MAX_XENON1T = 63

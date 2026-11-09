@@ -32,12 +32,33 @@ def shm_speed_distribution(v):
     return 2 * np.pi * v**2 * ang / (nesc * np.pi**1.5 * V0**3)
 
 
+def simpson_lnq(q, Ws, nsub=4):
+    '''Nodes, weights and atomic responses of the q quadrature of RAPIDD (written independently of
+    the C code): Simpson's rule in ln q on nsub sub-intervals of each cell of the tabulated grid q,
+    with each W in Ws interpolated linearly in ln W vs ln q between two tabulated points of the
+    same sign, linearly in W vs ln q otherwise. Returns q nodes, weights in ln q, interpolated Ws.'''
+    n = (len(q) - 1) * nsub
+    lq = np.log(q[0]) + (np.log(q[-1]) - np.log(q[0])) * np.arange(n + 1) / n
+    h = lq[1] - lq[0]
+    w = np.where(np.arange(n + 1) % 2 == 1, 4., 2.)
+    w[0] = w[-1] = 1.
+    cell = np.minimum(np.arange(n + 1) // nsub, len(q) - 2)
+    t = np.arange(n + 1) / nsub - cell
+    out = []
+    for W in Ws:
+        a, b = W[cell], W[cell + 1]
+        same = a * b > 0
+        r = np.where(same, b / np.where(same, a, 1.), 1.)
+        out.append(np.where(same, a * np.abs(r)**t, a + (b - a) * t))
+    return np.exp(lq), w * h / 3, out
+
+
 def independent_dRdlnE(coeffs, mchi, rho, ik_list, drop_vperp_const=False, resp=(1, 2, 3, 4), w2_sign=-1):
     '''dR/dlnE [events/kg/day] of the shell 5p from Eqs. (ionization spectrum) and (RW):
     n_chi/(128 pi mchi^2 m_e^2) int dq q int d^3v f(v)/v Theta(v - vmin) sum_j R_j(v) W_j,
     with R_j evaluated at each v with the full (v_el^perp)^2 (or with (v_el^perp)^2 = v^2 if
     drop_vperp_const, to check that the constant part matters), summing the terms j in resp.
-    W_2 is multiplied by w2_sign. Same grids and q quadrature (left sum) as RAPIDD.'''
+    W_2 is multiplied by w2_sign. Same grids and q quadrature as RAPIDD (simpson_lnq).'''
     base = os.path.join(rapidd.core.atomic_resp_dir, "atomic_response_%i", "Xe_5p.txt")
     W = [np.loadtxt(base % j, comments="//") for j in (1, 2, 3, 4)]
     W[1] = w2_sign * W[1]
@@ -50,22 +71,23 @@ def independent_dRdlnE(coeffs, mchi, rho, ik_list, drop_vperp_const=False, resp=
     out = []
     for ik in ik_list:
         dE = E[ik] + EB_5P
+        qs, wq, Ws = simpson_lnq(q[:200], [W[j - 1][ik] for j in resp])
         integ = 0.
-        for iq in range(200):
-            vmin = (dE / q[iq] + q[iq] / (2 * mchi)) * C_KMS
+        for iq in range(len(qs)):
+            vmin = (dE / qs[iq] + qs[iq] / (2 * mchi)) * C_KMS
             sel = v >= vmin
             if sel.sum() < 2:
                 continue
             vn = v[sel] / C_KMS  # units of c
-            c = couplings(coeffs, q[iq])
-            vperp2, qv = kinematics(q[iq], dE, mchi, vn)
+            c = couplings(coeffs, qs[iq])
+            vperp2, qv = kinematics(qs[iq], dE, mchi, vn)
             if drop_vperp_const:
                 vperp2 = vn**2
-            R = R_paper(c, 0.5, q[iq] / M_E, vperp2, qv * np.ones_like(vn))
-            RW = sum(R[j - 1] * W[j - 1][ik, iq] for j in resp)
+            R = R_paper(c, 0.5, qs[iq] / M_E, vperp2, qv * np.ones_like(vn))
+            RW = sum(R[j - 1] * Wj[iq] for j, Wj in zip(resp, Ws))
             g = fv[sel] * C_KMS / vn * RW  # f(v) dv/v: f in (km/s)^-1, v in units of c
             vel_int = np.sum((g[1:] + g[:-1]) / 2 * np.diff(vn))
-            integ += (q[iq + 1] - q[iq]) * q[iq] * vel_int
+            integ += wq[iq] * qs[iq]**2 * vel_int   # dq q = dln q q^2
         rate = n_chi / (128 * np.pi * mchi**2 * M_E**2) * integ  # GeV, per atom
         out.append(rate / HBAR * 86400 / M_XE_KG)
     return np.array(out)

@@ -680,6 +680,47 @@ static void electron_responses_needed(int resp_mask, int *needed, int *needs_v2)
 	*needs_v2 = needed[0] && vperp;
 }
 
+/* Sub-intervals (even) of each cell [q_i, q_i+1] of the tabulated q grid in the q integral of the
+DM-electron rate: Simpson's rule in ln q, with the atomic responses interpolated log-log between
+the tabulated points. With 4 sub-intervals the integral differs from its limit (64 sub-intervals)
+by < 1e-6 on the total rates and < 5e-5 on dR/dlnE (the legacy left sum on the tabulated points
+overestimated all the rates by ~1.8%). The interpolation of W_j between the tabulated q (checked
+against DarkART tables with twice as many q) changes the rates by < 1.3e-3. */
+#define ER_Q_SUBDIV 4
+
+static double electron_q_integrand(double q, double dE, double mchi, double jchi, double m_e, const double *W,
+								   const int *needed, gsl_interp_accel *ga, gsl_spline *gs, gsl_interp_accel *ga2,
+								   gsl_spline *gs2){
+	/*Integrand of the q integral of the DM-electron rate in ln q, without the constant factors:
+	q^2 sum_j [R_j eta_0 + delta_j1 R_1^(v2) eta_2] W_j (GeV^2 s/cm), summed over the terms with
+	needed[j-1] = 1, with eta_0 = halo(vmin, 0) (spline ga, gs) and eta_2 = halo(vmin, 2) (spline
+	ga2, gs2, NULL if the v^2 part of R_1 is not needed).
+	Inputs: q (GeV), dE = E_e + E_B (GeV), mchi (GeV), jchi, m_e (GeV), W[0..3] (atomic
+	responses at q, W_2 with its sign).*/
+	double vmin = (dE / q + q / (2. * mchi)) * c_light_cms; // cm/s
+#ifdef ER_VALIDATE_LEGACY_HALO
+	(void)ga;
+	(void)gs;
+	(void)ga2;
+	double eta = legacy_eta(vmin);
+	double eta2 = 0.;
+#else
+	double eta = halo_w(vmin * 1.e-5, ga, gs) * 1.e-5; // (km/s)^-1 -> s/cm
+	// int f v d^3v in km/s -> int f/v (v/c)^2 d^3v in s/cm
+	double eta2 = (gs2 != NULL) ? halo_w(vmin * 1.e-5, ga2, gs2) / SQR(c) * 1.e-5 : 0.;
+#endif
+	if (eta == 0. && eta2 == 0.) return 0.;
+	double R[N_ATOMIC_RESP], R1_v2;
+	dm_responses_electron(q, dE, mchi, jchi, m_e, R, &R1_v2);
+	double sum = 0.;
+	for (int j = 0; j < N_ATOMIC_RESP; j++) {
+		if (!needed[j]) continue;
+		sum += R[j] * eta * W[j];
+		if (j == 0 && gs2 != NULL) sum += R1_v2 * eta2 * W[j];
+	}
+	return q * q * sum;
+}
+
 static double difrate_electron_dEr_w(int shell, int ik, const double *E, const double *q, double rhochi,
 									 double mchi, double jchi, double m_e, const int *needed,
 									 gsl_interp_accel *ga, gsl_spline *gs, gsl_interp_accel *ga2, gsl_spline *gs2){
@@ -687,43 +728,51 @@ static double difrate_electron_dEr_w(int shell, int ik, const double *E, const d
 	dR/dlnE = n_chi/(128 pi mchi^2 m_e^2) int dq q sum_j [R_j eta_0 + delta_j1 R_1^(v2) eta_2] W_j
 	(arXiv:1912.08204), with eta_0 = halo(vmin, 0) (spline ga, gs) and eta_2 = halo(vmin, 2)
 	(spline ga2, gs2, can be NULL if the v^2 part of R_1 is not needed). Only the terms with
-	needed[j-1] = 1 are summed. Rectangular sum over the q grid, as in the legacy Fortran.
+	needed[j-1] = 1 are summed. The q integral runs over the tabulated range [q_0, q_(GRIDSIZE_Q-1)]
+	with Simpson's rule in ln q on ER_Q_SUBDIV sub-intervals per cell of the q grid; between the
+	tabulated points W_j is interpolated linearly in ln W_j vs ln q (linearly in W_j vs ln q
+	where W_j changes sign or vanishes).
 	Output: dR/dE in events/(kg day GeV).*/
 	double nDM = rhochi / mchi; // cm^-3
 	double const_integral = nDM / (128. * M_PI * SQR(mchi * GeV_to_kg) * SQR(m_e * GeV_to_kg));
-	double Eb = shell_binding_energy(shell);
+	double dE = E[ik] + shell_binding_energy(shell);
 	double conv = GeV_to_J * SQR(m_to_cm) / c_light_cms;
-	double dRdlogE = 0.;
-	int iq, j;
-	for (iq = 0; iq < GRIDSIZE_Q; iq++) {
-		double dq = q[iq + 1] - q[iq];
-		double vmin = ((E[ik] + Eb) / q[iq] + q[iq] / (2. * mchi)) * c_light_cms; // cm/s
-#ifdef ER_VALIDATE_LEGACY_HALO
-		(void)ga;
-		(void)gs;
-		(void)ga2;
-		double eta = legacy_eta(vmin);
-		double eta2 = 0.;
-#else
-		double eta = halo_w(vmin * 1.e-5, ga, gs) * 1.e-5; // (km/s)^-1 -> s/cm
-		// int f v d^3v in km/s -> int f/v (v/c)^2 d^3v in s/cm
-		double eta2 = (gs2 != NULL) ? halo_w(vmin * 1.e-5, ga2, gs2) / SQR(c) * 1.e-5 : 0.;
-#endif
-		double R[N_ATOMIC_RESP], R1_v2;
-		dm_responses_electron(q[iq], E[ik] + Eb, mchi, jchi, m_e, R, &R1_v2);
-		double pref = const_integral * (dq * conv) * (q[iq] * conv);
+	double h = (log(q[GRIDSIZE_Q - 1]) - log(q[0])) / (double)((GRIDSIZE_Q - 1) * ER_Q_SUBDIV); // step in ln q
+	double W0[N_ATOMIC_RESP], W1[N_ATOMIC_RESP], Wt[N_ATOMIC_RESP], ratio[N_ATOMIC_RESP];
+	int loglog[N_ATOMIC_RESP];
+	double integral = 0.;
+	int iq, j, n;
+	for (j = 0; j < N_ATOMIC_RESP; j++) {
+		W1[j] = needed[j] ? atomic_response(j + 1, shell, ik, 0) * (j == 1 ? electron_w2_sign : 1.) : 0.;
+	}
+	// f(q_0), weight 1
+	integral += electron_q_integrand(q[0], dE, mchi, jchi, m_e, W1, needed, ga, gs, ga2, gs2);
+	for (iq = 0; iq < GRIDSIZE_Q - 1; iq++) {
 		for (j = 0; j < N_ATOMIC_RESP; j++) {
-			if (!needed[j]) continue;
-			double W = atomic_response(j + 1, shell, ik, iq);
-			if (j == 1) W *= electron_w2_sign;
-			double ioniz_amplitude = W * (R[j] * gev_to_pb * pb_to_cm2) * SQR(GeV_to_kg);
-			dRdlogE += pref * eta * ioniz_amplitude / (m_Xe_avg_au * atomic_mass_unit_kg);
-			if (j == 0 && gs2 != NULL) {
-				double ioniz_amplitude_v2 = W * (R1_v2 * gev_to_pb * pb_to_cm2) * SQR(GeV_to_kg);
-				dRdlogE += pref * eta2 * ioniz_amplitude_v2 / (m_Xe_avg_au * atomic_mass_unit_kg);
+			W0[j] = W1[j];
+			W1[j] = needed[j] ? atomic_response(j + 1, shell, ik, iq + 1) * (j == 1 ? electron_w2_sign : 1.) : 0.;
+			loglog[j] = W0[j] * W1[j] > 0.;
+			ratio[j] = loglog[j] ? pow(W1[j] / W0[j], 1. / ER_Q_SUBDIV) : (W1[j] - W0[j]) / ER_Q_SUBDIV;
+			Wt[j] = W0[j];
+		}
+		// interior sub-points (weights 4, 2, 4, ...) and q_(iq+1) (weight 2, or 1 for the last point)
+		for (n = 1; n <= ER_Q_SUBDIV; n++) {
+			double qn;
+			if (n < ER_Q_SUBDIV) {
+				qn = q[iq] * exp(n * h);
+				for (j = 0; j < N_ATOMIC_RESP; j++) Wt[j] = loglog[j] ? Wt[j] * ratio[j] : Wt[j] + ratio[j];
 			}
+			else {
+				qn = q[iq + 1];
+				for (j = 0; j < N_ATOMIC_RESP; j++) Wt[j] = W1[j];
+			}
+			double weight = (n % 2 == 1) ? 4. : ((iq == GRIDSIZE_Q - 2 && n == ER_Q_SUBDIV) ? 1. : 2.);
+			integral += weight * electron_q_integrand(qn, dE, mchi, jchi, m_e, Wt, needed, ga, gs, ga2, gs2);
 		}
 	}
+	integral *= h / 3.;
+	double dRdlogE = const_integral * SQR(conv) * integral * gev_to_pb * pb_to_cm2 * SQR(GeV_to_kg)
+					 / (m_Xe_avg_au * atomic_mass_unit_kg);
 	return dRdlogE * day_to_sec / E[ik];
 }
 
@@ -853,15 +902,26 @@ int difrate_electron_dEr_all(double rhochi, double mchi, double jchi, double m_e
 	return difrate_electron_dEr_resp(rhochi, mchi, jchi, m_e, 15, k_out, E_out, rate_shell_out);
 }
 
-static double binomial_prob(int k, int n, double p){
-	/*Binomial probability of k successes in n trials with success probability p.*/
-	if (k > n) return 0.;
-	double num = 1., den = 1.;
-	for (int i = 1; i <= k; i++) {
-		num *= (double)(n - i + 1);
-		den *= (double)i;
+static void binomial_probs(int n, double p, int kmax, double *out){
+	/*Binomial probabilities out[k] of k = 0 ... kmax successes in n trials with success
+	probability p (0 < p < 1), by recursion in k from (1-p)^n.*/
+	double P = exp(n * log1p(-p));
+	for (int k = 0; k <= kmax; k++) {
+		out[k] = (k <= n) ? P : 0.;
+		if (k < n) P *= (double)(n - k) / (k + 1) * p / (1. - p);
 	}
-	return num / den * pow(p, k) * pow(1. - p, n - k);
+}
+
+static double interp_integral(double a, double b, double ra, double rb, double x0, double x1){
+	/*Integral over [x0, x1] (a <= x0 <= x1 <= b, a > 0) of the interpolation of r(x) between
+	r(a) = ra and r(b) = rb: power law if ra, rb > 0, linear otherwise.*/
+	if (ra > 0. && rb > 0.) {
+		double p1 = log(rb / ra) / log(b / a) + 1.;
+		if (fabs(p1) < 1e-8) return ra * a * log(x1 / x0);
+		return ra * a / p1 * (pow(x1 / a, p1) - pow(x0 / a, p1));
+	}
+	double s = (rb - ra) / (b - a);
+	return (ra + s * (0.5 * (x0 + x1) - a)) * (x1 - x0);
 }
 
 static double gauss_prob(int val, int mean, double sigma){
@@ -917,7 +977,8 @@ int difrate_dS2_Xenon10(const double *E, const double *rate_shell, const char *e
 	electrons from n_1 = floor(E/W) primary plus n_2 secondary quanta, gaussian S2 per
 	electron, trigger efficiency (exp_dir/Xenon10/Xenon10_TriggerEfficiency.txt), flat
 	efficiency and exposure. As in the legacy Fortran, S2 = 1 is left without efficiency
-	and exposure, and the shells with zero rate are skipped.
+	and exposure, and the shells with zero rate are skipped. dR/dE is integrated over E in
+	each bin of n_1 (see below).
 	Parameters:
 	- E: outgoing electron energies in GeV [GRIDSIZE_K+1]
 	- rate_shell: dR/dE in events/(kg day GeV) [N_SHELL_XE*GRIDSIZE_K]
@@ -947,21 +1008,40 @@ int difrate_dS2_Xenon10(const double *E, const double *rate_shell, const char *e
 		for (i = 0; i < N_SHELL_XE * S2_MAX_XENON10; i++) dRdS2_shell_out[i] = 0.;
 	}
 
+	/* rate integrated in each bin of n_1 = floor(E/W), for E in [E[0], E[GRIDSIZE_K-1]], with
+	dR/dE interpolated as a power law between the grid points (linearly where it vanishes or
+	changes sign). Halving the grid changes dN/dn_e by < 0.5% (< 1% in the bins close to the
+	kinematic end point), so the error on the full grid is ~0.1%. The legacy left sum
+	dR/dE(E_i) (E_{i+1} - E_i) at n_1(E_i) was ~7.5% higher. */
+	const int n1_max = (int)floor(E[GRIDSIZE_K - 1] / W);
+	double *R_n1 = malloc((n1_max + 1) * sizeof(double));
+	double binom[N_ELECTR_MAX_XENON10];
+	if (R_n1 == NULL) return -1;
 	for (s = 0; s < N_SHELL_XE; s++) {
 		const double *rate = &rate_shell[s * GRIDSIZE_K];
-		double tot_rate = 0.;
-		for (iE = 0; iE < GRIDSIZE_K; iE++) tot_rate += rate[iE] * (E[iE + 1] - E[iE]);
-		if (tot_rate == 0.) continue;
+		int nonzero = 0;
+		for (iE = 0; iE < GRIDSIZE_K; iE++) nonzero |= (rate[iE] != 0.);
+		if (!nonzero) continue;
 
-		int n_tot[GRIDSIZE_K];
-		for (iE = 0; iE < GRIDSIZE_K; iE++) n_tot[iE] = (int)floor(E[iE] / W) + shell_n_secondary(s);
+		int n1;
+		for (n1 = 0; n1 <= n1_max; n1++) R_n1[n1] = 0.;
+		for (iE = 0; iE < GRIDSIZE_K - 1; iE++) {
+			const double a = E[iE], b = E[iE + 1], ra = rate[iE], rb = rate[iE + 1];
+			if (ra == 0. && rb == 0.) continue;
+			double x0 = a;
+			for (n1 = (int)floor(a / W); x0 < b && n1 <= n1_max; n1++) {
+				const double x1 = MIN(b, (n1 + 1) * W);
+				R_n1[n1] += interp_integral(a, b, ra, rb, x0, x1);
+				x0 = x1;
+			}
+		}
 
 		double dRdne[N_ELECTR_MAX_XENON10 + 1];
-		for (ne = 1; ne <= N_ELECTR_MAX_XENON10; ne++) {
-			dRdne[ne] = 0.;
-			for (iE = 0; iE < GRIDSIZE_K; iE++) {
-				dRdne[ne] += (E[iE + 1] - E[iE]) * rate[iE] * binomial_prob(ne - 1, n_tot[iE], f_e);
-			}
+		for (ne = 1; ne <= N_ELECTR_MAX_XENON10; ne++) dRdne[ne] = 0.;
+		for (n1 = 0; n1 <= n1_max; n1++) {
+			if (R_n1[n1] == 0.) continue;
+			binomial_probs(n1 + shell_n_secondary(s), f_e, N_ELECTR_MAX_XENON10 - 1, binom);
+			for (ne = 1; ne <= N_ELECTR_MAX_XENON10; ne++) dRdne[ne] += R_n1[n1] * binom[ne - 1];
 		}
 
 		for (S2 = 1; S2 <= S2_MAX_XENON10; S2++) {
@@ -974,6 +1054,7 @@ int difrate_dS2_Xenon10(const double *E, const double *rate_shell, const char *e
 			dRdS2_out[S2 - 1] += dRdS2;
 		}
 	}
+	free(R_n1);
 
 	for (i = 0; i < N_BINS_XENON10; i++) {
 		signal_out[i] = 0.;
@@ -1045,18 +1126,24 @@ int difrate_dS2_Xenon1T(const double *E, const double *rate_shell, double mchi, 
 	fclose(f);
 	free(line);
 
-	// total dR/dE; if the last energies differ by less than 5%, consider them as the same
-	double x[GRIDSIZE_K], rate[GRIDSIZE_K];
-	for (ik = 0; ik < GRIDSIZE_K; ik++) {
-		x[ik] = E[ik];
-		rate[ik] = 0.;
-		for (int s = 0; s < N_SHELL_XE; s++) rate[ik] += rate_shell[s * GRIDSIZE_K + ik];
-	}
-	if ((E_resp[LEN_E_RESP_XENON1T - 1] - x[GRIDSIZE_K - 1]) / x[GRIDSIZE_K - 1] <= 0.05) {
-		x[GRIDSIZE_K - 1] = E_resp[LEN_E_RESP_XENON1T - 1];
-	}
+	/* dR/dE_dep summed over the shells: the response is a function of the deposited energy
+	E_dep = E_e + E_b (the binding energy of the shell is released as secondary quanta/X-rays,
+	as in the secondary quanta of Xenon10 and in arXiv:1703.00910), not of the kinetic energy
+	E_e of the outgoing electron. dR/dE_dep(E_e + E_b) = dR/dE_e(E_e). If the last energy of
+	a shell differs from the last one of the response by less than 5%, consider them as the same.*/
+	double x[GRIDSIZE_K];
 	double rate_interp[LEN_E_RESP_XENON1T];
-	for (iE = 0; iE < LEN_E_RESP_XENON1T; iE++) rate_interp[iE] = lin_interp(x, rate, GRIDSIZE_K, E_resp[iE]);
+	for (iE = 0; iE < LEN_E_RESP_XENON1T; iE++) rate_interp[iE] = 0.;
+	for (int s = 0; s < N_SHELL_XE; s++) {
+		double Eb = shell_binding_energy(s);
+		for (ik = 0; ik < GRIDSIZE_K; ik++) x[ik] = E[ik] + Eb;
+		if (fabs(E_resp[LEN_E_RESP_XENON1T - 1] - x[GRIDSIZE_K - 1]) / x[GRIDSIZE_K - 1] <= 0.05) {
+			x[GRIDSIZE_K - 1] = E_resp[LEN_E_RESP_XENON1T - 1];
+		}
+		for (iE = 0; iE < LEN_E_RESP_XENON1T; iE++) {
+			rate_interp[iE] += lin_interp(x, rate_shell + s * GRIDSIZE_K, GRIDSIZE_K, E_resp[iE]);
+		}
+	}
 
 	for (iS2 = 0; iS2 < S2_BIN_MAX_XENON1T; iS2++) {
 		S2_out[iS2] = S2_val_Xenon1T[iS2];
