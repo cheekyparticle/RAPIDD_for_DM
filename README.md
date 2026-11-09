@@ -99,7 +99,7 @@ The Python interface loads the compiled C library through `ctypes` and exposes i
 | `rapidd.electron`     | DM-electron scattering: NREFT ionization rates, S2 signals, models and limits |
 | `rapidd.stats`        | Statistical routines for deriving exclusion limits                |
 
-Worked examples are in `examples/evaluate_NR_rates.ipynb` (nuclear recoils) and `examples/evaluate_ER_rates.ipynb` (DM-electron scattering).
+Worked examples are in `examples/evaluate_NR_rates.ipynb` (nuclear recoils) and `examples/evaluate_ER_rates.ipynb` (DM-electron scattering), with the RAPIDD defaults. The validation (comparisons with the literature, with wimprates and with the XENON1T/XENONnT data releases) is in `examples/checks_NR_rates.ipynb` and `examples/checks_ER_rates.ipynb`.
 
 ### DM-electron scattering
 
@@ -109,7 +109,7 @@ RAPIDD computes the ionization rate of Xenon for the non-relativistic effective 
 - **Couplings**: $\mathcal{M} = \sum_i (c_i^s + (q_\text{ref}/q)^2 c_i^\ell) \langle\mathcal{O}_i\rangle$ with dimensionless contact ($c_i^s$) and long-range ($c_i^\ell$) coefficients and $q_\text{ref} = \alpha m_e$; e.g. $c_1^s = 4 m_\chi m_e a_\text{SI}$ for a contact coupling $a_\text{SI}$ [GeV$^{-2}$]. The DM spin `jchi` is 1/2 for fermions and 0 for scalars (MadDM `dm_spin` $= 2 j_\chi + 1$): the operators with $\mathbf{S}_\chi$ vanish for `jchi = 0`.
 - **Rate**: $dR/d\ln E_e = \frac{n_\chi}{128\pi m_\chi^2 m_e^2}\int dq\, q \sum_{j=1}^4 \langle R_j\rangle W_j(k',q)$, with the DM responses $R_1, \dots, R_4$ evaluated at $\mathbf{k} = 0$ (the $\mathbf{k}$ dependence is in the atomic responses) and the tabulated atomic responses $W_1, \dots, W_4$ of the 11 Xenon shells (`lib/atomic_responses`, computed with [DarkART](https://github.com/temken/DarkART) for $k' \in [0.1, 100]$ keV and $q \in [1, 1000]$ keV, see `lib/atomic_responses/README.md`). The $q$ integral uses Simpson's rule in $\ln q$ with 4 sub-intervals per cell of the $q$ grid and $W_j$ interpolated log-log between the tabulated points (quadrature error below $10^{-6}$ on the total rates and $5\times 10^{-5}$ on $dR/d\ln E_e$; the interpolation of $W_j$ between the tabulated $q$ changes the rates by less than $1.3\times 10^{-3}$). The terms in $(\mathbf{v}_\text{el}^\perp)^2 = v^2 + \frac{q^2}{4\mu^2}\frac{m_\chi - m_e}{m_\chi + m_e} - \frac{\Delta E}{\mu}$ are integrated with $\int d^3v\, f/v$ (constant part) and $\int d^3v\, f\, v$ ($v^2$ part): the halo table must be written with `i=2` for the operators depending on $\mathbf{v}_\text{el}^\perp$ (an error is raised otherwise).
 - **Sign of $W_2$**: by default RAPIDD uses the sign of the vector atomic form factor corrected in [arXiv:2405.04855](https://arxiv.org/abs/2405.04855) (Liang et al.; $R_2$ is the same in the two works). `rapidd.set_w2_sign("Catena")` restores the sign of arXiv:1912.08204, e.g. to reproduce its figures. Only $\mathcal{O}_7, \mathcal{O}_8, \mathcal{O}_{12}, \mathcal{O}_{13}, \mathcal{O}_{14}$ are affected (for $\mathcal{O}_7$ at 10 MeV the rate decreases by a factor ~5); the SI/SD path used by MadDM is not.
-- **Experiments**: XENON10 (7 S2 bins, 15 kg day, detector model of arXiv:1703.00910; $dR/dE_e$, interpolated as a power law between the grid points, is integrated over $E_e$ in each bin of the number of primary quanta) and XENON1T (S2-only data release response and mass dependent ROI, $20\,\text{MeV} \le m_\chi \le 5\,\text{GeV}$).
+- **Experiments**: XENON10 (7 S2 bins, 15 kg day, detector model of arXiv:1703.00910; $dR/dE_e$, interpolated as a power law between the grid points, is integrated over $E_e$ in each bin of the number of primary quanta) and XENON1T (S2-only data release response and mass dependent ROI, $20\,\text{MeV} \le m_\chi \le 5\,\text{GeV}$). The XENON1T response is evaluated at $E_e$ plus the energy of the de-excitation photon of the shell (`rapidd.XE_DEEXCITATION_ENERGIES`: 63.1, 87.9, 50.3 eV for 4d, 4p, 4s, from which the secondary quanta of XENON10 come; 0 for the other shells), i.e. primary electron and de-excitation photon without de-excitation electrons: the conservative signal of XENON1T and of the XENONnT DM-electron limits. `rapidd.set_er_energy_convention("deposited")` uses the total deposited energy $E_e + E_b$ instead.
 
 ```python
 import rapidd
@@ -138,9 +138,12 @@ limit = rapidd.electron_limit(signal, coupling=1e-5)     # 90% CL on g/Lambda
 | `sigma_e_from_coeff`, `coeff_from_sigma_e` | reference cross section $\bar\sigma_e = \mu^2 c^2/(16\pi m_\chi^2 m_e^2)$ |
 | `electron_limit`, `electron_limits_vs_mass` | 90% CL limits (XENON10: strongest bin; XENON1T: ROI with background) |
 | `set_w2_sign`, `w2_sign` | sign convention of $W_2$ ("Liang", default, or "Catena") |
+| `set_er_energy_convention`, `er_energy_convention` | energy of the XENON1T response: $E_e$ + de-excitation photon ("electron", default) or $E_e + E_b$ ("deposited") |
 | `dm_response_electron` | DM responses $R_j$ (legacy normalization, used by MadDM for `sigma_e`) |
 
 MadDM only uses the SI/SD path ($c_1^s$, $c_4^s$ at $q = 0$) through `rapidd.calc_dRdE.DDrate_electron_save`. The comparison with the figures of the paper is in `tests/test_electron_paper.py` and `examples/checks_ER_rates.ipynb` (with the sign of $W_2$ of the paper): the XENON10 limits agree within 4% and the model spectra of Fig. 9 within 1% (median). Figs. 5-7 are computed with $\rho_\chi = 0.3$ GeV/cm$^3$ instead of the 0.4 stated in the paper (they are 0.75 times RAPIDD for all the operators, masses and responses; arXiv:2405.04855 also finds Fig. 7 to be ~3/4 of the formula): rescaled by 0.4/0.3 they agree within 2%, except the contact $\mathcal{O}_5$, $\mathcal{O}_6$, $\mathcal{O}_{13}$, $\mathcal{O}_{14}$, $\mathcal{O}_{15}$ at 1 GeV (6-38%, dominated by large $q$) and the $\mathcal{O}_3$ bars of Fig. 6, which follow the opposite sign of the $c_3^2$ term of $R_4$ with respect to the paper's own equation.
+
+The XENON1T response is checked against the S2-only data release (`tests/test_electron_xenon1t.py`): at the published limits the spectra of wimprates (form factors of Essig et al., used by XENON1T and XENONnT) folded with the "electron" convention reproduce the XENON1T signal within 9% for $0.1 \le m_\chi \le 1$ GeV (not below 50 MeV, where the XENON1T conversion in produced electrons matters), the RAPIDD spectra give 0.38-0.51 of it (the ratio of the atomic responses). The published XENONnT S2-only limit used by MadDM (`lib/experiments/XENONnT/XENONnT_DMe_SI.dat`) cannot be recomputed (the data release has no response for electronic recoils): `lib/experiments/XENONnT/XENONnT_DMe_SI_RAPIDD_FF.dat` (written by `examples/xenonnt_dme_limit_rapidd_ff.py`) estimates it with the RAPIDD atomic responses, rescaling it by the ratio of the wimprates and RAPIDD signals in its region of interest ([0.04, 0.7] keV): it is 1.7-2.1 times weaker. Details in `examples/checks_ER_rates.ipynb`.
 
 ## Tests
 
@@ -165,8 +168,11 @@ RAPIDD_for_DM/
 │   └── build/               # created after building; contains libRAPIDD and executables
 ├── rapidd/                 # Python package (interface to the C library)
 ├── examples/
-│   ├── evaluate_NR_rates.ipynb   # nuclear recoil rates
-│   └── evaluate_ER_rates.ipynb   # DM-electron scattering rates, signals and limits
+│   ├── evaluate_NR_rates.ipynb   # nuclear recoil rates (tutorial)
+│   ├── checks_NR_rates.ipynb     # nuclear models, modulation, wimprates and XENONnT limits
+│   ├── evaluate_ER_rates.ipynb   # DM-electron scattering rates, signals and limits (tutorial)
+│   ├── checks_ER_rates.ipynb     # arXiv:1912.08204, XENON1T release, wimprates and XENONnT limits
+│   └── xenonnt_dme_limit_rapidd_ff.py  # XENONnT DM-electron limit rescaled to the RAPIDD atomic responses
 └── tests/                  # pytest suite
     └── data/                # regression references, data extracted from arXiv:1912.08204
 ```

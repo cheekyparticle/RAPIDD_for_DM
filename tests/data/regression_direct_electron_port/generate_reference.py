@@ -1,7 +1,7 @@
 """Reference outputs of the DM-electron scattering (SI/SD only: Ce(1), Ce(4), atomic response W_1),
 used by tests/test_electron_regression.py. They were first produced with the branch
 direct_electron_port and regenerated on 2026-11-09 with the current code, after the fixes listed in
-tests/test_electron_regression.py (XENON1T deposited energy, q quadrature, Xe_4d tables, XENON10
+tests/test_electron_regression.py (XENON1T energy E_e + de-excitation photon, q quadrature, Xe_4d tables, XENON10
 E integral).
 
 Run from the repository root with the library built:

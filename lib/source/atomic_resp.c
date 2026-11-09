@@ -20,20 +20,29 @@ scattering (arXiv:1912.08204) stored in RAPIDD_for_DM/lib/atomic_responses.
 #include "atomic_resp.h"
 
 /* Xenon shells in the order used by the legacy MadDM code (ls order of the files).
-Binding energies in GeV; n_secondary is the number of secondary quanta of
-Table II of arXiv:1703.00910 (used for XENON10). */
+Binding energies in GeV; n_secondary is the number of secondary quanta of Table II of
+arXiv:1703.00910 (used for XENON10), e_deexcitation (GeV) the energy of the de-excitation photon
+from which they come: the hole of 4d, 4p, 4s is filled by an electron of 5p, 4d, 4p, and
+n_secondary = floor(e_deexcitation / 13.8 eV). It is used by the "electron" energy convention of the
+XENON1T response (primary electron plus de-excitation photon, as XENON1T and XENONnT). No secondary
+quanta are given for the other shells (5p, 5s: e_deexcitation < 13.8 eV; inner shells: not in Table
+II, conservatively none). */
+#define XE_EB_4D 75.58972072252894e-9
+#define XE_EB_4P 163.49493390058458e-9
+#define XE_EB_4S 213.7805688618793e-9
+#define XE_EB_5P 12.44330433672413e-9
 const struct xe_shell xe_shells[N_SHELL_XE] = {
-	{"1s", 33317.56055656222e-9, 0},
-	{"2p", 4837.706588171414e-9, 0},
-	{"2s", 5149.213639792182e-9, 0},
-	{"3d", 710.7303605534998e-9, 0},
-	{"3p", 958.4299495823894e-9, 0},
-	{"3s", 1093.2351842564003e-9, 0},
-	{"4d", 75.58972072252894e-9, 4},
-	{"4p", 163.49493390058458e-9, 6},
-	{"4s", 213.7805688618793e-9, 3},
-	{"5p", 12.44330433672413e-9, 0},
-	{"5s", 25.69862365041479e-9, 0},
+	{"1s", 33317.56055656222e-9, 0, 0.},
+	{"2p", 4837.706588171414e-9, 0, 0.},
+	{"2s", 5149.213639792182e-9, 0, 0.},
+	{"3d", 710.7303605534998e-9, 0, 0.},
+	{"3p", 958.4299495823894e-9, 0, 0.},
+	{"3s", 1093.2351842564003e-9, 0, 0.},
+	{"4d", XE_EB_4D, 4, XE_EB_4D - XE_EB_5P},
+	{"4p", XE_EB_4P, 6, XE_EB_4P - XE_EB_4D},
+	{"4s", XE_EB_4S, 3, XE_EB_4S - XE_EB_4P},
+	{"5p", XE_EB_5P, 0, 0.},
+	{"5s", 25.69862365041479e-9, 0, 0.},
 };
 
 static double W[N_ATOMIC_RESP][N_SHELL_XE][GRIDSIZE_K][GRIDSIZE_Q];
@@ -106,6 +115,11 @@ double shell_binding_energy(int shell){
 int shell_n_secondary(int shell){
 	/*Returns the number of secondary quanta (XENON10) of the selected shell (0-based).*/
 	return xe_shells[shell].n_secondary;
+}
+
+double shell_deexcitation_energy(int shell){
+	/*Returns the energy (GeV) of the de-excitation photon of the selected shell (0-based), 0 if none.*/
+	return xe_shells[shell].e_deexcitation;
 }
 
 const char * shell_name(int shell){

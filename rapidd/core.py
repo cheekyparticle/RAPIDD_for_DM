@@ -486,6 +486,39 @@ _crapidd.shell_binding_energy.argtypes = [ctypes.c_int]
 _crapidd.shell_binding_energy.restype = ctypes.c_double
 # binding energies [GeV] of the Xenon shells (same order as XE_SHELLS), from the C library
 XE_BINDING_ENERGIES = tuple(_crapidd.shell_binding_energy(s) for s in range(N_SHELL_XE))
+_crapidd.shell_deexcitation_energy.argtypes = [ctypes.c_int]
+_crapidd.shell_deexcitation_energy.restype = ctypes.c_double
+# energies [GeV] of the de-excitation photons of the Xenon shells (4d, 4p, 4s; 0 for the others),
+# from which the secondary quanta of Table II of arXiv:1703.00910 come (same order as XE_SHELLS)
+XE_DEEXCITATION_ENERGIES = tuple(_crapidd.shell_deexcitation_energy(s) for s in range(N_SHELL_XE))
+
+_crapidd.set_er_energy_convention.argtypes = [ctypes.c_int]
+_crapidd.set_er_energy_convention.restype = None
+_crapidd.er_energy_convention_value.argtypes = []
+_crapidd.er_energy_convention_value.restype = ctypes.c_int
+ER_ENERGY_CONVENTIONS = {"electron": 0, "deposited": 1}
+
+def set_er_energy_convention(convention="electron"):
+    '''
+    Energy given to the electronic recoil response of XENON1T (S2-only data release).
+
+    Parameters
+    ----------
+    convention : {"electron", "deposited"}
+        "electron" (default): E_e + energy of the de-excitation photon of the shell
+        (XE_DEEXCITATION_ENERGIES: 4d, 4p, 4s; 0 for the other shells), i.e. primary electron and
+        de-excitation photon without de-excitation electrons, the conservative signal of XENON1T
+        (arXiv:1907.11485) and of the XENONnT DM-electron limits (arXiv:2601.11296, black curves).
+        "deposited": E_e + E_b, the total deposited energy (more signal near threshold).
+    '''
+    if convention not in ER_ENERGY_CONVENTIONS:
+        raise ValueError(f"convention must be one of {list(ER_ENERGY_CONVENTIONS)}")
+    _crapidd.set_er_energy_convention(ER_ENERGY_CONVENTIONS[convention])
+
+def er_energy_convention():
+    '''Energy convention of the XENON1T electronic recoil response ("electron" or "deposited")'''
+    v = _crapidd.er_energy_convention_value()
+    return {i: k for k, i in ER_ENERGY_CONVENTIONS.items()}[v]
 S2_MAX_XENON10 = 203
 N_BINS_XENON10 = 7
 S2_BIN_MAX_XENON1T = 63

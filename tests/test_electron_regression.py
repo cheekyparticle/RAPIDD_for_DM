@@ -3,9 +3,13 @@
 
 The references were first produced with the branch direct_electron_port and regenerated with the
 current code after the following documented fixes:
-- The XENON1T S2 response uses the deposited energy E_e + E_b of each shell instead of the
-  kinetic energy E_e of the outgoing electron. The XENON1T outputs are also checked against an
-  independent fold of the spectra with the S2-only response (xenon1t_fold).
+- The XENON1T S2 response is evaluated at E_e + E_sec instead of the kinetic energy E_e of the
+  outgoing electron, with E_sec the energy of the de-excitation photon of the shell ("electron"
+  convention, default: 63.1, 87.9, 50.3 eV for 4d, 4p, 4s, from which the secondary quanta of
+  Table II of arXiv:1703.00910 come; 0 for the other shells), as XENON1T and the XENONnT
+  DM-electron limits; the "deposited" convention (E_sec = E_b) is checked too. The XENON1T
+  outputs are also checked against an independent fold of the spectra with the S2-only response
+  (xenon1t_fold).
 - The q integral is Simpson's rule in ln q with W interpolated between the tabulated points
   (the left sum on the tabulated q of direct_electron_port overestimated all the rates by ~1.8%),
   and the Xe_4d atomic responses were regenerated with the current DarkART (the old tables were
@@ -44,19 +48,35 @@ DD_CASES = ((2, 0.1, False), (2, 1.0, False), (1, 0.05, False), (2, 0.1, True))
 DAY_BINS = 4  # time bins of the modulation case (as in generate_reference.py)
 X1T_DIR = os.path.join(rapidd.core.experiments_dir, "Xenon1T_S2only")
 XE_N_SECONDARY = {"4d": 4, "4p": 6, "4s": 3}  # secondary quanta of XENON10 (Table II of arXiv:1703.00910)
+# binding energies [eV] (as in lib/source/atomic_resp.c) and de-excitation photons: the hole of 4d, 4p,
+# 4s is filled by an electron of 5p, 4d, 4p (Table II of arXiv:1703.00910)
+XE_EB_EV = {"4d": 75.58972072252894, "4p": 163.49493390058458, "4s": 213.7805688618793, "5p": 12.44330433672413}
+XE_PHOTON_GEV = {"4d": (XE_EB_EV["4d"] - XE_EB_EV["5p"]) * 1e-9, "4p": (XE_EB_EV["4p"] - XE_EB_EV["4d"]) * 1e-9,
+                 "4s": (XE_EB_EV["4s"] - XE_EB_EV["4p"]) * 1e-9}
 
 
-def xenon1t_fold(E, rate_shell):
+def test_deexcitation_energies():
+    '''de-excitation photons of the C library, and the secondary quanta of XENON10 that they give'''
+    for s, shell in enumerate(rapidd.XE_SHELLS):
+        np.testing.assert_allclose(rapidd.XE_DEEXCITATION_ENERGIES[s], XE_PHOTON_GEV.get(shell, 0.), rtol=1e-14, atol=0)
+        assert int(rapidd.XE_DEEXCITATION_ENERGIES[s] / 13.8e-9) == XE_N_SECONDARY.get(shell, 0)
+    assert rapidd.er_energy_convention() == "electron"
+
+
+def xenon1t_fold(E, rate_shell, convention="electron"):
     '''dN/dS2 of XENON1T (63 bins) from the per-shell dR/dE [events/kg/day/GeV] on the grid E [GeV],
-    with the response of the S2-only data release (evaluated at the deposited energy E_e + E_b) and
-    its raw exposure, written independently of difrate_dS2_Xenon1T.'''
+    with the response of the S2-only data release evaluated at E_e + E_sec (E_sec: de-excitation
+    photon, convention "electron", or binding energy, "deposited") and its raw exposure, written
+    independently of difrate_dS2_Xenon1T.'''
     d = np.loadtxt(os.path.join(X1T_DIR, "s2_response_er.csv"), delimiter=',', skiprows=1)
     E_resp, dE = d[:, 0] * 1e-6, (d[:, 2] - d[:, 1]) * 1e-6
     resp = d[:, 3:3 + rapidd.S2_BIN_MAX_XENON1T]  # the C library uses the first 63 S2 bins
     nk = rate_shell.shape[1]
     tot = np.zeros_like(E_resp)
     for s in range(len(rapidd.XE_SHELLS)):
-        x, y = E[:nk] + rapidd.XE_BINDING_ENERGIES[s], rate_shell[s]
+        shell = rapidd.XE_SHELLS[s]
+        Esec = rapidd.XE_BINDING_ENERGIES[s] if convention == "deposited" else XE_PHOTON_GEV.get(shell, 0.)
+        x, y = E[:nk] + Esec, rate_shell[s]
         # last energy moved to the last one of the response if closer than 5% (as in the C code)
         if abs((E_resp[-1] - x[-1]) / x[-1]) <= 0.05:
             x[-1] = E_resp[-1]
@@ -169,7 +189,7 @@ def test_rates_and_signals(reference, default_halo, w2_convention, label, c1, c4
     np.testing.assert_allclose(x10['dRdS2_shell'], reference[key + "X10_dRdS2_shell"], rtol=RTOL, atol=0)
     np.testing.assert_allclose(x10['signal'], reference[key + "X10_signal"], rtol=RTOL, atol=0)
     assert np.all(x10['signal'] > 0) or not np.any(ref_shell)
-    # XENON1T: reference, and independent fold of the spectra with E_dep = E_e + E_b
+    # XENON1T: reference, and independent fold of the spectra with E_e + de-excitation photon
     np.testing.assert_allclose(x1t['dRdS2'], reference[key + "X1T_dRdS2"], rtol=RTOL, atol=0)
     np.testing.assert_allclose(x1t['signal'], reference[key + "X1T_signal"], rtol=RTOL, atol=0)
     fold = xenon1t_fold(E, rate_shell)
@@ -177,6 +197,15 @@ def test_rates_and_signals(reference, default_halo, w2_convention, label, c1, c4
     np.testing.assert_allclose(x1t['signal'], xenon1t_roi_signal(fold, m), rtol=1e-10, atol=0)
     np.testing.assert_allclose(x1t['n_bkg'], reference[key + "X1T_bkg"], rtol=RTOL, atol=0)
     assert x1t['n_obs'] == int(reference[key + "X1T_obs"])
+    # "deposited" convention (E_e + E_b): independent fold, and more signal than "electron"
+    rapidd.set_er_energy_convention("deposited")
+    try:
+        x1t_dep = rapidd.difrate_dS2("Xenon1T", E, rate_shell, m)
+    finally:
+        rapidd.set_er_energy_convention("electron")
+    fold_dep = xenon1t_fold(E, rate_shell, "deposited")
+    np.testing.assert_allclose(x1t_dep['dRdS2'], fold_dep, rtol=1e-10, atol=0)
+    assert x1t_dep['signal'] >= x1t['signal']
 
 
 def _numbers(path, skip=()):

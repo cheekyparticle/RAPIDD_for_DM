@@ -1,0 +1,28 @@
+# XENONnT S2-only DM-electron limit (arXiv:2601.11296, 90% CL after the power constraint, heavy mediator
+# F_DM = 1) rescaled to the RAPIDD atomic responses: sigma_e = XENONnT_DMe_SI.dat x S_wimprates/S_RAPIDD,
+# with S the rate in E_ER = E_e + E_deexcitation in [0.04, 0.7] keV (5 outer shells, same halo).
+# Approximate: the XENONnT efficiency and charge yield are not included. Written by
+# examples/xenonnt_dme_limit_rapidd_ff.py.
+# DM mass [GeV]   sigma_e [cm^2]   S_RAPIDD/S_wimprates [0.04, 0.7] keV   (same, [0.1, 0.7] keV)
+3.999979e-02 2.461518e-40 0.5755 0.5190
+4.999976e-02 8.364704e-41 0.5569 0.4661
+5.999972e-02 4.602946e-41 0.5348 0.4399
+6.999970e-02 2.980437e-41 0.5182 0.4255
+7.999967e-02 2.335357e-41 0.5065 0.4172
+8.999965e-02 1.945975e-41 0.4985 0.4129
+9.999963e-02 1.752352e-41 0.4930 0.4114
+1.999995e-01 1.291066e-41 0.4875 0.4334
+2.999994e-01 1.342998e-41 0.4949 0.4529
+3.999994e-01 1.559118e-41 0.5003 0.4648
+4.999994e-01 1.783430e-41 0.5041 0.4725
+5.999995e-01 2.078805e-41 0.5068 0.4777
+6.999996e-01 2.278821e-41 0.5087 0.4814
+7.999997e-01 2.477866e-41 0.5102 0.4843
+8.999997e-01 2.710657e-41 0.5114 0.4864
+1.000000e+00 3.007711e-41 0.5123 0.4882
+2.000002e+00 5.378703e-41 0.5166 0.4960
+3.000005e+00 7.810945e-41 0.5180 0.4985
+4.000009e+00 1.042682e-40 0.5187 0.4997
+5.000012e+00 1.283405e-40 0.5191 0.5004
+7.000022e+00 1.742147e-40 0.5196 0.5013
+1.000004e+01 2.472767e-40 0.5199 0.5019

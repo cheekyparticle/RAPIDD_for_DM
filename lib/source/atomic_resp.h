@@ -14,7 +14,7 @@
 #define Q_MIN_GEV 1.0e-6
 #define Q_MAX_GEV 1.0e-3
 
-struct xe_shell { const char * name; double binding_energy; int n_secondary; };
+struct xe_shell { const char * name; double binding_energy; int n_secondary; double e_deexcitation; };
 extern const struct xe_shell xe_shells[N_SHELL_XE];
 
 int read_atomic_responses(const char* dir, int response_index);
@@ -23,4 +23,5 @@ int atomic_responses_loaded(int resp);
 int n_shell_xe();
 double shell_binding_energy(int shell);
 int shell_n_secondary(int shell);
+double shell_deexcitation_energy(int shell);
 const char * shell_name(int shell);

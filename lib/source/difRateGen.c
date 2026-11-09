@@ -1071,6 +1071,23 @@ int difrate_dS2_Xenon10(const double *E, const double *rate_shell, const char *e
 	return S2_MAX_XENON10;
 }
 
+/* Energy given to the electronic recoil response of XENON1T: ER_ENERGY_ELECTRON (default) or
+ER_ENERGY_DEPOSITED, see difrate_dS2_Xenon1T. */
+static int er_energy_convention = ER_ENERGY_ELECTRON;
+
+void set_er_energy_convention(int convention){
+	/*ER_ENERGY_ELECTRON (0): E_e + de-excitation photon; ER_ENERGY_DEPOSITED (1): E_e + E_b.*/
+	if (convention != ER_ENERGY_ELECTRON && convention != ER_ENERGY_DEPOSITED) {
+		fprintf(stderr, "set_er_energy_convention: convention must be 0 (electron) or 1 (deposited)\n");
+		return;
+	}
+	er_energy_convention = convention;
+}
+
+int er_energy_convention_value(){
+	return er_energy_convention;
+}
+
 int difrate_dS2_Xenon1T(const double *E, const double *rate_shell, double mchi, const char *exp_dir,
 						double *S2_out, double *dRdS2_out, double *signal_out, double *n_bkg_out, int *n_obs_out){
 	/*XENON1T S2-only spectrum from the total dR/dE, using the S2 response
@@ -1126,17 +1143,25 @@ int difrate_dS2_Xenon1T(const double *E, const double *rate_shell, double mchi, 
 	fclose(f);
 	free(line);
 
-	/* dR/dE_dep summed over the shells: the response is a function of the deposited energy
-	E_dep = E_e + E_b (the binding energy of the shell is released as secondary quanta/X-rays,
-	as in the secondary quanta of Xenon10 and in arXiv:1703.00910), not of the kinetic energy
-	E_e of the outgoing electron. dR/dE_dep(E_e + E_b) = dR/dE_e(E_e). If the last energy of
-	a shell differs from the last one of the response by less than 5%, consider them as the same.*/
+	/* dR/dE_ER summed over the shells: the response is a function of the electronic recoil energy
+	E_ER = E_e + E_sec, with E_e the kinetic energy of the outgoing electron and E_sec the energy
+	released by the de-excitation of the ion (set_er_energy_convention):
+	- "electron" (default): E_sec = energy of the de-excitation photon of the shell (4d, 4p, 4s:
+	  the photons of the secondary quanta of Table II of arXiv:1703.00910, also used for Xenon10;
+	  0 for the other shells), i.e. primary electron and de-excitation photon, with no
+	  de-excitation electrons: the conservative signal of XENON1T (arXiv:1907.11485) and of the
+	  DM-electron limits of XENONnT (arXiv:2601.11296, black curves);
+	- "deposited": E_sec = E_b, the total deposited energy (as the comparison with the ionization
+	  factors of Caddell et al., gray curves of arXiv:2601.11296).
+	dR/dE_ER(E_e + E_sec) = dR/dE_e(E_e). If the last energy of a shell differs from the last one
+	of the response by less than 5%, consider them as the same.*/
 	double x[GRIDSIZE_K];
 	double rate_interp[LEN_E_RESP_XENON1T];
 	for (iE = 0; iE < LEN_E_RESP_XENON1T; iE++) rate_interp[iE] = 0.;
 	for (int s = 0; s < N_SHELL_XE; s++) {
-		double Eb = shell_binding_energy(s);
-		for (ik = 0; ik < GRIDSIZE_K; ik++) x[ik] = E[ik] + Eb;
+		double Esec = (er_energy_convention == ER_ENERGY_DEPOSITED) ? shell_binding_energy(s)
+		                                                            : shell_deexcitation_energy(s);
+		for (ik = 0; ik < GRIDSIZE_K; ik++) x[ik] = E[ik] + Esec;
 		if (fabs(E_resp[LEN_E_RESP_XENON1T - 1] - x[GRIDSIZE_K - 1]) / x[GRIDSIZE_K - 1] <= 0.05) {
 			x[GRIDSIZE_K - 1] = E_resp[LEN_E_RESP_XENON1T - 1];
 		}

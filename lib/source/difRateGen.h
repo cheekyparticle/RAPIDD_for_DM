@@ -26,6 +26,10 @@ int difrate_electron_dEr_resp(double rhochi, double mchi, double jchi, double m_
 							  double *k_out, double *E_out, double *rate_shell_out);
 int difrate_electron_dEr_all(double rhochi, double mchi, double jchi, double m_e, double *k_out, double *E_out, double *rate_shell_out);
 int xenon10_bins(int *bins_out);
+#define ER_ENERGY_ELECTRON 0   // XENON1T response at E_e + de-excitation photon (default)
+#define ER_ENERGY_DEPOSITED 1  // XENON1T response at E_e + E_b
+void set_er_energy_convention(int convention);
+int er_energy_convention_value();
 int difrate_dS2_Xenon10(const double *E, const double *rate_shell, const char *exp_dir,
 						double *S2_out, double *dRdS2_out, double *dRdS2_shell_out, double *signal_out, int *n_obs_out);
 int difrate_dS2_Xenon1T(const double *E, const double *rate_shell, double mchi, const char *exp_dir,
