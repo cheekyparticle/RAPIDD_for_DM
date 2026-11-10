@@ -457,7 +457,7 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 
 /*########################################################################################
 DM-ELECTRON SCATTERING
-Ionization rate of Xenon from DM-electron scattering for the NREFT operators O_1, O_3 ... O_15
+Ionization rate of Xenon (and Argon) from DM-electron scattering for the NREFT operators O_1, O_3 ... O_15
 of arXiv:1912.08204 (contact and long-range couplings, atomic responses W_1 ... W_4) and
 XENON10 / XENON1T (S2-only) detector response. The SI/SD rate and the detector response are
 a port of the legacy MadDM Fortran (dm_response_direct_e.f and electron_recoil_signal.f).
@@ -721,7 +721,7 @@ static double electron_q_integrand(double q, double dE, double mchi, double jchi
 	return q * q * sum;
 }
 
-static double difrate_electron_dEr_w(int shell, int ik, const double *E, const double *q, double rhochi,
+static double difrate_electron_dEr_w(int target, int shell, int ik, const double *E, const double *q, double rhochi,
 									 double mchi, double jchi, double m_e, const int *needed,
 									 gsl_interp_accel *ga, gsl_spline *gs, gsl_interp_accel *ga2, gsl_spline *gs2){
 	/*Kernel of difrate_electron_dEr with the grids and the halo splines already built:
@@ -731,11 +731,12 @@ static double difrate_electron_dEr_w(int shell, int ik, const double *E, const d
 	needed[j-1] = 1 are summed. The q integral runs over the tabulated range [q_0, q_(GRIDSIZE_Q-1)]
 	with Simpson's rule in ln q on ER_Q_SUBDIV sub-intervals per cell of the q grid; between the
 	tabulated points W_j is interpolated linearly in ln W_j vs ln q (linearly in W_j vs ln q
-	where W_j changes sign or vanishes).
+	where W_j changes sign or vanishes). target: ELECTRON_TARGET_XE or ELECTRON_TARGET_AR (shells,
+	binding energies, atomic responses and mean atomic mass of the target).
 	Output: dR/dE in events/(kg day GeV).*/
 	double nDM = rhochi / mchi; // cm^-3
 	double const_integral = nDM / (128. * M_PI * SQR(mchi * GeV_to_kg) * SQR(m_e * GeV_to_kg));
-	double dE = E[ik] + shell_binding_energy(shell);
+	double dE = E[ik] + shell_binding_energy_target(target, shell);
 	double conv = GeV_to_J * SQR(m_to_cm) / c_light_cms;
 	double h = (log(q[GRIDSIZE_Q - 1]) - log(q[0])) / (double)((GRIDSIZE_Q - 1) * ER_Q_SUBDIV); // step in ln q
 	double W0[N_ATOMIC_RESP], W1[N_ATOMIC_RESP], Wt[N_ATOMIC_RESP], ratio[N_ATOMIC_RESP];
@@ -743,14 +744,14 @@ static double difrate_electron_dEr_w(int shell, int ik, const double *E, const d
 	double integral = 0.;
 	int iq, j, n;
 	for (j = 0; j < N_ATOMIC_RESP; j++) {
-		W1[j] = needed[j] ? atomic_response(j + 1, shell, ik, 0) * (j == 1 ? electron_w2_sign : 1.) : 0.;
+		W1[j] = needed[j] ? atomic_response_target(target, j + 1, shell, ik, 0) * (j == 1 ? electron_w2_sign : 1.) : 0.;
 	}
 	// f(q_0), weight 1
 	integral += electron_q_integrand(q[0], dE, mchi, jchi, m_e, W1, needed, ga, gs, ga2, gs2);
 	for (iq = 0; iq < GRIDSIZE_Q - 1; iq++) {
 		for (j = 0; j < N_ATOMIC_RESP; j++) {
 			W0[j] = W1[j];
-			W1[j] = needed[j] ? atomic_response(j + 1, shell, ik, iq + 1) * (j == 1 ? electron_w2_sign : 1.) : 0.;
+			W1[j] = needed[j] ? atomic_response_target(target, j + 1, shell, ik, iq + 1) * (j == 1 ? electron_w2_sign : 1.) : 0.;
 			loglog[j] = W0[j] * W1[j] > 0.;
 			ratio[j] = loglog[j] ? pow(W1[j] / W0[j], 1. / ER_Q_SUBDIV) : (W1[j] - W0[j]) / ER_Q_SUBDIV;
 			Wt[j] = W0[j];
@@ -772,7 +773,7 @@ static double difrate_electron_dEr_w(int shell, int ik, const double *E, const d
 	}
 	integral *= h / 3.;
 	double dRdlogE = const_integral * SQR(conv) * integral * gev_to_pb * pb_to_cm2 * SQR(GeV_to_kg)
-					 / (m_Xe_avg_au * atomic_mass_unit_kg);
+					 / (electron_target_mass_au(target) * atomic_mass_unit_kg);
 	return dRdlogE * day_to_sec / E[ik];
 }
 
@@ -788,7 +789,7 @@ static gsl_spline * electron_halo_spline(int i, gsl_interp_accel **ga){
 
 struct electron_rate_setup { int needed[N_ATOMIC_RESP]; gsl_interp_accel *ga, *ga2; gsl_spline *gs, *gs2; };
 
-static int electron_rate_setup_init(const char *caller, int resp_mask, struct electron_rate_setup *st){
+static int electron_rate_setup_init(const char *caller, int target, int resp_mask, struct electron_rate_setup *st){
 	/*Checks the inputs needed by the terms R_j W_j selected by resp_mask and the coefficients
 	set, and builds the halo splines.
 	Output: 0 on success, 1 if a needed atomic response W_j has not been read, 2 if the halo
@@ -802,9 +803,9 @@ static int electron_rate_setup_init(const char *caller, int resp_mask, struct el
 	}
 	electron_responses_needed(resp_mask, st->needed, &needs_v2);
 	for (j = 0; j < N_ATOMIC_RESP; j++) {
-		if (st->needed[j] && !atomic_responses_loaded(j + 1)) {
-			fprintf(stderr, "%s: the atomic response W_%d is needed by the coefficients set: "
-					"call read_atomic_responses first\n", caller, j + 1);
+		if (st->needed[j] && !atomic_responses_loaded_target(target, j + 1)) {
+			fprintf(stderr, "%s: the atomic response W_%d of %s is needed by the coefficients set: "
+					"call read_atomic_responses first\n", caller, j + 1, electron_target_name(target));
 			return 1;
 		}
 	}
@@ -847,19 +848,20 @@ double difrate_electron_dEr(int shell, int ik, double rhochi, double mchi, doubl
 	Output: dR/dE in events/(kg day GeV), 0 if the inputs are missing.*/
 	double k[GRIDSIZE_K + 1], E[GRIDSIZE_K + 1], q[GRIDSIZE_Q + 1];
 	struct electron_rate_setup st;
-	if (electron_rate_setup_init("difrate_electron_dEr", 15, &st) != 0) {
+	if (electron_rate_setup_init("difrate_electron_dEr", ELECTRON_TARGET_XE, 15, &st) != 0) {
 		electron_rate_setup_free(&st);
 		return 0.;
 	}
 	electron_grids(m_e, k, E, q);
-	double rate = difrate_electron_dEr_w(shell, ik, E, q, rhochi, mchi, jchi, m_e, st.needed, st.ga, st.gs, st.ga2, st.gs2);
+	double rate = difrate_electron_dEr_w(ELECTRON_TARGET_XE, shell, ik, E, q, rhochi, mchi, jchi, m_e, st.needed, st.ga, st.gs, st.ga2, st.gs2);
 	electron_rate_setup_free(&st);
 	return rate;
 }
 
-int difrate_electron_dEr_resp(double rhochi, double mchi, double jchi, double m_e, int resp_mask,
-							  double *k_out, double *E_out, double *rate_shell_out){
-	/*Fills in a single call the k' and E grids and dR/dE of all the Xenon shells, keeping
+int difrate_electron_dEr_resp_target(int target, double rhochi, double mchi, double jchi, double m_e, int resp_mask,
+									 double *k_out, double *E_out, double *rate_shell_out){
+	/*Fills in a single call the k' and E grids and dR/dE of all the shells of the target
+	(ELECTRON_TARGET_XE: 11 shells, ELECTRON_TARGET_AR: 5 shells, see atomic_resp.c), keeping
 	only the terms R_j W_j selected by resp_mask (bit j-1 set: R_j W_j included; 15: all, 1: only
 	R_1 W_1, 2: only R_2 W_2, ...). The single contributions can be negative.
 	Parameters:
@@ -867,25 +869,36 @@ int difrate_electron_dEr_resp(double rhochi, double mchi, double jchi, double m_
 	- resp_mask: selection of the terms R_j W_j (1..15)
 	- k_out: outgoing electron momenta in GeV [GRIDSIZE_K+1]
 	- E_out: outgoing electron energies in GeV [GRIDSIZE_K+1]
-	- rate_shell_out: dR/dE in events/(kg day GeV) [N_SHELL_XE*GRIDSIZE_K], shell-major
+	- rate_shell_out: dR/dE in events/(kg day GeV) [n_shell_target(target)*GRIDSIZE_K], shell-major
 	Output: 0 on success, 1 if a needed atomic response W_j has not been read, 2 if the halo
-	table has no halo(vmin, 2) column while needed, 3 for a wrong resp_mask.*/
+	table has no halo(vmin, 2) column while needed, 3 for a wrong resp_mask, 4 for an unknown target.*/
 	struct electron_rate_setup st;
-	int err = electron_rate_setup_init("difrate_electron_dEr_resp", resp_mask, &st);
+	if (n_shell_target(target) == 0) {
+		fprintf(stderr, "difrate_electron_dEr_resp: unknown target %d\n", target);
+		return 4;
+	}
+	int err = electron_rate_setup_init("difrate_electron_dEr_resp", target, resp_mask, &st);
 	if (err != 0) {
 		electron_rate_setup_free(&st);
 		return err;
 	}
 	double q[GRIDSIZE_Q + 1];
 	electron_grids(m_e, k_out, E_out, q);
-	for (int s = 0; s < N_SHELL_XE; s++) {
+	for (int s = 0; s < n_shell_target(target); s++) {
 		for (int ik = 0; ik < GRIDSIZE_K; ik++) {
-			rate_shell_out[s * GRIDSIZE_K + ik] = difrate_electron_dEr_w(s, ik, E_out, q, rhochi, mchi, jchi, m_e,
+			rate_shell_out[s * GRIDSIZE_K + ik] = difrate_electron_dEr_w(target, s, ik, E_out, q, rhochi, mchi, jchi, m_e,
 																		 st.needed, st.ga, st.gs, st.ga2, st.gs2);
 		}
 	}
 	electron_rate_setup_free(&st);
 	return 0;
+}
+
+int difrate_electron_dEr_resp(double rhochi, double mchi, double jchi, double m_e, int resp_mask,
+							  double *k_out, double *E_out, double *rate_shell_out){
+	/*difrate_electron_dEr_resp_target for Xenon: rate_shell_out has N_SHELL_XE*GRIDSIZE_K entries.*/
+	return difrate_electron_dEr_resp_target(ELECTRON_TARGET_XE, rhochi, mchi, jchi, m_e, resp_mask, k_out, E_out,
+											rate_shell_out);
 }
 
 int difrate_electron_dEr_all(double rhochi, double mchi, double jchi, double m_e,

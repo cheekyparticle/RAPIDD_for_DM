@@ -24,6 +24,8 @@ double dm_response_electron(int resp, double q, double dE, double mchi, double j
 double difrate_electron_dEr(int shell, int ik, double rhochi, double mchi, double jchi, double m_e);
 int difrate_electron_dEr_resp(double rhochi, double mchi, double jchi, double m_e, int resp_mask,
 							  double *k_out, double *E_out, double *rate_shell_out);
+int difrate_electron_dEr_resp_target(int target, double rhochi, double mchi, double jchi, double m_e, int resp_mask,
+									 double *k_out, double *E_out, double *rate_shell_out);
 int difrate_electron_dEr_all(double rhochi, double mchi, double jchi, double m_e, double *k_out, double *E_out, double *rate_shell_out);
 int xenon10_bins(int *bins_out);
 #define ER_ENERGY_ELECTRON 0   // XENON1T response at E_e + de-excitation photon (default)

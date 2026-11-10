@@ -1,4 +1,4 @@
-"""DM-electron scattering in Xenon for the NREFT operators of arXiv:1912.08204
+"""DM-electron scattering in Xenon and Argon (target="Xe" or "Ar") for the NREFT operators of arXiv:1912.08204
 (Catena, Emken, Spaldin, Tarantino).
 
 Conventions
@@ -8,17 +8,25 @@ Conventions
   (DM spin 1/2); O_2, O_16 and O_17 ... O_20 do not enter the DM responses of the paper.
 - jchi is the DM spin (MadDM dm_spin = 2 jchi + 1): the operators with S_chi vanish for jchi = 0.
 - The rate is dR/dlnE = n_chi/(128 pi mchi^2 m_e^2) int dq q sum_j R_j W_j (Eqs. (ionization
-  spectrum) and (RW)), with the atomic responses W_1 ... W_4 of the 11 Xenon shells.
+  spectrum) and (RW)), with the atomic responses W_1 ... W_4 of the 11 Xenon shells (target="Xe",
+  default) or of the 5 Argon shells (target="Ar": rates only, no detector response).
+- The q integral is truncated at q_max = Q_MAX_GEV = 1 MeV ~ 2 m_e (end of the atomic response
+  tables, as in DarkARC, DarkART and arXiv:1912.08204): above it the NREFT and the non-relativistic
+  electron wave functions are not valid. For mDM > 0.3 GeV a QMaxTruncationWarning gives the
+  fraction of the contact rates of O_3, O_5, O_6, O_13, O_14, O_15 coming from q > 1 MeV (see
+  QMAX_LOST_FRACTION); O_1 and O_4 (the operators used by MadDM) are not affected.
 - Units: masses in GeV, energies in keV, rates in events/kg/day(/keV), rhoDM in GeV/cm^3.
 - The halo table must contain halo(vmin, 2) (i >= 2) for the operators depending on v_el^perp.
 - W_2: by default with the sign corrected in arXiv:2405.04855 (Liang et al.); set_w2_sign("Catena")
   uses the sign of arXiv:1912.08204 (affects O_7, O_8, O_12, O_13, O_14).
 """
+import warnings
+
 import numpy as np
 
 from .core import (set_any_Ecoeff, set_w2_sign, w2_sign, read_atomic_responses, difrate_electron_dEr_all, difrate_dS2,
-                   calc_halo, read_halo, M_ELECTRON, XE_SHELLS, N_SHELL_XE, N_ATOMIC_RESP,
-                   ELECTRON_OPERATORS, ELECTRON_INTERACTIONS)
+                   calc_halo, read_halo, Ce_val, M_ELECTRON, XE_SHELLS, N_SHELL_XE, N_ATOMIC_RESP,
+                   ELECTRON_OPERATORS, ELECTRON_INTERACTIONS, ELECTRON_TARGETS, ELECTRON_TARGET_SHELLS, AR_SHELLS)
 from .stats import poisson_upper_limit
 
 _trapezoid = getattr(np, "trapezoid", None) or np.trapz  # numpy < 2 has only trapz
@@ -27,11 +35,89 @@ ALPHA_EM = 7.2973525643e-3                   # fine-structure constant (CODATA 2
 E_CHARGE = np.sqrt(4. * np.pi * ALPHA_EM)    # electron charge (natural units)
 GEV2_TO_CM2 = 3.893793721e+8 * 1.e-36        # (hbar c)^2: GeV^-2 -> cm^2, as in phys_consts.h
 XE_SHELLS_PAPER = ("4s", "4p", "4d", "5s", "5p")  # Xenon shells used in arXiv:1912.08204
+AR_SHELLS_PAPER = AR_SHELLS                       # Argon: all the occupied shells, as in arXiv:1912.08204
 ELECTRON_MODELS = ("anapole", "magnetic_dipole", "electric_dipole")
 ELECTRON_EXPERIMENTS = ("Xenon10", "Xenon1T")
 
 # halo parameters of arXiv:1912.08204 (App. E)
 PAPER_HALO = {'rhoDM': 0.4, 'v0': 220., 'vesc': 544., 've': 244.}
+
+
+########################################################################################
+# Truncation of the q integral at q_max = 1 MeV
+########################################################################################
+Q_MAX_GEV = 1.0e-3            # end of the q grid of the atomic responses (as Q_MAX_GEV in atomic_resp.h)
+QMAX_WARNING_MASS = 0.3       # GeV: above it QMaxTruncationWarning is issued
+QMAX_OPERATORS = (3, 5, 6, 13, 14, 15)
+# Indicative fraction of the rate from q > 1 MeV for a single contact coefficient (Xenon, shells 3s ... 5p,
+# rho and halo of arXiv:1912.08204, E_e < 9.7 keV), from DarkART tables extended in q up to 5.29 MeV
+# (> the kinematic end point at 1 GeV): mDM [GeV] -> {operator: lost fraction}. O_1 and O_4 lose less
+# than 2e-4 at 1 GeV. O_3 and O_5 (equal for jchi = 1/2), O_13 and O_14 coincide.
+QMAX_LOST_FRACTION = {
+    0.3: {3: 0.0001, 5: 0.0001, 6: 0.0018, 13: 0.0018, 14: 0.0018, 15: 0.0019},
+    0.4: {3: 0.0010, 5: 0.0010, 6: 0.0149, 13: 0.0147, 14: 0.0147, 15: 0.0164},
+    0.5: {3: 0.0038, 5: 0.0038, 6: 0.0428, 13: 0.0414, 14: 0.0414, 15: 0.0549},
+    0.7: {3: 0.0153, 5: 0.0153, 6: 0.1293, 13: 0.1219, 14: 0.1219, 15: 0.1865},
+    1.0: {3: 0.0389, 5: 0.0389, 6: 0.2695, 13: 0.2514, 14: 0.2514, 15: 0.3797},
+}
+
+
+class QMaxTruncationWarning(UserWarning):
+    '''The DM-electron rate misses the contribution of q > Q_MAX_GEV = 1 MeV ~ 2 m_e'''
+
+
+_qmax_warned = set()
+
+
+def qmax_lost_fraction(op, mDM):
+    '''
+    Indicative fraction of the contact rate of op lost with q <= 1 MeV (QMAX_LOST_FRACTION,
+    interpolated linearly in ln mDM; 0 for the operators not in QMAX_OPERATORS).
+    Returns (fraction, is_lower_bound): above 1 GeV the value at 1 GeV, a lower bound.
+    '''
+    if op not in QMAX_OPERATORS:
+        return 0., False
+    ms = np.array(sorted(QMAX_LOST_FRACTION))
+    fs = np.array([QMAX_LOST_FRACTION[m][op] for m in ms])
+    if mDM >= ms[-1]:
+        return float(fs[-1]), mDM > ms[-1]
+    if mDM <= ms[0]:
+        return float(fs[0]) * (mDM / ms[0])**4, False
+    return float(np.interp(np.log(mDM), np.log(ms), fs)), False
+
+
+def _qmax_mass_bin(mDM):
+    '''Bin of mDM between the masses of QMAX_LOST_FRACTION (one warning per bin)'''
+    return int(np.searchsorted(sorted(QMAX_LOST_FRACTION), mDM))
+
+
+def check_qmax_truncation(mDM, target="Xe"):
+    '''
+    Warn (QMaxTruncationWarning) if mDM > QMAX_WARNING_MASS and a contact coefficient of O_3, O_5,
+    O_6, O_13, O_14 or O_15 is set: the q integral stops at q = 1 MeV ~ 2 m_e, where the NREFT and
+    the non-relativistic wave functions lose validity, and these rates grow with q. Issued once per
+    (target, operators, mass bin of QMAX_LOST_FRACTION). Returns the operators concerned.
+    '''
+    if mDM <= QMAX_WARNING_MASS:
+        return ()
+    ops = tuple(op for op in QMAX_OPERATORS if Ce_val(op) != 0.)
+    if not ops:
+        return ops
+    key = (target, ops, _qmax_mass_bin(mDM))
+    if key in _qmax_warned:
+        return ops
+    _qmax_warned.add(key)
+    lost = []
+    for op in ops:
+        f, lower = qmax_lost_fraction(op, mDM)
+        lost.append("O_%d %s%.2g%%" % (op, "> " if lower else "~", 100. * f))
+    warnings.warn("DM-electron rate for mDM = %g GeV with contact coefficients of %s: the q integral is truncated "
+                  "at q = 1 MeV ~ 2 m_e (end of the atomic response tables), where the NREFT and the "
+                  "non-relativistic electron wave functions lose validity. Indicative fraction of the rate "
+                  "from q > 1 MeV for each operator alone (Xenon, contact): %s."
+                  % (mDM, ", ".join("O_%d" % op for op in ops), ", ".join(lost)),
+                  QMaxTruncationWarning, stacklevel=3)
+    return ops
 
 
 def q_ref(m_e=M_ELECTRON):
@@ -53,18 +139,21 @@ def write_paper_halo(table_path, profile="SHM", i=2):
               ve=PAPER_HALO['ve'], i=i)
 
 
-def _shell_indices(shells):
+def _shell_indices(shells, target="Xe"):
+    if target not in ELECTRON_TARGETS:
+        raise ValueError(f"Unknown DM-electron target {target}: choose from {ELECTRON_TARGETS}")
+    names = ELECTRON_TARGET_SHELLS[target]
     if shells is None:
-        return list(range(N_SHELL_XE))
+        return list(range(len(names)))
     idx = []
     for s in shells:
         if isinstance(s, str):
-            if s not in XE_SHELLS:
-                raise ValueError(f"Unknown Xenon shell {s}: choose from {XE_SHELLS}")
-            idx.append(XE_SHELLS.index(s))
+            if s not in names:
+                raise ValueError(f"Unknown {target} shell {s}: choose from {names}")
+            idx.append(names.index(s))
         else:
-            if not 0 <= int(s) < N_SHELL_XE:
-                raise ValueError(f"Shell index {s} out of range [0, {N_SHELL_XE - 1}]")
+            if not 0 <= int(s) < len(names):
+                raise ValueError(f"Shell index {s} out of range [0, {len(names) - 1}]")
             idx.append(int(s))
     return sorted(set(idx))
 
@@ -82,10 +171,12 @@ def resp_mask(resp=None):
     return mask
 
 
-def difrate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRON):
+def difrate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRON, target="Xe"):
     '''
-    Differential ionization rate of Xenon for the DM-electron coefficients set with
-    set_any_Ecoeff (contact and long-range). Requires read_halo and read_atomic_responses.
+    Differential ionization rate of Xenon (or Argon) for the DM-electron coefficients set with
+    set_any_Ecoeff (contact and long-range). Requires read_halo and read_atomic_responses (with
+    the same target). For mDM > 0.3 GeV and contact O_3, O_5, O_6, O_13, O_14, O_15 a
+    QMaxTruncationWarning is issued (q <= 1 MeV, see check_qmax_truncation).
 
     Parameters
     ----------
@@ -96,12 +187,15 @@ def difrate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRO
     jchi : float
         DM spin (1/2 for the operators of arXiv:1912.08204, 0 for scalar DM).
     shells : iterable of str/int or None
-        Xenon shells to include (names as in XE_SHELLS or indices). None: all the 11 shells
-        (as in MadDM); XE_SHELLS_PAPER: the 5 outer shells used in arXiv:1912.08204.
+        Shells to include (names as in XE_SHELLS / AR_SHELLS or indices). None: all the shells
+        (Xenon: 11, as in MadDM; Argon: 5); XE_SHELLS_PAPER: the 5 outer Xenon shells used in
+        arXiv:1912.08204 (for Argon the paper uses all the shells, AR_SHELLS_PAPER).
     resp : int, iterable of int or None
         Keep only the terms R_j W_j with j in resp (None: all). Single terms can be negative.
     m_e : float
         Electron mass [GeV].
+    target : {"Xe", "Ar"}
+        Target atom (default Xenon).
 
     Returns
     -------
@@ -110,34 +204,39 @@ def difrate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRO
         dRdE, dRdlnE : total over the selected shells [events/kg/day/keV], [events/kg/day]
         dRdE_shell, dRdlnE_shell : dict shell name -> array, for the selected shells
         E_GeV, rate_shell : grids [GeV] (GRIDSIZE_K+1) and per-shell dR/dE [events/kg/day/GeV]
-            of all the 11 shells (zero for the shells not selected), input of difrate_dS2
+            of all the shells of the target (zero for the shells not selected), input of
+            difrate_dS2 (Xenon only)
+        target : the target
     '''
     if mDM <= 0 or rhoDM < 0:
         raise ValueError("mDM must be > 0 and rhoDM >= 0")
-    idx = _shell_indices(shells)
-    k, E, rate_shell = difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, resp_mask=resp_mask(resp))
-    keep = np.zeros(N_SHELL_XE, dtype=bool)
+    idx = _shell_indices(shells, target)
+    check_qmax_truncation(mDM, target)
+    names = ELECTRON_TARGET_SHELLS[target]
+    k, E, rate_shell = difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, resp_mask=resp_mask(resp), target=target)
+    keep = np.zeros(len(names), dtype=bool)
     keep[idx] = True
     rate_shell = np.where(keep[:, None], rate_shell, 0.)
     E_keV = E[:-1] * 1e6
-    dRdE_shell = {XE_SHELLS[s]: rate_shell[s] / 1e6 for s in idx}
+    dRdE_shell = {names[s]: rate_shell[s] / 1e6 for s in idx}
     dRdE = rate_shell.sum(axis=0) / 1e6
     return {'k': k[:-1] * 1e6, 'E': E_keV, 'dRdE': dRdE, 'dRdlnE': E_keV * dRdE,
             'dRdE_shell': dRdE_shell,
             'dRdlnE_shell': {s: E_keV * r for s, r in dRdE_shell.items()},
-            'E_GeV': E, 'rate_shell': rate_shell}
+            'E_GeV': E, 'rate_shell': rate_shell, 'target': target}
 
 
-def total_rate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRON, rate=None):
+def total_rate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRON, rate=None, target="Xe"):
     '''
     Total ionization rate [events/kg/day]: integral of dR/dlnE over ln E on the grid of
     difrate_electron (trapezoidal rule in ln E, from E = 0.01 eV to the kinematic end point).
     If rate (the output of difrate_electron) is given, the other arguments are ignored.
     The XENON10 response integrates the same spectrum (power-law interpolation between the grid
     points, from the first to the last point of the grid).
+    target: "Xe" (default) or "Ar".
     '''
     if rate is None:
-        rate = difrate_electron(rhoDM, mDM, jchi=jchi, shells=shells, resp=resp, m_e=m_e)
+        rate = difrate_electron(rhoDM, mDM, jchi=jchi, shells=shells, resp=resp, m_e=m_e, target=target)
     return float(_trapezoid(rate['dRdlnE'], np.log(rate['E'])))
 
 
@@ -170,6 +269,8 @@ def electron_signal(experiment, rhoDM=None, mDM=None, jchi=0.5, shells=None, m_e
         if rhoDM is None:
             raise ValueError("rhoDM is needed when rate is not given")
         rate = difrate_electron(rhoDM, mDM, jchi=jchi, shells=shells, m_e=m_e)
+    if rate.get('target', "Xe") != "Xe":
+        raise ValueError("The detector responses (XENON10, XENON1T) need the Xenon rate (target='Xe')")
     res = difrate_dS2(experiment, rate['E_GeV'], rate['rate_shell'], mDM)
     res['rate'] = rate
     return res

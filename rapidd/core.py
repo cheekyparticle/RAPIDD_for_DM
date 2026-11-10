@@ -492,6 +492,34 @@ _crapidd.shell_deexcitation_energy.restype = ctypes.c_double
 # from which the secondary quanta of Table II of arXiv:1703.00910 come (same order as XE_SHELLS)
 XE_DEEXCITATION_ENERGIES = tuple(_crapidd.shell_deexcitation_energy(s) for s in range(N_SHELL_XE))
 
+# Targets of the DM-electron rate (index of the C library): Xenon (default, 11 shells, XENON10 and
+# XENON1T responses) and Argon (all the 5 occupied shells, rates only)
+ELECTRON_TARGETS = ("Xe", "Ar")
+_crapidd.n_shell_target.argtypes = [ctypes.c_int]
+_crapidd.n_shell_target.restype = ctypes.c_int
+_crapidd.shell_binding_energy_target.argtypes = [ctypes.c_int, ctypes.c_int]
+_crapidd.shell_binding_energy_target.restype = ctypes.c_double
+_crapidd.shell_name_target.argtypes = [ctypes.c_int, ctypes.c_int]
+_crapidd.shell_name_target.restype = ctypes.c_char_p
+_crapidd.electron_target_mass_au.argtypes = [ctypes.c_int]
+_crapidd.electron_target_mass_au.restype = ctypes.c_double
+N_SHELL_AR = _crapidd.n_shell_target(1)
+AR_SHELLS = tuple(_crapidd.shell_name_target(1, s).decode() for s in range(N_SHELL_AR))   # ("1s", "2p", "2s", "3p", "3s")
+# binding energies [GeV] of the Argon shells (same order as AR_SHELLS): Roothaan-Hartree-Fock orbital
+# energies of the DarkART data files, from the C library
+AR_BINDING_ENERGIES = tuple(_crapidd.shell_binding_energy_target(1, s) for s in range(N_SHELL_AR))
+ELECTRON_TARGET_SHELLS = {"Xe": XE_SHELLS, "Ar": AR_SHELLS}
+ELECTRON_TARGET_BINDING_ENERGIES = {"Xe": XE_BINDING_ENERGIES, "Ar": AR_BINDING_ENERGIES}
+# mean atomic mass [u] of the targets in the DM-electron rate (rate per kg of target)
+ELECTRON_TARGET_MASS_AU = {t: _crapidd.electron_target_mass_au(i) for i, t in enumerate(ELECTRON_TARGETS)}
+
+
+def electron_target_index(target):
+    '''Index of the DM-electron target ("Xe" or "Ar") in the C library'''
+    if target not in ELECTRON_TARGETS:
+        raise ValueError(f"Unknown DM-electron target {target}: choose from {ELECTRON_TARGETS}")
+    return ELECTRON_TARGETS.index(target)
+
 _crapidd.set_er_energy_convention.argtypes = [ctypes.c_int]
 _crapidd.set_er_energy_convention.restype = None
 _crapidd.er_energy_convention_value.argtypes = []
@@ -531,11 +559,14 @@ experiments_dir = os.path.join(base_dir, '..', 'lib', 'experiments')
 _read_atomic_responses = _crapidd.read_atomic_responses
 _read_atomic_responses.argtypes = [ctypes.c_char_p, ctypes.c_int]
 _read_atomic_responses.restype = ctypes.c_int
+_read_atomic_responses_target = _crapidd.read_atomic_responses_target
+_read_atomic_responses_target.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
+_read_atomic_responses_target.restype = ctypes.c_int
 
-def read_atomic_responses(path=atomic_resp_dir, response_index=None):
+def read_atomic_responses(path=atomic_resp_dir, response_index=None, target="Xe"):
     '''
-    Read the Xenon atomic responses W_j(k', q) of arXiv:1912.08204 from
-    path/atomic_response_<j>/Xe_<shell>.txt.
+    Read the atomic responses W_j(k', q) of arXiv:1912.08204 of the target from
+    path/atomic_response_<j>/<target>_<shell>.txt (Xenon: 11 shells, Argon: 5 shells).
 
     Parameters
     ----------
@@ -544,7 +575,10 @@ def read_atomic_responses(path=atomic_resp_dir, response_index=None):
     response_index : int, iterable of int or None
         Response(s) j to read (1-4). None reads all the four responses (W_1 is the only
         one needed by O_1, O_4 and the other operators that do not depend on v_el^perp).
+    target : {"Xe", "Ar"}
+        Target (the tables of Xenon and Argon are kept separately).
     '''
+    t = electron_target_index(target)
     if response_index is None:
         indices = range(1, N_ATOMIC_RESP + 1)
     elif np.ndim(response_index) == 0:
@@ -553,7 +587,7 @@ def read_atomic_responses(path=atomic_resp_dir, response_index=None):
         indices = [int(j) for j in response_index]
     for j in indices:
         resp_dir = os.path.join(path, 'atomic_response_%i' % j)
-        err = _read_atomic_responses(resp_dir.encode(), j)
+        err = _read_atomic_responses_target(resp_dir.encode(), j, t)
         if err != 0:
             raise IOError("Could not read the atomic responses in %s (error %i)" % (resp_dir, err))
     return
@@ -634,20 +668,29 @@ def w2_sign():
 _difrate_electron_dEr_resp = _crapidd.difrate_electron_dEr_resp
 _difrate_electron_dEr_resp.argtypes = [ctypes.c_double] * 4 + [ctypes.c_int] + [_dbl_p] * 3
 _difrate_electron_dEr_resp.restype = ctypes.c_int
+_difrate_electron_dEr_resp_target = _crapidd.difrate_electron_dEr_resp_target
+_difrate_electron_dEr_resp_target.argtypes = [ctypes.c_int] + [ctypes.c_double] * 4 + [ctypes.c_int] + [_dbl_p] * 3
+_difrate_electron_dEr_resp_target.restype = ctypes.c_int
 
-_electron_rate_errors = {1: "a needed atomic response W_j has not been read (read_atomic_responses)",
+_electron_rate_errors = {1: "a needed atomic response W_j of the target has not been read (read_atomic_responses)",
                          2: "the halo table has no halo(vmin, 2) column, needed by the operators "
                             "depending on v_el^perp (write it with i >= 2)",
-                         3: "wrong resp_mask"}
+                         3: "wrong resp_mask", 4: "unknown target"}
 
-def difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, resp_mask=15):
+def difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, resp_mask=15, target="Xe"):
     '''Returns k [GeV] (GRIDSIZE_K+1), E [GeV] (GRIDSIZE_K+1) and the per-shell
-    dR/dE [events/kg/day/GeV] (N_SHELL_XE x GRIDSIZE_K) for DM-electron scattering in Xenon.
+    dR/dE [events/kg/day/GeV] (n_shell x GRIDSIZE_K) for DM-electron scattering in the target
+    ("Xe": 11 shells in the order of XE_SHELLS, "Ar": 5 shells in the order of AR_SHELLS).
     resp_mask selects the terms R_j W_j (bit j-1 set: included; 15: all).'''
+    t = electron_target_index(target)
+    n_shell = len(ELECTRON_TARGET_SHELLS[target])
     k = np.zeros(GRIDSIZE_K + 1)
     E = np.zeros(GRIDSIZE_K + 1)
-    rate = np.zeros(N_SHELL_XE * GRIDSIZE_K)
-    if resp_mask == 15:
+    rate = np.zeros(n_shell * GRIDSIZE_K)
+    if target != "Xe":
+        err = _difrate_electron_dEr_resp_target(t, rhoDM, mDM, jchi, m_e, int(resp_mask), k.ctypes.data_as(_dbl_p),
+                                                E.ctypes.data_as(_dbl_p), rate.ctypes.data_as(_dbl_p))
+    elif resp_mask == 15:
         err = _difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, k.ctypes.data_as(_dbl_p),
                                         E.ctypes.data_as(_dbl_p), rate.ctypes.data_as(_dbl_p))
     else:
@@ -656,7 +699,7 @@ def difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, resp_mask=15):
     if err != 0:
         raise RuntimeError("difrate_electron_dEr_all failed (error %i): %s"
                            % (err, _electron_rate_errors.get(err, "unknown error")))
-    return k, E, rate.reshape(N_SHELL_XE, GRIDSIZE_K)
+    return k, E, rate.reshape(n_shell, GRIDSIZE_K)
 
 _xenon10_bins = _crapidd.xenon10_bins
 _xenon10_bins.argtypes = [_int_p]

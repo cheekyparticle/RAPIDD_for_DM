@@ -46,7 +46,8 @@ def set_op(op, cp, cn=None):
 
 
 CASES = [(mchi, delta, E) for mchi, delta in [(20., 0.), (100., 0.), (1000., 0.), (1000., 30.), (300., -20.)]
-         for E in (1., 5., 15., 40.)]
+         for E in (1., 5., 15., 40.)
+         if (mchi, delta, E) != (1000., 30., 1.)]  # kinematically forbidden: vmin ~ 1080 km/s > vesc + vE
 
 
 @pytest.mark.parametrize("mchi, delta, E", CASES)

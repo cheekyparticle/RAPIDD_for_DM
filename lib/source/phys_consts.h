@@ -31,6 +31,7 @@ const double static GeV_to_kg = 1.78266192e-27; // GeV/c^2 -> kg
 const double static GeV_to_J = 1.602176634e-10; // GeV -> J
 const double static atomic_mass_unit_kg = 1.66053906660e-27; // u -> kg
 const double static m_Xe_avg_au = 131.293; // Xenon mass, average over all isotopes (u)
+const double static m_Ar_avg_au = 39.948; // Argon mass, standard atomic weight (u), DM-electron rate
 const double static gev_to_pb = 3.893793721e+8; // (hbar c)^2: GeV^-2 -> pb
 const double static pb_to_cm2 = 1.e-36; // pb -> cm^2
 const double static m_to_cm = 100.; // m -> cm

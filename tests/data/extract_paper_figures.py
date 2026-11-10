@@ -30,6 +30,7 @@ DEFAULT_FIGURES = os.path.normpath(os.path.join(HERE, "..", "..", "..", "..", ".
 # colors of the paper (rounded to 2 digits)
 BLACK = (0.0, 0.0, 0.0)
 BLUE = (0.25, 0.46, 0.89)
+ARGON = (0.62, 0.2, 0.7)
 X10 = (0.48, 0.77, 0.98)
 X1T = (0.24, 0.33, 0.83)
 DS50 = (0.77, 0.5, 0.81)
@@ -40,8 +41,14 @@ SPEC_UNITS = ("E_e [eV]", "dR_ion/dlnE_e [kg^-1 yr^-1]")
 LIM_C = ("m_chi [MeV]", "c_i^s")
 LIM_L = ("m_chi [MeV]", "c_i^l")
 
-# figure -> (units, {(color, dashes): curve name}); spectra: Xenon, 5 outer shells
+# figure -> (units, {(color, dashes): curve name}); spectra: Xenon, 5 outer shells; Argon, all shells
 FIGURES = {
+    "Ar_coup_6_C": (SPEC_UNITS, {(ARGON, SOLID): "m1000MeV", (ARGON, DASHED): "m100MeV", (ARGON, DOTTED): "m10MeV"}),
+    "Ar_coup_6_L": (SPEC_UNITS, {(ARGON, SOLID): "m1000MeV", (ARGON, DASHED): "m100MeV", (ARGON, DOTTED): "m10MeV"}),
+    "Ar_coup_7_C_mDM_10": (SPEC_UNITS, {(BLACK, SOLID): "total", (ARGON, SOLID): "res1",
+                                        (ARGON, DASHED): "res2", (ARGON, DOTTED): "res3"}),
+    "Ar_coup_15_L_mDM_100": (SPEC_UNITS, {(BLACK, SOLID): "total", (ARGON, SOLID): "res1",
+                                          (ARGON, DASHED): "res3", (ARGON, DOTTED): "res4_negative"}),
     "Xe_coup_13_C": (SPEC_UNITS, {(BLUE, SOLID): "m1000MeV", (BLUE, DASHED): "m100MeV", (BLUE, DOTTED): "m10MeV"}),
     "Xe_coup_13_L": (SPEC_UNITS, {(BLUE, SOLID): "m1000MeV", (BLUE, DASHED): "m100MeV", (BLUE, DOTTED): "m10MeV"}),
     "Xe_coup_7_C_mDM_10": (SPEC_UNITS, {(BLACK, SOLID): "total", (BLUE, SOLID): "res1",

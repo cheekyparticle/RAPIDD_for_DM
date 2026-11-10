@@ -8,6 +8,9 @@ from scipy.special import erf
 
 import rapidd
 
+# expected for the contact O_3, O_5, O_6, O_13-O_15 above 0.3 GeV (tested in test_electron_qmax.py)
+pytestmark = pytest.mark.filterwarnings("ignore::rapidd.electron.QMaxTruncationWarning")
+
 from test_electron_responses import R_paper, kinematics, couplings
 
 M_E = rapidd.M_ELECTRON
@@ -53,13 +56,15 @@ def simpson_lnq(q, Ws, nsub=4):
     return np.exp(lq), w * h / 3, out
 
 
-def independent_dRdlnE(coeffs, mchi, rho, ik_list, drop_vperp_const=False, resp=(1, 2, 3, 4), w2_sign=-1):
-    '''dR/dlnE [events/kg/day] of the shell 5p from Eqs. (ionization spectrum) and (RW):
+def independent_dRdlnE(coeffs, mchi, rho, ik_list, drop_vperp_const=False, resp=(1, 2, 3, 4), w2_sign=-1,
+                       table="Xe_5p", eb=EB_5P, m_target_kg=M_XE_KG):
+    '''dR/dlnE [events/kg/day] of the shell 5p (or of the shell of the table <target>_<shell>, with
+    binding energy eb [GeV] and target mass m_target_kg) from Eqs. (ionization spectrum) and (RW):
     n_chi/(128 pi mchi^2 m_e^2) int dq q int d^3v f(v)/v Theta(v - vmin) sum_j R_j(v) W_j,
     with R_j evaluated at each v with the full (v_el^perp)^2 (or with (v_el^perp)^2 = v^2 if
     drop_vperp_const, to check that the constant part matters), summing the terms j in resp.
     W_2 is multiplied by w2_sign. Same grids and q quadrature as RAPIDD (simpson_lnq).'''
-    base = os.path.join(rapidd.core.atomic_resp_dir, "atomic_response_%i", "Xe_5p.txt")
+    base = os.path.join(rapidd.core.atomic_resp_dir, "atomic_response_%i", table + ".txt")
     W = [np.loadtxt(base % j, comments="//") for j in (1, 2, 3, 4)]
     W[1] = w2_sign * W[1]
     k = np.exp(np.log(1e-7) + np.log(1e3) * np.arange(101) / 99)
@@ -70,7 +75,7 @@ def independent_dRdlnE(coeffs, mchi, rho, ik_list, drop_vperp_const=False, resp=
     n_chi = rho / mchi * HBARC**3  # GeV^3
     out = []
     for ik in ik_list:
-        dE = E[ik] + EB_5P
+        dE = E[ik] + eb
         qs, wq, Ws = simpson_lnq(q[:200], [W[j - 1][ik] for j in resp])
         integ = 0.
         for iq in range(len(qs)):
@@ -89,7 +94,7 @@ def independent_dRdlnE(coeffs, mchi, rho, ik_list, drop_vperp_const=False, resp=
             vel_int = np.sum((g[1:] + g[:-1]) / 2 * np.diff(vn))
             integ += wq[iq] * qs[iq]**2 * vel_int   # dq q = dln q q^2
         rate = n_chi / (128 * np.pi * mchi**2 * M_E**2) * integ  # GeV, per atom
-        out.append(rate / HBAR * 86400 / M_XE_KG)
+        out.append(rate / HBAR * 86400 / m_target_kg)
     return np.array(out)
 
 
