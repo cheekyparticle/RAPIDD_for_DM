@@ -110,7 +110,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 			if (strncmp(model, "Light_Med", 10)==0){
 				double med_mass = give_med_mass();
 				printf("Here we are, mass =%lf\n", med_mass );
-				prefact[l] = 1./(2*approx_mass_nucleus(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
+				prefact[l] = 1./(2*nucleus_mass(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
 			}
 			else{
 				prefact[l] = 1.0;
@@ -126,7 +126,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 			if (strncmp(model, "Light_Med", 10)==0){
 				double med_mass = give_med_mass();
 				printf("Here we are, mass =%lf\n", med_mass );
-				prefact[l] = 1./(2*approx_mass_nucleus(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
+				prefact[l] = 1./(2*nucleus_mass(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
 			}
 			else{
 				prefact[l] = 1.0;
@@ -142,7 +142,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 			if (strncmp(model, "Light_Med", 10)==0){
 				double med_mass = give_med_mass();
 				printf("Here we are, mass =%lf\n", med_mass );
-				prefact[l] = 1./(2*approx_mass_nucleus(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
+				prefact[l] = 1./(2*nucleus_mass(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
 			}
 			else{
 				prefact[l] = 1.0;
@@ -158,7 +158,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 			if (strncmp(model, "Light_Med", 10)==0){
 				double med_mass = give_med_mass();
 				printf("Here we are, mass =%lf\n", med_mass );
-				prefact[l] = 1./(2*approx_mass_nucleus(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
+				prefact[l] = 1./(2*nucleus_mass(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
 			}
 			else{
 				prefact[l] = 1.0;
@@ -166,6 +166,10 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 		}
 	}
 
+	/* Xe, Ge: the abundances are mole fractions, the rate of each isotope is per kg of that isotope:
+	weight the isotopes with their mass fractions (see isotope_mass_fractions). */
+	if (strncmp(target, "Xe", 10) == 0) isotope_mass_fractions(atomic_numbers_Xe, 54, isotopes_Xe, 7, isotopes);
+	if (strncmp(target, "Ge", 10) == 0) isotope_mass_fractions(atomic_numbers_Ge, 32, isotopes_Ge, 5, isotopes);
 	// Output file name
 	double counts[16];
 

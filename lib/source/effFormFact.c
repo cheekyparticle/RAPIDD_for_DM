@@ -64,7 +64,7 @@ Generic polynomial function used to parametrize each nuclear response in arXiv:1
 double f(double Er, int A, int Z, double a0, double a1, double a2, double a3, double a4,
          double a5, double a6, double a7, double a8, double a9, double a10)
 {
-    double mn = Z * mproton + (A-Z) * mneutron; // GeV
+    double mn = nucleus_mass(A, Z); // GeV
     double q2 = 2.*mn*Er*1.e-6;//GeV
     double b2 = B2[A-1];
 
@@ -89,7 +89,7 @@ Generic polynomial function used to parametrize each nuclear response in arXiv:1
 ########################################################################################*/
 double f_Men(double Er, int A, int Z, double a0, double a1, double a2, double a3, double a4,
 			 double a5){
-    double mn=Z*mproton+(A-Z)*mneutron;
+    double mn = nucleus_mass(A, Z);
     double q = sqrt(2.*mn*Er*1.e-6);//GeV
     double b =  1./(sqrt(938.919*1.0e-6*(45*pow(A,-1.0/3.0) - 25*pow(A,-2./3.))));
 	double qb2 = q*q*b*b;
@@ -1777,10 +1777,10 @@ The expressions for the prefactors have been extrapolated from eq. 37 and 38 of 
 
 double FormFact_v0(char* NR_framework, int A, int Z, int i, int j, char* N1, char* N2, double Er, double mchi, double jchi) {
     
-    double mnucleus = Z * mproton + (A - Z) * mneutron;
+    double mnucleus = nucleus_mass(A, Z);
 	double q2 = 2. * mnucleus * Er * 1.e-6;
 	double q4 = q2 * q2;
-    double mN = mproton;
+    double mN = mnucleon;
 	double mN2 = mN * mN;
 	double mN4 = mN2 * mN2;
     double Cj = jchi * (jchi + 1.) / 12.;
@@ -1847,8 +1847,8 @@ double FormFact_v0(char* NR_framework, int A, int Z, int i, int j, char* N1, cha
 
 double FormFact_v2(char* NR_framework, int A, int Z, int i, int j, char* N1, char* N2, double Er, double mchi, double jchi) {
 
-    double mnucleus = Z * mproton + (A - Z) * mneutron;
-    double mN = mproton;
+    double mnucleus = nucleus_mass(A, Z);
+    double mN = mnucleon;
 	double mN2 = mN * mN;
 	double mN4 = mN2 * mN2;
     double q2 = 2. * mnucleus * Er * 1.e-6;

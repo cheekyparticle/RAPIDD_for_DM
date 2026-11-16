@@ -22,8 +22,8 @@ RHO = 0.3
 _halo = rapidd.core._crapidd.halo
 _halo.argtypes = [ctypes.c_double, ctypes.c_int]
 _halo.restype = ctypes.c_double
-_mass_nucleus = rapidd.core._crapidd.approx_mass_nucleus
-_mass_nucleus.argtypes = [ctypes.c_double, ctypes.c_double]
+_mass_nucleus = rapidd.core._crapidd.nucleus_mass
+_mass_nucleus.argtypes = [ctypes.c_int, ctypes.c_int]
 _mass_nucleus.restype = ctypes.c_double
 
 
@@ -78,7 +78,7 @@ def test_lagrangian_13_inelastic(default_halo, mchi, delta, E):
     rapidd.reset_coefficients()
     rapidd.set_any_N_EFT_coeff(13, mchi, m_M, nucleon="p", delta=delta)
     c8 = rapidd.Cp_val(8)
-    assert rapidd.Cp_val(11, q_power=-2) == pytest.approx(1j * rapidd.core.mproton * delta * 1e-6 * c8)
+    assert rapidd.Cp_val(11, q_power=-2) == pytest.approx(1j * rapidd.core.mnucleon * delta * 1e-6 * c8)
     r13 = rate(mchi, E, delta=delta)
     set_op(1, c8, 0.)
     r1 = rate(mchi, E, delta=delta)
@@ -131,7 +131,7 @@ def test_lagrangian_19_inelastic_coefficients():
     mchi, m_M, delta = 100., 5., 25.
     rapidd.set_any_N_EFT_coeff(19, mchi, m_M, nucleon="n", delta=delta)
     c14, c4, c6 = rapidd.Cn_val(14), rapidd.Cn_val(4), rapidd.Cn_val(6, q_power=-2)
-    mN = rapidd.core.mneutron
+    mN = rapidd.core.mnucleon
     assert c4 == pytest.approx(1j * delta * 1e-6 / mN * c14)
     # O6 = (S_chi.q/m_N)(S_N.q/m_N): c6(q) q^2/m_N^2 = -c4 at every q
     assert c6 / mN**2 == pytest.approx(-c4)

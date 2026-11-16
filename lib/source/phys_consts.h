@@ -17,6 +17,12 @@ Physical constants
 
 const double static mproton = 0.93827208943; // proton mass in GeV (CODATA 2022)
 const double static mneutron = 0.93956542194; // neutron mass in GeV (CODATA 2022)
+/* Nucleon mass of the NREFT operators (q/m_N) and of the matching of the relativistic Lagrangians
+(Table 1 of arXiv:1308.6288): (m_p + m_n)/2. The same m_N is used for protons and neutrons: it is the
+scale that makes the operators dimensionless, so the m_N of a coefficient must be the one of its operator. */
+const double static mnucleon = 0.938918755685; // GeV
+const double static atomic_mass_unit_GeV = 0.93149410372; // u in GeV (CODATA 2022)
+const double static melectron = 0.51099895069e-3; // electron mass in GeV (CODATA 2022)
 const double static c = 2.99792458e+5; //Speed of light in km/s
 const double static G_F = 1.1663788e-5; //Fermi coupling constant in GeV^-2 (PDG 2024)
 const double static higgs_vev = 246.2196402393; //GeV, (sqrt(2) G_F)^(-1/2)
@@ -38,16 +44,20 @@ const double static m_to_cm = 100.; // m -> cm
 const double static day_to_sec = 86400.; // day -> s
 const double static alpha_em = 7.2973525643e-3; // fine-structure constant (CODATA 2022), q_ref = alpha_em m_e
 
+/* Isotopic abundances: mole (number) fractions, IUPAC "Isotopic compositions of the elements 2013"
+(Meija et al., Pure Appl. Chem. 88, 293 (2016), ciaaw.org). The rate per kg of target weights each isotope
+with its mass fraction, computed from these by isotope_mass_fractions.
+Xe: 124Xe (0.00095) and 126Xe (0.00089) are not included (no nuclear form factors). */
 const double static isotopes_Ar[1] = {1.0};
 const int static atomic_numbers_Ar[1] = {40};
 
 const double static isotopes_F[1] = {1.0};
 const int static atomic_numbers_F[1] = {19};
 
-const double static isotopes_Ge[5] = {0.2123, 0.2766, 0.0773, 0.3594, 0.0774};
+const double static isotopes_Ge[5] = {0.2052, 0.2745, 0.0776, 0.3652, 0.0775};
 const int static atomic_numbers_Ge[5] = {70,72,73,74,76};
 
-const double static isotopes_Xe[7] = {0.0192, 0.2644, 0.0408, 0.2118, 0.2689,0.1044,0.0887};
+const double static isotopes_Xe[7] = {0.01910, 0.26401, 0.04071, 0.21232, 0.26909, 0.10436, 0.08857};
 const int static atomic_numbers_Xe[7] = {128,129,130,131,132,134,136};
 
 const double static isotopes_CaWO4[2] = {0.616, 0.0};
@@ -59,7 +69,8 @@ const int static Z_numbers_CaWO4[2] = {8,20};
 #endif
 
 double reduced_mass(double mass_1, double mass_2);
-double approx_mass_nucleus(double A, double Z);
+double nucleus_mass(int A, int Z);
+void isotope_mass_fractions(const int *A, int Z, const double *abundance, int n, double *mass_fraction);
 
 double sigma_to_f_11(double sigma, double mchi, double mnucleon);
 double sigma_to_a_44(double sigma, double mchi, double mnucleon);

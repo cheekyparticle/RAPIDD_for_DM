@@ -30,6 +30,8 @@ amu = 0.93149410372 # [GeV] (CODATA 2022)
 vev = 1/np.sqrt(np.sqrt(2)*G_F) # Higgs vev [GeV], 246.2196
 mneutron = 0.93956542194 # [GeV] (CODATA 2022)
 mproton = 0.93827208943 # [GeV] (CODATA 2022)
+# nucleon mass of the NREFT operators (q/m_N) and of the matching of set_any_N_EFT_coeff: (m_p + m_n)/2
+mnucleon = 0.938918755685 # [GeV]
 
 ########################################################################################
 # Halo related functions
@@ -211,6 +213,15 @@ def halo_path_from_card(card, table_dir):
               v_pec=(card['vSun_r'], card['vSun_phi'], card['vSun_theta']))
     return path
 
+_nucleus_mass = _crapidd.nucleus_mass
+_nucleus_mass.argtypes = [ctypes.c_int, ctypes.c_int]
+_nucleus_mass.restype = ctypes.c_double
+
+def nucleus_mass(A, Z):
+    '''Mass [GeV] of the nucleus (A, Z) used by the rates: AME2020 atomic mass minus the Z electron
+    masses (A u for the isotopes that are not tabulated)'''
+    return _nucleus_mass(int(A), int(Z))
+
 ########################################################################################
 # Functions used to set coefficient
 ########################################################################################
@@ -378,7 +389,10 @@ def set_any_N_EFT_coeff(lagr_num, m_chi, m_M, nucleon, c=1.0, delta=0.0):
     if not isinstance(nucleon, str) or nucleon.lower() not in ('p', 'n'):
         raise ValueError(f"Invalid nucleon type: {nucleon}. Choose 'p' for proton or 'n' for neutron.")
     nucleon = nucleon.lower()
-    m_N = mproton if nucleon == 'p' else mneutron
+    # The same m_N as in the operators, for protons and neutrons: several factors of m_N of Table 1 only
+    # compensate the q/m_N of the operators (e.g. in the Lagrangian 12 the Phi'' response cancels between
+    # O12 and O15 only if c15 has the m_N of O15)
+    m_N = mnucleon
     delta_GeV = delta * 1e-6
 
     def set_c(coeff, op, q_power=0):

@@ -46,7 +46,7 @@ First we define the spin independent differential rate in the canonical way
 #####################################################################################*/
 
 double difrate_SI_standard(double rho, int A, int Z, double fp, double fn, double mchi, double Er){
-	double mN = approx_mass_nucleus(A, Z);
+	double mN = nucleus_mass(A, Z);
 	double muN = reduced_mass(mN, mchi);
 
 	double velmin = c*sqrt(1. / (2.*mN*Er*1e-6))*mN*Er*1e-6 / muN;
@@ -98,7 +98,7 @@ double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, in
 	*/
 	double conv_factor_v0 = 1.698603e+14;
 	double conv_factor_v2 = 1.889947e+3;
-	double mTarget = approx_mass_nucleus(A, Z);
+	double mTarget = nucleus_mass(A, Z);
 	double muN = reduced_mass(mchi, mTarget);
 	double Er_GeV = Er * 1.e-6;
 	double delta_GeV = delta * 1.e-6;
@@ -289,6 +289,10 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 
 		}
 	}
+	/* Xe, Ge: the abundances are mole fractions, the rate of each isotope is per kg of that isotope:
+	weight the isotopes with their mass fractions (see isotope_mass_fractions). */
+	if (strncmp(target, "Xe", 10) == 0) isotope_mass_fractions(atomic_numbers_Xe, 54, isotopes_Xe, 7, isotopes);
+	if (strncmp(target, "Ge", 10) == 0) isotope_mass_fractions(atomic_numbers_Ge, 32, isotopes_Ge, 5, isotopes);
 	double counts=0.0;
 	double energy = pow(10., logenergy);
 	val_difcros->Er = energy;
@@ -297,7 +301,7 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 		if (strncmp(model, "Light_Med", 10)==0)
 		{
 			double med_mass = give_med_mass();
-			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
+			double prefact = 1./(2*nucleus_mass(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		else if (strncmp(model, "ElecMom", 10)==0)
@@ -306,7 +310,7 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 			set_coeffs();
 			set_any_Ncoeff(C11p, 11, "p");
 			double med_mass = 0.0;
-			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
+			double prefact = 1./(2*nucleus_mass(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		else if (strncmp(model, "MagMom", 10)==0){
@@ -328,7 +332,7 @@ double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* 
 			set_any_Ncoeff(C6p, 6, "p");
 			set_any_Ncoeff(C6n, 6, "n");
 			double med_mass = 0.0;
-			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
+			double prefact = 1./(2*nucleus_mass(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		else {
@@ -406,6 +410,10 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 
 		}
 	}
+	/* Xe, Ge: the abundances are mole fractions, the rate of each isotope is per kg of that isotope:
+	weight the isotopes with their mass fractions (see isotope_mass_fractions). */
+	if (strncmp(target, "Xe", 10) == 0) isotope_mass_fractions(atomic_numbers_Xe, 54, isotopes_Xe, 7, isotopes);
+	if (strncmp(target, "Ge", 10) == 0) isotope_mass_fractions(atomic_numbers_Ge, 32, isotopes_Ge, 5, isotopes);
 	double counts=0.0;
 	//double energy = pow(10., logenergy);
 	val_difcros->Er = energy;
@@ -414,7 +422,7 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 		if (strncmp(model, "Light_Med", 10)==0)
 		{
 			double med_mass = give_med_mass();
-			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
+			double prefact = 1./(2*nucleus_mass(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		else if (strncmp(model, "ElecMom", 10)==0)
@@ -423,7 +431,7 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 			set_coeffs();
 			set_any_Ncoeff(C11p, 11, "p");
 			double med_mass = 0.0;
-			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
+			double prefact = 1./(2*nucleus_mass(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		else if (strncmp(model, "MagMom", 10)==0){
@@ -445,7 +453,7 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 			set_any_Ncoeff(C6p, 6, "p");
 			set_any_Ncoeff(C6n, 6, "n");
 			double med_mass = 0.0;
-			double prefact = 1./(2*approx_mass_nucleus(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
+			double prefact = 1./(2*nucleus_mass(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
 			counts +=  prefact*prefact*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		else {
