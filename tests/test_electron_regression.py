@@ -38,6 +38,7 @@ from test_electron_rate import simpson_lnq
 
 REF_DIR = os.path.join(DATA_DIR, "regression_direct_electron_port")
 RTOL = 1e-12
+RTOL_TXT = 1e-6  # text tables written with 7 significant digits
 M_E = 0.000510998950
 RHO = 0.3
 COEFFS = (("c1", 1.0e-3, 0.0), ("c4", 0.0, 1.0e-3), ("c1c4", 1.0e-3, 2.0e-3))
@@ -46,6 +47,7 @@ CARD = {'rhoDM': RHO, 'vmp': 238., 'vescape': 544., 'vSun_r': 11.1, 'vSun_phi': 
 ALPHAS = {"alpha_e": (1.0e-4, 2.0e-4, 1.5e-4, 0.5e-4)}
 DD_CASES = ((2, 0.1, False), (2, 1.0, False), (1, 0.05, False), (2, 0.1, True))
 DAY_BINS = 4  # time bins of the modulation case (as in generate_reference.py)
+TARGETS = ("Xe", "Ar")  # as in generate_reference.py
 X1T_DIR = os.path.join(rapidd.core.experiments_dir, "Xenon1T_S2only")
 XE_N_SECONDARY = {"4d": 4, "4p": 6, "4s": 3}  # secondary quanta of XENON10 (Table II of arXiv:1703.00910)
 # binding energies [eV] (as in lib/source/atomic_resp.c) and de-excitation photons: the hole of 4d, 4p,
@@ -234,8 +236,8 @@ def test_DDrate_electron_save(tmp_path, dm_spin, m, modulation):
     ref = os.path.join(REF_DIR, name)
     out = tmp_path / name
     out.mkdir()
-    res = DDrate_electron_save(CARD, ALPHAS, dm_spin, M_E, m, str(out), halo_path=rapidd.halo_path,
-                               modulation=modulation, day_bins=DAY_BINS)
+    res = DDrate_electron_save(CARD, ALPHAS, dm_spin, M_E, m, str(out), targets=TARGETS, halo_path=rapidd.halo_path,
+                               modulation=modulation, day_bins=DAY_BINS, save_npz=True)
     shutil.rmtree(out / "halo_table_modulation", ignore_errors=True)
     with open(out / "result.txt", "w") as f:
         for key in sorted(res):
@@ -256,6 +258,8 @@ def test_DDrate_electron_save(tmp_path, dm_spin, m, modulation):
                 else:
                     np.testing.assert_allclose(a[key], b[key], rtol=RTOL, atol=0, err_msg=key)
         else:
+            # signal_e_recoil.dat keeps the full precision
+            rtol = RTOL if fname == "signal_e_recoil.dat" else RTOL_TXT
             np.testing.assert_allclose(_numbers(out / fname), _numbers(os.path.join(ref, fname)),
-                                       rtol=RTOL, atol=0, err_msg=fname)
+                                       rtol=rtol, atol=0, err_msg=fname)
     rapidd.read_halo(rapidd.halo_path)

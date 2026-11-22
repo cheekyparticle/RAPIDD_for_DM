@@ -1,20 +1,45 @@
-from .core import halo_path, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo, difrate_dER, vev
+import os
+
+from .core import (halo_path, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo, difrate_dER, vev,
+                   ELECTRON_TARGETS)
 import numpy as np
 
+# DM-nucleus targets and nuclear form factors of the MadDM rates
 NUCLEAR_TARGETS = (("Xe", "iso_GCN5082"), ("Ar", "pn_Fitz"), ("Ge", "pn_Fitz"))
+NUCLEAR_TARGET_NAMES = tuple(t for t, _ in NUCLEAR_TARGETS)
+# format of the text tables (7 significant digits)
+TXT_FMT = '%.6e'
 
 
-def _nuclear_rates(rhoDM, dmmass, energies):
-    '''dR/dE [events/kg/day/keV] of Xe, Ar, Ge with the halo table currently loaded'''
-    return {target: difrate_dER(rhoDM, dmmass, energies, target=target, basis=basis)
-            for target, basis in NUCLEAR_TARGETS}
+def select_targets(targets, allowed, kind="target"):
+    '''Targets of the rate files: a name or a list of names among allowed (case insensitive,
+    e.g. "xe" -> "Xe"), without repetitions and in the order of allowed.'''
+    if isinstance(targets, str):
+        targets = [targets]
+    canonical = {t.lower(): t for t in allowed}
+    chosen = set()
+    for t in targets:
+        if str(t).lower() not in canonical:
+            raise ValueError("Unknown %s %s: choose from %s" % (kind, t, ", ".join(allowed)))
+        chosen.add(canonical[str(t).lower()])
+    if not chosen:
+        raise ValueError("No %s selected: choose from %s" % (kind, ", ".join(allowed)))
+    return tuple(t for t in allowed if t in chosen)
 
 
-def DDrate_save(card, alphaq, dmmass, output_path, halo_path=halo_path,
+def _nuclear_rates(rhoDM, dmmass, energies, targets=NUCLEAR_TARGET_NAMES):
+    '''dR/dE [events/kg/day/keV] of the targets (Xe, Ar, Ge) with the halo table currently loaded'''
+    basis = dict(NUCLEAR_TARGETS)
+    return {target: difrate_dER(rhoDM, dmmass, energies, target=target, basis=basis[target])
+            for target in targets}
+
+
+def DDrate_save(card, alphaq, dmmass, output_path, targets=NUCLEAR_TARGET_NAMES, halo_path=halo_path,
                 modulation=False, modulation_halo_dir=None, day_bins=12, verbose=False,
-                save_rates_per_bin=True):
-    '''Compute and save the DM-nucleus scattering spectra in Xenon, Argon and Germanium
-    (DDrates.npz, DDrates.txt) for the MadDM couplings c1, c4.
+                save_rates_per_bin=True, save_npz=False):
+    '''Compute and save the DM-nucleus scattering spectra in Xenon, Argon and/or Germanium
+    (dRdE_nucleon.dat: E_R [keV] and one column dR/dE [events/kg/day/keV] per target) for the
+    MadDM couplings c1, c4.
 
     Parameters
     ----------
@@ -22,6 +47,7 @@ def DDrate_save(card, alphaq, dmmass, output_path, halo_path=halo_path,
     alphaq : MadDM quark alphas
     dmmass : DM mass [GeV]
     output_path : directory where the files are written
+    targets : targets among "Xe", "Ar", "Ge" (case insensitive; columns in this order)
     halo_path : annual-average halo table (Earth velocity vector of March 9, Eq. 12 of arXiv:2105.00599)
     modulation : if True, also compute the annual modulation (see rapidd.modulation): the year is
         divided in day_bins bins of width dt = 365.24/day_bins days and the halo and the spectrum are
@@ -30,13 +56,16 @@ def DDrate_save(card, alphaq, dmmass, output_path, halo_path=halo_path,
         generated (or reused, if already there for the same parameters) in output_path/halo_table_modulation
     day_bins : number of time bins
     verbose : print the progress of the computation of the modulation tables
-    save_rates_per_bin : save the spectrum dR/dE of each time bin (npz key drde_<target>_bin)
+    save_rates_per_bin : save the spectrum dR/dE of each time bin (npz key drde_<target>_bin, only
+        with save_npz)
+    save_npz : also save all the arrays in dRdE_nucleon.npz (energies, drde_<target>)
 
-    With modulation it also writes rate_vs_time.dat, dRdE_modulation.dat and, in DDrates.npz,
-    t_bin, dt_bin, rate_<target>_bin [events/kg/dt], drde_<target>_year [events/kg/yr/keV],
-    drde_<target>_avg [events/kg/day/keV] (and drde_<target>_bin), target = Xe, Ar, Ge.
+    With modulation it also writes rate_vs_time_nucleon.dat, dRdE_modulation_nucleon.dat and, in
+    dRdE_nucleon.npz, t_bin, dt_bin, rate_<target>_bin [events/kg/dt], drde_<target>_year
+    [events/kg/yr/keV], drde_<target>_avg [events/kg/day/keV] (and drde_<target>_bin).
     '''
     from .alpha_map import c1_dirac_mdm, c4_dirac_mdm
+    names = select_targets(targets, NUCLEAR_TARGET_NAMES, "DM-nucleus target")
     reset_coefficients()
 
     rhoDM = card['rhoDM']
@@ -50,10 +79,9 @@ def DDrate_save(card, alphaq, dmmass, output_path, halo_path=halo_path,
     set_any_Ncoeff(c4n*vev**2, 4, "n")
 
     energies = np.linspace(0.01, 40, 1000)
-    names = [t for t, _ in NUCLEAR_TARGETS]
 
     def spectrum_fn():
-        return _nuclear_rates(rhoDM, dmmass, energies)
+        return _nuclear_rates(rhoDM, dmmass, energies, names)
 
     drde = spectrum_fn()
     npz = dict(energies=energies, **{"drde_" + t: drde[t] for t in names})
@@ -61,14 +89,16 @@ def DDrate_save(card, alphaq, dmmass, output_path, halo_path=halo_path,
     if modulation:
         from .modulation import run_modulation, trapezoid_weights
         npz.update(run_modulation(spectrum_fn, card, output_path, energies, trapezoid_weights(energies),
-                                  names, "", modulation_halo_dir=modulation_halo_dir, day_bins=day_bins,
+                                  names, "_nucleon", modulation_halo_dir=modulation_halo_dir, day_bins=day_bins,
                                   verbose=verbose, save_rates_per_bin=save_rates_per_bin,
                                   restore_halo=halo_path))
 
-    np.savez(output_path+"/DDrates.npz", **npz)
+    if save_npz:
+        np.savez(os.path.join(output_path, "dRdE_nucleon.npz"), **npz)
 
-    np.savetxt(output_path+"/DDrates.txt", np.column_stack([energies] + [drde[t] for t in names]),
-           header="Er [keV] drde_Xe [events/kg/day/keV] drde_Ar [events/kg/day/keV] drde_Ge [events/kg/day/keV]")
+    np.savetxt(os.path.join(output_path, "dRdE_nucleon.dat"),
+               np.column_stack([energies] + [drde[t] for t in names]), fmt=TXT_FMT,
+               header="E_R [keV] " + " ".join("drde_%s [events/kg/day/keV]" % t for t in names))
 
     return
 
@@ -105,16 +135,30 @@ def _f77(*items):
     return out + '\n'
 
 
-def _electron_rates(rhoDM, dmmass, jchi, m_e):
+def _electron_rates(rhoDM, dmmass, jchi, m_e, target="Xe"):
     from .core import difrate_electron_dEr_all
-    return difrate_electron_dEr_all(rhoDM, dmmass, jchi, m_e)
+    return difrate_electron_dEr_all(rhoDM, dmmass, jchi, m_e, target=target)
 
 
-def DDrate_electron_save(card, alphas, dm_spin, m_e, dmmass, output_path, halo_path=halo_path,
+def electron_cross_section(alphas, dm_spin, m_e, dmmass):
+    '''Set the MadDM DM-electron coefficients c1, c4 in RAPIDD and return a dict with the DM response
+    DM_response and the reference DM-electron cross section sigma_e [cm^2], without computing any rate
+    (DM_response = -1 and no sigma_e if the DM spin is not implemented).'''
+    from .core import dm_response_electron
+    from .alpha_map import set_alphas_electron_rpd, jchi_from_dm_spin
+
+    reset_coefficients()
+    if not set_alphas_electron_rpd(alphas, dmmass, m_e, dm_spin):
+        return {'DM_response': -1}
+    dm_resp = dm_response_electron(dmmass, jchi_from_dm_spin(dm_spin))
+    return {'DM_response': dm_resp, 'sigma_e': dm_resp/(16.*np.pi*(dmmass + m_e)**2)}
+
+
+def DDrate_electron_save(card, alphas, dm_spin, m_e, dmmass, output_path, targets=("Xe",), halo_path=halo_path,
                          modulation=False, modulation_halo_dir=None, day_bins=12, verbose=False,
-                         save_rates_per_bin=True):
-    '''Compute and save the DM-electron scattering rates in Xenon and the XENON10 / XENON1T
-    S2 signals (port of the legacy MadDM electron_recoil_signal.f).
+                         save_rates_per_bin=True, save_npz=False):
+    '''Compute and save the DM-electron scattering rates in Xenon and/or Argon and, for Xenon, the
+    XENON10 / XENON1T S2 signals (port of the legacy MadDM electron_recoil_signal.f).
 
     Parameters
     ----------
@@ -124,90 +168,96 @@ def DDrate_electron_save(card, alphas, dm_spin, m_e, dmmass, output_path, halo_p
     m_e : electron mass [GeV]
     dmmass : DM mass [GeV]
     output_path : directory where the files are written
+    targets : targets among "Xe", "Ar" (case insensitive; columns in this order)
     halo_path : annual-average halo table (Earth velocity vector of March 9, Eq. 12 of arXiv:2105.00599)
     modulation, modulation_halo_dir, day_bins, verbose, save_rates_per_bin : annual modulation,
-        as in DDrate_save. With modulation it also writes rate_vs_time_e_recoil.dat,
-        dRdE_modulation_e_recoil.dat and, in DDrates_e.npz, t_bin, dt_bin, rate_tot_bin [events/kg/dt],
-        drde_tot_year [events/kg/yr/keV], drde_tot_avg [events/kg/day/keV] (and drde_tot_bin),
-        for the spectrum summed over the shells.
+        as in DDrate_save. With modulation it also writes rate_vs_time_electron.dat and
+        dRdE_modulation_electron.dat (and, in dRdE_electron.npz, t_bin, dt_bin, rate_<target>_bin
+        [events/kg/dt], drde_<target>_year [events/kg/yr/keV], drde_<target>_avg [events/kg/day/keV]
+        and drde_<target>_bin), for the spectra summed over the shells.
+    save_npz : also save all the arrays in dRdE_electron.npz
 
-    Returns a dict with DM_response, sigma_e, Xenon10_bins, Xenon10_signal, Xenon10_obs,
-    Xenon1T_signal, Xenon1T_bkg, Xenon1T_obs (DM_response = -1 if the DM spin is not implemented).
+    Files: dRdE_electron.dat (k [keV], E [keV], dR/dE [events/kg/day/keV] summed over the shells for
+    each target, then per shell for each target); if Xenon is a target, dRdS2_electron_XENON10.dat
+    (S2, dN/dS2 [events] and its shell contributions), dRdS2_electron_XENON1T.dat (S2, dN/dS2 [events])
+    and signal_e_recoil.dat (signal per XENON10 S2 bin).
+
+    Returns a dict with DM_response, sigma_e and, if Xenon is a target, Xenon10_bins, Xenon10_signal,
+    Xenon10_obs, Xenon1T_signal, Xenon1T_bkg, Xenon1T_obs (DM_response = -1 if the DM spin is not
+    implemented).
     '''
-    import os
-    from .core import (read_atomic_responses, dm_response_electron, difrate_dS2, xenon10_bins,
-                       XE_SHELLS)
-    from .alpha_map import set_alphas_electron_rpd, jchi_from_dm_spin
+    from .core import read_atomic_responses, difrate_dS2, xenon10_bins, ELECTRON_TARGET_SHELLS, XE_SHELLS
+    from .alpha_map import jchi_from_dm_spin
 
-    result = {'DM_response': -1}
-    jchi = jchi_from_dm_spin(dm_spin)
-    reset_coefficients()
-    if not set_alphas_electron_rpd(alphas, dmmass, m_e, dm_spin):
+    names = select_targets(targets, ELECTRON_TARGETS, "DM-electron target")
+    # sets the DM-electron coefficients
+    result = electron_cross_section(alphas, dm_spin, m_e, dmmass)
+    if result['DM_response'] == -1:
         return result
+    jchi = jchi_from_dm_spin(dm_spin)
 
     rhoDM = card['rhoDM']
     read_halo(halo_path)
-    read_atomic_responses()
+    for t in names:
+        read_atomic_responses(target=t)
 
-    dm_resp = dm_response_electron(dmmass, jchi)
-    result['DM_response'] = dm_resp
-    result['sigma_e'] = dm_resp/(16.*np.pi*(dmmass + m_e)**2)
+    rate_shell = {}
+    for t in names:
+        k, E, rate_shell[t] = _electron_rates(rhoDM, dmmass, jchi, m_e, t)
+    k_keV, E_keV = k[:-1]*1e6, E[:-1]*1e6
+    drde = {t: rate_shell[t].sum(axis=0)/1e6 for t in names}
 
-    k, E, rate_shell = _electron_rates(rhoDM, dmmass, jchi, m_e)
-    rate_tot = rate_shell.sum(axis=0)
+    npz = dict(k_keV=k_keV, E_keV=E_keV)
+    for t in names:
+        npz['drde_' + t] = drde[t]
+        npz['drde_%s_shell' % t] = rate_shell[t]/1e6
+        npz['shells_' + t] = np.array(ELECTRON_TARGET_SHELLS[t])
 
-    x10 = difrate_dS2("Xenon10", E, rate_shell, dmmass)
-    x1t = difrate_dS2("Xenon1T", E, rate_shell, dmmass)
-    bins = xenon10_bins()
+    np.savetxt(os.path.join(output_path, 'dRdE_electron.dat'),
+               np.column_stack([k_keV, E_keV] + [drde[t] for t in names] +
+                               [(rate_shell[t]/1e6).T for t in names]), fmt=TXT_FMT,
+               header="k [keV] E [keV] " + " ".join("drde_%s [events/kg/day/keV]" % t for t in names) + " " +
+                      " ".join("drde_%s_%s" % (t, s) for t in names for s in ELECTRON_TARGET_SHELLS[t]))
 
-    result['Xenon10_bins'] = [int(b) for b in bins]
-    result['Xenon10_signal'] = list(x10['signal'])
-    result['Xenon10_obs'] = [int(n) for n in x10['n_obs']]
-    result['Xenon1T_signal'] = x1t['signal']
-    result['Xenon1T_bkg'] = x1t['n_bkg']
-    result['Xenon1T_obs'] = x1t['n_obs']
+    if "Xe" in names:
+        x10 = difrate_dS2("Xenon10", E, rate_shell["Xe"], dmmass)
+        x1t = difrate_dS2("Xenon1T", E, rate_shell["Xe"], dmmass)
+        bins = xenon10_bins()
 
-    with open(os.path.join(output_path, 'signal_e_recoil.dat'), 'w') as f:
-        f.write(_f77('Xenon10_bins', *[int(b) for b in bins]))
-        f.write(_f77('Xenon10_signal', *x10['signal']))
+        result['Xenon10_bins'] = [int(b) for b in bins]
+        result['Xenon10_signal'] = list(x10['signal'])
+        result['Xenon10_obs'] = [int(n) for n in x10['n_obs']]
+        result['Xenon1T_signal'] = x1t['signal']
+        result['Xenon1T_bkg'] = x1t['n_bkg']
+        result['Xenon1T_obs'] = x1t['n_obs']
 
-    with open(os.path.join(output_path, 'dRdE_e_recoil.dat'), 'w') as f:
-        f.write(_f77('##    Momentum (keV)        Energy(keV)               dR/dE[events/kg/day/keV]'))
-        for ik in range(len(rate_tot)):
-            f.write(_f77(k[ik]*1e6, E[ik]*1e6, rate_tot[ik]/1e6))
+        with open(os.path.join(output_path, 'signal_e_recoil.dat'), 'w') as f:
+            f.write(_f77('Xenon10_bins', *[int(b) for b in bins]))
+            f.write(_f77('Xenon10_signal', *x10['signal']))
 
-    with open(os.path.join(output_path, 'dRdS2_Xenon10_e_recoil.dat'), 'w') as f:
-        f.write(_f77('##       S2   dN/dS2[events]'))
-        for S2, val in zip(x10['S2'], x10['dRdS2']):
-            f.write(_f77(int(S2), val))
+        np.savetxt(os.path.join(output_path, 'dRdS2_electron_XENON10.dat'),
+                   np.column_stack([x10['S2'], x10['dRdS2'], x10['dRdS2_shell'].T]),
+                   fmt=['%d'] + [TXT_FMT]*(1 + len(XE_SHELLS)),
+                   header="S2 dN/dS2 [events] " + " ".join("dN/dS2_%s" % s for s in XE_SHELLS))
+        np.savetxt(os.path.join(output_path, 'dRdS2_electron_XENON1T.dat'),
+                   np.column_stack([x1t['S2'], x1t['dRdS2']]), fmt=TXT_FMT, header="S2 dN/dS2 [events]")
 
-    with open(os.path.join(output_path, 'dRdS2_Xenon1T_e_recoil.dat'), 'w') as f:
-        f.write(_f77('##                S2        dN/dS2[events]'))
-        for S2, val in zip(x1t['S2'], x1t['dRdS2']):
-            f.write(_f77(S2, val))
-
-    npz = dict(k_keV=k[:-1]*1e6, E_keV=E[:-1]*1e6, drde_tot=rate_tot/1e6,
-               drde_shell=rate_shell/1e6, shells=np.array(XE_SHELLS),
-               S2_Xenon10=x10['S2'], dRdS2_Xenon10=x10['dRdS2'], dRdS2_shell_Xenon10=x10['dRdS2_shell'],
-               S2_Xenon1T=x1t['S2'], dRdS2_Xenon1T=x1t['dRdS2'])
+        npz.update(S2_XENON10=x10['S2'], dRdS2_XENON10=x10['dRdS2'], dRdS2_shell_XENON10=x10['dRdS2_shell'],
+                   S2_XENON1T=x1t['S2'], dRdS2_XENON1T=x1t['dRdS2'])
 
     if modulation:
         from .modulation import run_modulation
-        E_keV = E[:-1]*1e6
 
         def spectrum_fn():
-            return {'tot': _electron_rates(rhoDM, dmmass, jchi, m_e)[2].sum(axis=0)/1e6}
+            return {t: _electron_rates(rhoDM, dmmass, jchi, m_e, t)[2].sum(axis=0)/1e6 for t in names}
 
         # same energy integral as the legacy rate: sum_k dR/dE(E_k) (E_{k+1} - E_k)
-        npz.update(run_modulation(spectrum_fn, card, output_path, E_keV, np.diff(E)*1e6, ['tot'],
-                                  "_e_recoil", modulation_halo_dir=modulation_halo_dir, day_bins=day_bins,
+        npz.update(run_modulation(spectrum_fn, card, output_path, E_keV, np.diff(E)*1e6, names,
+                                  "_electron", modulation_halo_dir=modulation_halo_dir, day_bins=day_bins,
                                   verbose=verbose, save_rates_per_bin=save_rates_per_bin,
                                   restore_halo=halo_path))
 
-    np.savez(os.path.join(output_path, 'DDrates_e.npz'), **npz)
-    np.savetxt(os.path.join(output_path, 'DDrates_e.txt'),
-               np.column_stack((k[:-1]*1e6, E[:-1]*1e6, rate_tot/1e6, (rate_shell/1e6).T)),
-               header="k [keV] E [keV] drde_tot [events/kg/day/keV] " +
-                      " ".join("drde_%s" % s for s in XE_SHELLS))
+    if save_npz:
+        np.savez(os.path.join(output_path, 'dRdE_electron.npz'), **npz)
 
     return result

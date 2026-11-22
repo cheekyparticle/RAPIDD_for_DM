@@ -25,6 +25,7 @@ CARD = {'rhoDM': 0.3, 'vmp': 238., 'vescape': 544., 'vSun_r': 11.1, 'vSun_phi': 
 ALPHAQ = {'alpha_u': (1.0e-6, 0.5e-6, 1.0e-6, 0.), 'alpha_d': (1.0e-6, 0., 2.0e-6, 0.)}
 DD_CASES = ((100., False), (100., True), (10., True))  # (mDM, modulation)
 DAY_BINS = 4  # time bins of the modulation cases
+TARGETS = ("Xe", "Ar", "Ge")
 
 
 def case_name(m, modulation):
@@ -36,7 +37,8 @@ def main():
         out = os.path.join(HERE, case_name(m, modulation))
         shutil.rmtree(out, ignore_errors=True)
         os.makedirs(out)
-        DDrate_save(CARD, ALPHAQ, m, out, halo_path=rapidd.halo_path, modulation=modulation, day_bins=DAY_BINS)
+        DDrate_save(CARD, ALPHAQ, m, out, targets=TARGETS, halo_path=rapidd.halo_path, modulation=modulation,
+                    day_bins=DAY_BINS, save_npz=True)
         shutil.rmtree(os.path.join(out, "halo_table_modulation"), ignore_errors=True)
 
 

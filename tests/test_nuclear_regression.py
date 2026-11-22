@@ -15,10 +15,11 @@ from conftest import DATA_DIR
 
 REF_DIR = os.path.join(DATA_DIR, "regression_nuclear_modulation")
 sys.path.insert(0, REF_DIR)
-from generate_reference import CARD, ALPHAQ, DD_CASES, DAY_BINS, case_name  # noqa: E402
+from generate_reference import CARD, ALPHAQ, DD_CASES, DAY_BINS, TARGETS, case_name  # noqa: E402
 sys.path.pop(0)
 
 RTOL = 1e-12
+RTOL_TXT = 1e-6  # text tables: 7 significant digits
 
 
 @pytest.mark.parametrize("m,modulation", DD_CASES)
@@ -27,7 +28,8 @@ def test_DDrate_save(tmp_path, m, modulation):
     ref = os.path.join(REF_DIR, name)
     out = tmp_path / name
     out.mkdir()
-    DDrate_save(CARD, ALPHAQ, m, str(out), halo_path=rapidd.halo_path, modulation=modulation, day_bins=DAY_BINS)
+    DDrate_save(CARD, ALPHAQ, m, str(out), targets=TARGETS, halo_path=rapidd.halo_path, modulation=modulation,
+                day_bins=DAY_BINS, save_npz=True)
     shutil.rmtree(out / "halo_table_modulation", ignore_errors=True)
     files = sorted(os.listdir(ref))
     assert sorted(os.listdir(out)) == files
@@ -39,5 +41,5 @@ def test_DDrate_save(tmp_path, m, modulation):
                 np.testing.assert_allclose(a[key], b[key], rtol=RTOL, atol=0, err_msg=key)
         else:
             np.testing.assert_allclose(np.loadtxt(out / fname), np.loadtxt(os.path.join(ref, fname)),
-                                       rtol=RTOL, atol=0, err_msg=fname)
+                                       rtol=RTOL_TXT, atol=0, err_msg=fname)
     rapidd.read_halo(rapidd.halo_path)

@@ -33,6 +33,7 @@ CARD = {'rhoDM': RHO, 'vmp': 238., 'vescape': 544., 'vSun_r': 11.1, 'vSun_phi': 
 ALPHAS = {"alpha_e": (1.0e-4, 2.0e-4, 1.5e-4, 0.5e-4)}
 DD_CASES = ((2, 0.1, False), (2, 1.0, False), (1, 0.05, False), (2, 0.1, True))  # (MadDM dm_spin, mDM, modulation)
 DAY_BINS = 4  # time bins of the modulation case
+TARGETS = ("Xe", "Ar")  # targets of the DDrate_electron_save cases
 
 
 def case_key(label, m, jchi):
@@ -78,8 +79,8 @@ def write_ddrate_cases(modulation_only=False):
         out = os.path.join(HERE, "ddrate_spin%i_m%g%s" % (dm_spin, m, "_mod" if modulation else ""))
         shutil.rmtree(out, ignore_errors=True)
         os.makedirs(out)
-        res = DDrate_electron_save(CARD, ALPHAS, dm_spin, M_E, m, out, halo_path=rapidd.halo_path,
-                                   modulation=modulation, day_bins=DAY_BINS)
+        res = DDrate_electron_save(CARD, ALPHAS, dm_spin, M_E, m, out, targets=TARGETS, halo_path=rapidd.halo_path,
+                                   modulation=modulation, day_bins=DAY_BINS, save_npz=True)
         shutil.rmtree(os.path.join(out, "halo_table_modulation"), ignore_errors=True)
         with open(os.path.join(out, "result.txt"), "w") as f:
             for key in sorted(res):

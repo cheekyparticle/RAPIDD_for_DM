@@ -20,7 +20,8 @@ sys.path.pop(0)
 
 M_E = 0.000510998950
 ALPHAS_E = {"alpha_e": (1.0e-4, 2.0e-4, 1.5e-4, 0.5e-4)}
-MODULATION_KWARGS = ("halo_path", "modulation", "modulation_halo_dir", "day_bins", "verbose", "save_rates_per_bin")
+MODULATION_KWARGS = ("halo_path", "modulation", "modulation_halo_dir", "day_bins", "verbose", "save_rates_per_bin",
+                     "save_npz")
 
 
 def test_modulation_times():
@@ -57,6 +58,7 @@ def test_same_interface():
     assert dict(tail(DDrate_save))["day_bins"] == 12
     assert dict(tail(DDrate_save))["verbose"] is False
     assert dict(tail(DDrate_save))["save_rates_per_bin"] is True
+    assert dict(tail(DDrate_save))["save_npz"] is False
 
 
 def _count_calc_halo(monkeypatch):
@@ -136,8 +138,8 @@ def test_nuclear_modulation_physics(tmp_path):
     maximum at the beginning of June with an amplitude of ~1%; the rate integrated from 0.01 keV
     is dominated by low energies (small vmin) and has the opposite phase'''
     day_bins = 12
-    DDrate_save(CARD, ALPHAQ, 100., str(tmp_path), modulation=True, day_bins=day_bins)
-    npz = np.load(tmp_path / "DDrates.npz")
+    DDrate_save(CARD, ALPHAQ, 100., str(tmp_path), modulation=True, day_bins=day_bins, save_npz=True)
+    npz = np.load(tmp_path / "dRdE_nucleon.npz")
     E = npz['energies']
     _check_common_outputs(npz, ("Xe", "Ar", "Ge"), day_bins, E, trapezoid_weights(E), None)
     t, dt = modulation_times(day_bins)
@@ -153,35 +155,37 @@ def test_nuclear_modulation_physics(tmp_path):
     amp, phase = fit(npz['rate_Xe_bin'])
     assert 70. + 365.24 / 2 < phase < 76. + 365.24 / 2 and amp < 0.05
     # files
-    rt = np.loadtxt(tmp_path / "rate_vs_time.dat")
+    rt = np.loadtxt(tmp_path / "rate_vs_time_nucleon.dat")
     np.testing.assert_allclose(rt[:, 0], t, rtol=1e-10)
     np.testing.assert_allclose(rt[:, 2:], np.c_[npz['rate_Xe_bin'], npz['rate_Ar_bin'], npz['rate_Ge_bin']],
                                rtol=1e-10)
-    sp = np.loadtxt(tmp_path / "dRdE_modulation.dat")
+    sp = np.loadtxt(tmp_path / "dRdE_modulation_nucleon.dat")
     np.testing.assert_allclose(sp[:, 1], npz['drde_Xe_avg'], rtol=1e-10)
 
 
 def test_electron_modulation(tmp_path):
     day_bins = 6
-    DDrate_electron_save(CARD, ALPHAS_E, 2, M_E, 0.1, str(tmp_path), modulation=True, day_bins=day_bins)
-    npz = np.load(tmp_path / "DDrates_e.npz")
+    DDrate_electron_save(CARD, ALPHAS_E, 2, M_E, 0.1, str(tmp_path), targets=("Xe", "Ar"), modulation=True,
+                         day_bins=day_bins, save_npz=True)
+    npz = np.load(tmp_path / "dRdE_electron.npz")
     E = npz['E_keV']
     k, Eg, _ = rapidd.difrate_electron_dEr_all(0.3, 0.1, 0.5, M_E)
-    _check_common_outputs(npz, ("tot",), day_bins, E, np.diff(Eg) * 1e6, None)
-    rt = np.loadtxt(tmp_path / "rate_vs_time_e_recoil.dat")
-    np.testing.assert_allclose(rt[:, 2], npz['rate_tot_bin'], rtol=1e-10)
-    assert os.path.isfile(tmp_path / "dRdE_modulation_e_recoil.dat")
+    _check_common_outputs(npz, ("Xe", "Ar"), day_bins, E, np.diff(Eg) * 1e6, None)
+    rt = np.loadtxt(tmp_path / "rate_vs_time_electron.dat")
+    np.testing.assert_allclose(rt[:, 2:], np.c_[npz['rate_Xe_bin'], npz['rate_Ar_bin']], rtol=1e-10)
+    assert os.path.isfile(tmp_path / "dRdE_modulation_electron.dat")
 
 
 @pytest.mark.parametrize("target", ("nucleus", "electron"))
 def test_save_rates_per_bin_false(tmp_path, target):
     if target == "nucleus":
-        DDrate_save(CARD, ALPHAQ, 100., str(tmp_path), modulation=True, day_bins=2, save_rates_per_bin=False)
-        npz, names = np.load(tmp_path / "DDrates.npz"), ("Xe", "Ar", "Ge")
+        DDrate_save(CARD, ALPHAQ, 100., str(tmp_path), modulation=True, day_bins=2, save_rates_per_bin=False,
+                    save_npz=True)
+        npz, names = np.load(tmp_path / "dRdE_nucleon.npz"), ("Xe", "Ar", "Ge")
     else:
         DDrate_electron_save(CARD, ALPHAS_E, 2, M_E, 0.1, str(tmp_path), modulation=True, day_bins=2,
-                             save_rates_per_bin=False)
-        npz, names = np.load(tmp_path / "DDrates_e.npz"), ("tot",)
+                             save_rates_per_bin=False, save_npz=True)
+        npz, names = np.load(tmp_path / "dRdE_electron.npz"), ("Xe",)
     for n in names:
         assert 'drde_%s_bin' % n not in npz.files
         for key in ('rate_%s_bin', 'drde_%s_year', 'drde_%s_avg'):
