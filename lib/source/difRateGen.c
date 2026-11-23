@@ -220,18 +220,20 @@ int nuclear_model_supports_target(char* NR_framework, char* target){
 	- target: "Xe", "Ge", "Ar", "F" or "CaWO4"
 	Output: 1 if all the isotopes are available, 0 otherwise (also for an unknown target).*/
 	const int *A_list;
+	const int *Z_list = NULL;   /* NULL: all the isotopes have Z = Z_target */
 	const double *abundance;
-	int num_isos;
-	if (strncmp(target, "Xe", 10) == 0) { A_list = atomic_numbers_Xe; abundance = isotopes_Xe; num_isos = 7; }
-	else if (strncmp(target, "Ge", 10) == 0) { A_list = atomic_numbers_Ge; abundance = isotopes_Ge; num_isos = 5; }
-	else if (strncmp(target, "Ar", 10) == 0) { A_list = atomic_numbers_Ar; abundance = isotopes_Ar; num_isos = 1; }
-	else if (strncmp(target, "F", 10) == 0) { A_list = atomic_numbers_F; abundance = isotopes_F; num_isos = 1; }
-	else if (strncmp(target, "CaWO4", 10) == 0) { A_list = atomic_numbers_CaWO4; abundance = isotopes_CaWO4; num_isos = 2; }
+	int num_isos, Z_target = 0;
+	if (strncmp(target, "Xe", 10) == 0) { A_list = atomic_numbers_Xe; abundance = isotopes_Xe; num_isos = 7; Z_target = 54; }
+	else if (strncmp(target, "Ge", 10) == 0) { A_list = atomic_numbers_Ge; abundance = isotopes_Ge; num_isos = 5; Z_target = 32; }
+	else if (strncmp(target, "Ar", 10) == 0) { A_list = atomic_numbers_Ar; abundance = isotopes_Ar; num_isos = 1; Z_target = 18; }
+	else if (strncmp(target, "F", 10) == 0) { A_list = atomic_numbers_F; abundance = isotopes_F; num_isos = 1; Z_target = 9; }
+	else if (strncmp(target, "CaWO4", 10) == 0) { A_list = atomic_numbers_CaWO4; abundance = isotopes_CaWO4; num_isos = 2; Z_list = Z_numbers_CaWO4; }
 	else return 0;
 	char * nucleon = (strncmp(NR_framework, "pn", 2) == 0) ? "p" : "+";
 	for (int l = 0; l < num_isos; l++) {
 		if (abundance[l] == 0.) continue;
-		if (FF(NR_framework, A_list[l], "M", "M", nucleon, nucleon, 0.1) == 0.) return 0;
+		int Z = (Z_list != NULL) ? Z_list[l] : Z_target;
+		if (FF(NR_framework, A_list[l], Z, "M", "M", nucleon, nucleon, 0.1) == 0.) return 0;
 	}
 	return 1;
 }

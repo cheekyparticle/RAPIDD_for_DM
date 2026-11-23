@@ -7,7 +7,10 @@ double f(double Er, int A, int Z, double a0, double a1, double a2, double a3, do
 double f_Men(double Er, int A, int Z, double a0, double a1, double a2, double a3, double a4,
 			 double a5);
 
-double FF(char* NR_framework, int A, char * Symbol1, char * Symbol2, char * N1, char * N2, double Er);
+int read_nuclear_responses(const char *dir);
+int nuclear_responses_loaded(void);
+double FF_iso_GCN5082_MEN(int A, int Z, char* Symbol1, char* Symbol2, char* tau1, char* tau2, double Er);
+double FF(char* NR_framework, int A, int Z, char * Symbol1, char * Symbol2, char * N1, char * N2, double Er);
 
 double FormFact_v0(char* NR_framework,int A,int Z,int i, int j, char * N1, char * N2, double Er, double mchi, double jchi);
 double FormFact_v2(char* NR_framework,int A,int Z, int i, int j, char * N1, char * N2, double Er, double mchi, double jchi);

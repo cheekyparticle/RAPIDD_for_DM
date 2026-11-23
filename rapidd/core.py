@@ -474,6 +474,32 @@ _nuclear_model_supports_target.restype = ctypes.c_int
 VALID_NUCLEAR_MODELS = ("iso_GCN5082", "pn_Fitz", "iso_Fitz", "pn_SN100PN")
 _supported_targets = {}
 
+nuclear_resp_dir = os.path.join(base_dir, '..', 'lib', 'nuclear_responses')
+
+_read_nuclear_responses = _crapidd.read_nuclear_responses
+_read_nuclear_responses.argtypes = [ctypes.c_char_p]
+_read_nuclear_responses.restype = ctypes.c_int
+
+def read_nuclear_responses(path=nuclear_resp_dir):
+    '''
+    Read the fit coefficients of the nuclear responses of all the nuclear models from
+    path/<model>.txt (format in lib/nuclear_responses/README.md). Called when rapidd is
+    imported: call it again only to use other tables. On an error the previous tables are kept.
+
+    Parameters
+    ----------
+    path : str
+        Directory containing pn_Fitz.txt, pn_SN100PN.txt, iso_Fitz.txt, iso_GCN5082.txt,
+        iso_GCN5082_MEN.txt and iso_GCN5082_MEN_WimPy.txt.
+    '''
+    err = _read_nuclear_responses(path.encode())
+    if err != 0:
+        raise IOError("Could not read the nuclear responses in %s (error %i)" % (path, err))
+    _supported_targets.clear()
+    return
+
+read_nuclear_responses()
+
 def check_nuclear_model(target, basis):
     '''Raise a ValueError if basis is not a valid nuclear model or if its form factors are
     not tabulated for all the isotopes of target (difrate_dER would silently return 0)'''

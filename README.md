@@ -173,6 +173,7 @@ RAPIDD_for_DM/
 ├── instructions_cmake.sh   # convenience script to build the C library
 ├── lib/                    # C source code, CMake build system, data tables
 │   ├── source/              # core C routines (halo, form factors, cross sections, ...)
+│   ├── nuclear_responses/   # fit coefficients of the nuclear responses of each nuclear model (DM-nucleus scattering)
 │   ├── atomic_responses/    # Xenon and Argon atomic responses W_1 ... W_4 (DM-electron scattering)
 │   ├── efficiency_tables/   # detector efficiency data
 │   ├── experiments/         # experiment-specific data
