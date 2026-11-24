@@ -11,10 +11,17 @@ is imported (`rapidd.read_nuclear_responses()`, default directory `lib/nuclear_r
 | `iso_Fitz.txt` | `iso_Fitz` | DMFormFactor v6 of arXiv:1308.6288v1 | 128-136Xe |
 | `iso_GCN5082.txt` | `iso_GCN5082` | DMFormFactor v6 with the one-body density matrices of the GCN5082 shell model ([Elastic](https://github.com/Berkeley-Electroweak-Physics/Elastic)) | 128-136Xe |
 | `iso_GCN5082_MEN.txt`, `iso_GCN5082_MEN_WimPy.txt` | none (`FF_iso_GCN5082_MEN`, not among the models of `FF`) | arXiv:1605.08043 (M, Phi''), [WimPy](https://github.com/bradkav/WIMpy_NREFT) (spin-dependent responses of 129Xe, 131Xe) | 40Ar, 128-136Xe |
+| `chiral_eft/HKMS2019_SI.txt`, `HMS2020_SD.txt`, `Hu2022_SD.txt` | none (`rapidd.chiral_eft`, not read by `read_nuclear_responses`) | arXiv:1812.05617 (SI), arXiv:2007.08529 and arXiv:2109.00193 (SD), format and provenance in `chiral_eft/README.md` | SI: 19F, 40Ar, 70-76Ge, 128-136Xe; SD: 19F, 73Ge, 129Xe, 131Xe |
 
 The coefficients are those that were hardcoded in `effFormFact.c` until 2026-11-23, written with the
 shortest decimal representation of the same double-precision numbers (the responses are unchanged
-bit by bit).
+bit by bit), except for `pn_Fitz.txt`, corrected on 2026-11-24 to match the tables of App. A.3 of
+arXiv:1203.3542 (LaTeX source of v3) for all the nuclei of the paper (19F, 23Na, 70-76Ge, 127I, 128-136Xe):
+77 rows changed, among them the Sigma'' rows of 19F, which were copies of the Sigma' rows (<S_p> = 0.549 instead
+of 0.475 for O_4), the a0 of the M rows (exact Z^2, Z N, N^2 instead of the rounded values of the paper), the sign
+of the y^7 coefficient of several Phi'' rows of I and Xe, the y^3 coefficient of 127I M n n (-3200 instead of
+-32000) and the shifted series of 131Xe Sigma'' p p and 129Xe Delta n n. `tests/test_nuclear_responses.py` checks
+F_Sigma'(0) = 2 F_Sigma''(0) for all the nuclei of `pn_Fitz.txt`.
 
 ## Format
 

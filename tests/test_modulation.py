@@ -48,11 +48,12 @@ def test_earth_velocity_period_and_phase():
 
 
 def test_same_interface():
-    '''DM-nucleus and DM-electron: same modulation arguments, defaults and order'''
+    '''DM-nucleus and DM-electron: same modulation arguments, defaults and order (the DM-nucleus only argument
+    nuclear_model follows them)'''
     def tail(f):
         p = list(inspect.signature(f).parameters.values())
         i = [q.name for q in p].index("halo_path")
-        return [(q.name, q.default) for q in p[i:]]
+        return [(q.name, q.default) for q in p[i:] if q.name != "nuclear_model"]
     assert tail(DDrate_save) == tail(DDrate_electron_save)
     assert [n for n, _ in tail(DDrate_save)] == list(MODULATION_KWARGS)
     assert dict(tail(DDrate_save))["day_bins"] == 12

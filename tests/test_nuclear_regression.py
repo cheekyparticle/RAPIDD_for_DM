@@ -1,5 +1,6 @@
-'''Regression of DDrate_save (MadDM entry point for the DM-nucleus spectra), without and with the
-annual modulation, against tests/data/regression_nuclear_modulation (see generate_reference.py).
+'''Regression of DDrate_save (MadDM entry point for the DM-nucleus spectra) with the one-body NREFT responses
+(nuclear_model="nreft"), without and with the annual modulation, against tests/data/regression_nuclear_modulation
+(see generate_reference.py). The chiral EFT path (default) is tested in test_chiral_eft.py.
 Same structure as test_electron_regression.test_DDrate_electron_save.'''
 import os
 import shutil
@@ -29,7 +30,7 @@ def test_DDrate_save(tmp_path, m, modulation):
     out = tmp_path / name
     out.mkdir()
     DDrate_save(CARD, ALPHAQ, m, str(out), targets=TARGETS, halo_path=rapidd.halo_path, modulation=modulation,
-                day_bins=DAY_BINS, save_npz=True)
+                day_bins=DAY_BINS, save_npz=True, nuclear_model="nreft")
     shutil.rmtree(out / "halo_table_modulation", ignore_errors=True)
     files = sorted(os.listdir(ref))
     assert sorted(os.listdir(out)) == files

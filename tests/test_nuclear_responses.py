@@ -60,3 +60,30 @@ def test_malformed(tmp_path, name, old, new):
     with pytest.raises(IOError, match="error 3"):
         rapidd.read_nuclear_responses(corrupt(tmp_path, name, old, new))
     assert np.array_equal(xenon_rate("iso_Fitz"), ref)
+
+
+def _pn_fitz_at_q0(response):
+    '''{(A, Z, N1, N2): F(0) = prefactor * a0} of the diagonal rows (response, response) of pn_Fitz.txt'''
+    out = {}
+    with open(os.path.join(rapidd.nuclear_resp_dir, "pn_Fitz.txt")) as f:
+        for line in f:
+            if line.startswith('#') or not line.strip():
+                continue
+            s = line.split()
+            if s[2] == s[3] == response:
+                out[(int(s[0]), int(s[1]), s[4], s[5])] = float(s[6]) * float(s[7])
+    return out
+
+
+def test_pn_fitz_sigma_prime_is_twice_sigma_double_prime_at_q0():
+    '''At q = 0 only the L = 1 multipole contributes, with two transverse (Sigma') and one longitudinal
+    (Sigma'') components: F_Sigma'(0) = 2 F_Sigma''(0) for every nucleus and nucleon pair (5% tolerance for the
+    rounding of the coefficients of arXiv:1203.3542; the values below 1e-3 are rounded to 1-2 digits). The
+    Sigma'' rows of 19F were copies of the Sigma' rows until 2026-11-24.'''
+    sp, spp = _pn_fitz_at_q0("Sp"), _pn_fitz_at_q0("Spp")
+    checked = 0
+    for key, v in sp.items():
+        if abs(v) > 1e-3:
+            assert v == pytest.approx(2. * spp[key], rel=0.05), key
+            checked += 1
+    assert checked >= 20 and (19, 9, "p", "p") in sp

@@ -38,7 +38,7 @@ def main():
         shutil.rmtree(out, ignore_errors=True)
         os.makedirs(out)
         DDrate_save(CARD, ALPHAQ, m, out, targets=TARGETS, halo_path=rapidd.halo_path, modulation=modulation,
-                    day_bins=DAY_BINS, save_npz=True)
+                    day_bins=DAY_BINS, save_npz=True, nuclear_model="nreft")
         shutil.rmtree(os.path.join(out, "halo_table_modulation"), ignore_errors=True)
 
 

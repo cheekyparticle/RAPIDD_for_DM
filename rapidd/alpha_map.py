@@ -251,6 +251,61 @@ def c4_dirac_mdm(card, alphaq):
 
 
 
+QUARK_MASSES = {"alpha_u": m_u, "alpha_d": m_d, "alpha_s": m_s, "alpha_c": m_c, "alpha_b": m_b, "alpha_t": m_t}
+
+
+def _quark_alpha_values(alphaq):
+    '''{alpha_q: 4 alphas (SIe, SIo, SDe, SDo)}, zeros for the quarks without a DM-quark process'''
+    out = {}
+    for quark in QUARK_ALPHAS:
+        if quark not in alphaq or len(alphaq[quark]) != 4 or _alphas_missing(alphaq[quark]):
+            out[quark] = np.zeros(4)
+        else:
+            out[quark] = np.asarray(alphaq[quark], dtype=float)
+    return out
+
+
+def chiral_couplings_mdm(card, alphaq, dmmass):
+    '''Couplings of the chiral EFT rate (rapidd.chiral_eft: HKMS 2019, arXiv:1812.05617, for SI and HMS 2020,
+    arXiv:2007.08529, for SD) from the MadDM alphas, channel by channel:
+      SS (SI even): f_N = sum_q alpha_q m_N f_Tq/m_q (card form factors, as c1_dirac_mdm), the scalar radius
+                    fdot_N (HKMS Eq. A7) and the two-body couplings c_pi = f_pi + 2 f_pi^theta, c_b = f_pi^theta
+                    (HKMS Eqs. 7-8) with C_q = alpha_q/m_q (alpha_q is the coefficient of chibar chi qbar q,
+                    HKMS Eq. 3 writes C_q m_q chibar chi qbar q);
+      VV (SI odd):  f_1^V from the card vector charges, f_2^V (magnetic moments) and fdot_1^V (charge radii)
+                    of HKMS Eq. A7: c^M, cdot^M and c^Phi'' of HKMS Eq. 7;
+      AA (SD even): c4^A_N = -4 sum_q alpha_q AV^N_q (as c4_dirac_mdm), with two-body currents (HMS 2020);
+      TT (SD odd):  c4^T_N = -4 sum_q alpha_q Sig^N_q (as c4_dirac_mdm), same responses without delta', delta''.
+    The isoscalar + isovector c^M is c1_dirac_mdm and c4^A + c4^T is c4_dirac_mdm.'''
+    from .chiral_eft import (ChiralCouplings, couplings_scalar, couplings_vector, vector_nucleon_couplings,
+                             M_PI, F_PI_Q, XI_UD, SIGMA_DOT, SIGMA_DOT_S)
+    PFF = gen_Pff_mdm(card)
+    NFF = gen_Nff_mdm(card)
+    a = _quark_alpha_values(alphaq)
+
+    # SS: f_N as in c1_dirac_mdm; C_q = alpha_q/m_q for the radius and pion couplings
+    f_p = sum(a[q][0] * PFF[q][0] for q in QUARK_ALPHAS)
+    f_n = sum(a[q][0] * NFF[q][0] for q in QUARK_ALPHAS)
+    C = {q: a[q][0] / QUARK_MASSES[q] for q in QUARK_ALPHAS}
+    fdot = (C["alpha_u"] * (1. - XI_UD) / 2. * SIGMA_DOT + C["alpha_d"] * (1. + XI_UD) / 2. * SIGMA_DOT
+            + C["alpha_s"] * SIGMA_DOT_S)
+    heavy = C["alpha_c"] + C["alpha_b"] + C["alpha_t"]
+    f_pi = M_PI * (C["alpha_u"] * F_PI_Q["u"] + C["alpha_d"] * F_PI_Q["d"] - 2. / 27. * heavy)
+    f_pi_theta = M_PI * 2. / 27. * heavy
+    c = couplings_scalar(f_p, f_n, fdot, fdot, f_pi, f_pi_theta)
+
+    # VV: vector charges of the card (u, d; the strange and heavy vector charges are zero)
+    CV = {"u": a["alpha_u"][1], "d": a["alpha_d"][1], "s": a["alpha_s"][1]}
+    f1, f2, f1dot = vector_nucleon_couplings(CV, V_p={"u": card['VPu'], "d": card['VPd']},
+                                             V_n={"u": card['VNu'], "d": card['VNd']})
+    c = c + couplings_vector(*f1, *f2, *f1dot, dmmass)
+
+    # AA and TT: O_4 coefficients
+    c4A = tuple(-4. * sum(a[q][2] * FF[q][2] for q in QUARK_ALPHAS) for FF in (PFF, NFF))
+    c4T = tuple(-4. * sum(a[q][3] * FF[q][3] for q in QUARK_ALPHAS) for FF in (PFF, NFF))
+    return c + ChiralCouplings(c4A=c4A, c4T=c4T)
+
+
 def sigmaSI_nucleon_mdm(card, alphaq, dmmass):
     '''SI DM-proton and DM-neutron cross sections [cm^2]'''
     c1p, c1n = c1_dirac_mdm(card, alphaq)

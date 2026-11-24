@@ -7,6 +7,8 @@ import numpy as np
 # DM-nucleus targets and nuclear form factors of the MadDM rates
 NUCLEAR_TARGETS = (("Xe", "iso_GCN5082"), ("Ar", "pn_Fitz"), ("Ge", "pn_Fitz"))
 NUCLEAR_TARGET_NAMES = tuple(t for t, _ in NUCLEAR_TARGETS)
+# nuclear structure of the DM-nucleus spectra: chiral EFT (rapidd.chiral_eft) or the one-body NREFT responses above
+NUCLEAR_MODELS = ("chiral_eft", "nreft")
 # format of the text tables (7 significant digits)
 TXT_FMT = '%.6e'
 
@@ -34,12 +36,40 @@ def _nuclear_rates(rhoDM, dmmass, energies, targets=NUCLEAR_TARGET_NAMES):
             for target in targets}
 
 
+def _chiral_rates(rhoDM, dmmass, energies, couplings, targets=NUCLEAR_TARGET_NAMES):
+    '''SI and SD dR/dE [events/kg/day/keV] of the targets with the chiral EFT structure factors (HKMS for SI, HMS
+    central for SD) and the halo table currently loaded'''
+    from .chiral_eft import difrate_chiral
+    return {target: difrate_chiral(rhoDM, dmmass, energies, couplings, target=target, parts=True)
+            for target in targets}
+
+
+def equivalent_sigma_mdm(card, alphaq, dmmass, halo_path=halo_path):
+    '''DM-nucleon cross sections [cm^2] equivalent to the MadDM model in LZ (rapidd.chiral_eft.equivalent_sigma),
+    to be compared with the published LZ (and XLZD) SI, SD-n and SD-p limits: sigmaN_SI_eq, sigmaN_SD_n_eq,
+    sigmaN_SD_p_eq. The couplings are those of alpha_map.chiral_couplings_mdm (Dirac DM, j_chi = 1/2) and the
+    expected LZ signal is computed with the chiral EFT structure factors and the halo table halo_path, whatever
+    the nuclear model of the saved spectra. Loads the halo table halo_path.'''
+    from .alpha_map import chiral_couplings_mdm
+    from .chiral_eft import equivalent_sigma
+    read_halo(halo_path)
+    sig = equivalent_sigma(chiral_couplings_mdm(card, alphaq, dmmass), dmmass)
+    return {'sigmaN_%s_eq' % k: float(v) for k, v in sig.items()}
+
+
 def DDrate_save(card, alphaq, dmmass, output_path, targets=NUCLEAR_TARGET_NAMES, halo_path=halo_path,
                 modulation=False, modulation_halo_dir=None, day_bins=12, verbose=False,
-                save_rates_per_bin=True, save_npz=False):
+                save_rates_per_bin=True, save_npz=False, nuclear_model="chiral_eft"):
     '''Compute and save the DM-nucleus scattering spectra in Xenon, Argon and/or Germanium
     (dRdE_nucleon.dat: E_R [keV] and one column dR/dE [events/kg/day/keV] per target) for the
-    MadDM couplings c1, c4.
+    MadDM couplings.
+
+    nuclear_model = "chiral_eft" (default): chiral EFT structure factors (rapidd.chiral_eft) for the four channels
+    of the MadDM alphas, SS and VV (SI, Hoferichter, Klos, Menendez, Schwenk 2019, with the two-body pion couplings
+    of SS) and AA and TT (SD, Hoferichter, Menendez, Schwenk 2020 central, with the two-body currents of AA only),
+    see alpha_map.chiral_couplings_mdm. Argon has no SD rate (J = 0).
+    nuclear_model = "nreft": the one-body NREFT responses of NUCLEAR_TARGETS (GCN5082 for Xe, Fitzpatrick et al.
+    for Ar and Ge) with the coefficients c1, c4 of O_1 and O_4 (c1_dirac_mdm, c4_dirac_mdm).
 
     Parameters
     ----------
@@ -58,33 +88,46 @@ def DDrate_save(card, alphaq, dmmass, output_path, targets=NUCLEAR_TARGET_NAMES,
     verbose : print the progress of the computation of the modulation tables
     save_rates_per_bin : save the spectrum dR/dE of each time bin (npz key drde_<target>_bin, only
         with save_npz)
-    save_npz : also save all the arrays in dRdE_nucleon.npz (energies, drde_<target>)
+    save_npz : also save all the arrays in dRdE_nucleon.npz (energies, drde_<target>; with chiral_eft also
+        the SI and SD parts drde_<target>_SI, drde_<target>_SD)
+    nuclear_model : "chiral_eft" or "nreft" (see above)
 
     With modulation it also writes rate_vs_time_nucleon.dat, dRdE_modulation_nucleon.dat and, in
     dRdE_nucleon.npz, t_bin, dt_bin, rate_<target>_bin [events/kg/dt], drde_<target>_year
     [events/kg/yr/keV], drde_<target>_avg [events/kg/day/keV] (and drde_<target>_bin).
     '''
-    from .alpha_map import c1_dirac_mdm, c4_dirac_mdm
+    from .alpha_map import c1_dirac_mdm, c4_dirac_mdm, chiral_couplings_mdm
+    if nuclear_model not in NUCLEAR_MODELS:
+        raise ValueError("nuclear_model must be one of %s" % (NUCLEAR_MODELS,))
     names = select_targets(targets, NUCLEAR_TARGET_NAMES, "DM-nucleus target")
     reset_coefficients()
 
     rhoDM = card['rhoDM']
     read_halo(halo_path)
-    c1p, c1n = c1_dirac_mdm(card, alphaq)
-    c4p, c4n = c4_dirac_mdm(card, alphaq)
-
-    set_any_Ncoeff(c1p*vev**2, 1, "p")
-    set_any_Ncoeff(c1n*vev**2, 1, "n")
-    set_any_Ncoeff(c4p*vev**2, 4, "p")
-    set_any_Ncoeff(c4n*vev**2, 4, "n")
-
     energies = np.linspace(0.01, 40, 1000)
+    parts = {}
 
-    def spectrum_fn():
-        return _nuclear_rates(rhoDM, dmmass, energies, names)
+    if nuclear_model == "nreft":
+        c1p, c1n = c1_dirac_mdm(card, alphaq)
+        c4p, c4n = c4_dirac_mdm(card, alphaq)
+        set_any_Ncoeff(c1p*vev**2, 1, "p")
+        set_any_Ncoeff(c1n*vev**2, 1, "n")
+        set_any_Ncoeff(c4p*vev**2, 4, "p")
+        set_any_Ncoeff(c4n*vev**2, 4, "n")
+
+        def spectrum_fn():
+            return _nuclear_rates(rhoDM, dmmass, energies, names)
+    else:
+        couplings = chiral_couplings_mdm(card, alphaq, dmmass)
+
+        def spectrum_fn():
+            rates = _chiral_rates(rhoDM, dmmass, energies, couplings, names)
+            parts.update({"drde_%s_%s" % (t, p): rates[t][p] for t in names for p in ("SI", "SD")})
+            return {t: rates[t]["total"] for t in names}
 
     drde = spectrum_fn()
     npz = dict(energies=energies, **{"drde_" + t: drde[t] for t in names})
+    npz.update(parts)
 
     if modulation:
         from .modulation import run_modulation, trapezoid_weights

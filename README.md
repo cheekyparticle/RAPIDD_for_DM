@@ -96,10 +96,22 @@ The Python interface loads the compiled C library through `ctypes` and exposes i
 | `rapidd.experiments`  | Detector efficiency curves and experiment-specific response functions |
 | `rapidd.alpha_map`    | Mapping of effective operator coefficients onto nucleon-level couplings |
 | `rapidd.calc_dRdE`    | Computation and export of differential recoil rates              |
+| `rapidd.chiral_eft`   | DM-nucleus SI and SD rates with the chiral EFT structure factors (two-body currents) and the equivalent cross sections of the LZ limits |
 | `rapidd.electron`     | DM-electron scattering: NREFT ionization rates, S2 signals, models and limits |
 | `rapidd.stats`        | Statistical routines for deriving exclusion limits                |
 
-Worked examples are in `examples/evaluate_NR_rates.ipynb` (nuclear recoils) and `examples/evaluate_ER_rates.ipynb` (DM-electron scattering), with the RAPIDD defaults. The validation (comparisons with the literature, with wimprates and with the XENON1T/XENONnT data releases) is in `examples/checks_NR_rates.ipynb` and `examples/checks_ER_rates.ipynb`.
+Worked examples are in `examples/evaluate_NR_rates.ipynb` (nuclear recoils) and `examples/evaluate_ER_rates.ipynb` (DM-electron scattering), with the RAPIDD defaults. The validation (comparisons with the literature, with the signal models of the LZ limits, with wimprates and with the XENON1T/XENONnT data releases) is in `examples/checks_NR_rates.ipynb` and `examples/checks_ER_rates.ipynb`.
+
+### DM-nucleus scattering: chiral EFT
+
+`rapidd.chiral_eft` computes the elastic DM-nucleus rate of a spin-1/2 DM particle with the chiral EFT structure factors, which include the two-body currents that the one-body NREFT responses of `lib/nuclear_responses/*.txt` lack:
+
+- SI: Hoferichter, Klos, Menéndez, Schwenk 2019 ([arXiv:1812.05617](https://arxiv.org/abs/1812.05617)), the general response of their Eq. 1 with the one-body ($c^M_\pm$, $\dot c^M_\pm$, $c^{\Phi''}_\pm$) and two-body ($c_\pi\mathcal F_\pi + c_b\mathcal F_b$) couplings; fits of the ChiralEFT4DM notebook for F, Ar, Ge, Xe;
+- SD: Hoferichter, Menéndez, Schwenk 2020 ([arXiv:2007.08529](https://arxiv.org/abs/2007.08529), the nominal structure factors of the LZ SD limits: one-body responses of App. E, axial radius, pion pole and two-body currents) for axial-vector (AA) and tensor (TT, without the corrections) couplings, and Hu et al. 2022 ([arXiv:2109.00193](https://arxiv.org/abs/2109.00193), ab initio, axial-vector only) for the nuclear-uncertainty band used by LZ (`difrate_chiral_band`).
+
+The couplings (`ChiralCouplings`) are built from the Wilson coefficients of the DM-quark operators (`couplings_from_quarks`) or from the MadDM alphas (`alpha_map.chiral_couplings_mdm`). `calc_dRdE.DDrate_save` uses these rates by default (`nuclear_model="chiral_eft"`; `"nreft"` for the one-body $\mathcal O_1$, $\mathcal O_4$ rates).
+
+`equivalent_sigma` (`calc_dRdE.equivalent_sigma_mdm` for MadDM) gives, for each LZ 2024 limit (SI isoscalar with the Helm form factor, SD neutrons only, SD protons only), the cross section of the reference model with the same expected LZ signal as the full model, $\sigma_\text{eq} = \sigma_\text{ref} N_\text{model}/N_\text{ref}$: it includes the proton-neutron interference and the two-body currents and is compared directly with the published curve. The data and their provenance are in `lib/nuclear_responses/chiral_eft/README.md`; the checks are in `examples/checks_NR_rates.ipynb` (section 3).
 
 ### DM-electron scattering
 
@@ -182,7 +194,7 @@ RAPIDD_for_DM/
 ├── rapidd/                 # Python package (interface to the C library)
 ├── examples/
 │   ├── evaluate_NR_rates.ipynb   # nuclear recoil rates (tutorial)
-│   ├── checks_NR_rates.ipynb     # nuclear models, modulation, wimprates and XENONnT limits
+│   ├── checks_NR_rates.ipynb     # nuclear models, modulation, chiral EFT and LZ limits, 19F responses
 │   ├── evaluate_ER_rates.ipynb   # DM-electron scattering rates, signals and limits (tutorial)
 │   ├── checks_ER_rates.ipynb     # arXiv:1912.08204, XENON1T release, wimprates and XENONnT limits
 │   └── xenonnt_dme_limit_rapidd_ff.py  # XENONnT DM-electron limit rescaled to the RAPIDD atomic responses

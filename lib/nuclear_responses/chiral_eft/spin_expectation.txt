@@ -1,0 +1,23 @@
+# RAPIDD chiral EFT responses: proton and neutron spin expectation values <S_p>, <S_n> of the SD tables
+# HMS2020: shell model, Table 4 of arXiv:2007.08529. Hu2022: ab initio values of each chiral interaction, table of
+#   the notebook DarkMatter_ChEFT_SD.ipynb (Fig. 2 of arXiv:2109.00193). Used for the normalization checks
+#   S_N(0) = (2J+1)(J+1)/(pi J) <S_N>^2 (tests/test_chiral_eft.py) and by rapidd.chiral_eft.spin_expectation.
+#
+#   A   Z  model    interaction      S_p      S_n
+
+   19   9  HMS2020  -              0.478   -0.002
+   73  32  HMS2020  -              0.032    0.439
+  129  54  HMS2020  -               0.01    0.329
+  131  54  HMS2020  -             -0.009   -0.272
+   19   9  Hu2022   EM1.8_2.0      0.431  -0.0163
+   19   9  Hu2022   N4LO_LNL2     0.4205  -0.0184
+   19   9  Hu2022   DNNLOgo       0.4018  -0.0286
+   73  32  Hu2022   EM1.8_2.0     0.0496   0.4536
+   73  32  Hu2022   N4LO_LNL2      0.071   0.4415
+   73  32  Hu2022   DNNLOgo       0.0307   0.4257
+  129  54  Hu2022   EM1.8_2.0     0.0018   0.3973
+  129  54  Hu2022   N4LO_LNL2    -0.0042   0.3237
+  129  54  Hu2022   DNNLOgo      -0.0154   0.3133
+  131  54  Hu2022   EM1.8_2.0    -0.0005  -0.2387
+  131  54  Hu2022   N4LO_LNL2     0.0044  -0.2013
+  131  54  Hu2022   DNNLOgo      -0.0001   -0.194
