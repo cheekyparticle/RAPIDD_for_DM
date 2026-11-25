@@ -471,8 +471,44 @@ _nuclear_model_supports_target = _crapidd.nuclear_model_supports_target
 _nuclear_model_supports_target.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
 _nuclear_model_supports_target.restype = ctypes.c_int
 
-VALID_NUCLEAR_MODELS = ("iso_GCN5082", "pn_Fitz", "iso_Fitz", "pn_SN100PN")
+# Nuclear models of the DM-nucleus responses (files lib/nuclear_responses/<model>.txt; the basis, p-n or isospin,
+# is declared in the table nuclear_tables of effFormFact.c):
+#   McElvain2022 (default): DMFormFactor v6 with the one-body density matrices of the Elastic repository
+#     (arXiv:2208.07945): targets C, O, F, Na, Al, Si, Ar, Ca, Ge, I, Cs, Xe
+#   Fitz2012: fits of arXiv:1203.3542: targets F, Na, Ar, Ca, Ge, I, Xe (its 16O and 28Si do not cover O and Si)
+#   Anand2013: DMFormFactor v6 (arXiv:1308.6288) with its default one-body density matrices: targets F, Na, Si,
+#     Ge, I, Xe
+#   Khaleq2023: fits of arXiv:2311.15764 (SN100PN interaction): target Xe
+# check_nuclear_model(target, basis) checks that a model covers all the isotopes of a target.
+VALID_NUCLEAR_MODELS = ("McElvain2022", "Fitz2012", "Anand2013", "Khaleq2023")
+DEFAULT_NUCLEAR_MODEL = "McElvain2022"
 _supported_targets = {}
+
+# DM-nucleus targets of difrate_dER (table nuclear_targets of lib/source/phys_consts.c):
+# {target: ((Z, A, abundance), ...)}, abundances = mole fractions (CIAAW)
+_crapidd.n_nuclear_targets.argtypes = []
+_crapidd.n_nuclear_targets.restype = ctypes.c_int
+_crapidd.nuclear_target_name.argtypes = [ctypes.c_int]
+_crapidd.nuclear_target_name.restype = ctypes.c_char_p
+_crapidd.nuclear_target_isotope.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_int),
+                                            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_double)]
+_crapidd.nuclear_target_isotope.restype = ctypes.c_int
+
+
+def _read_nuclear_targets():
+    targets = {}
+    for i in range(_crapidd.n_nuclear_targets()):
+        A, Z, f = ctypes.c_int(), ctypes.c_int(), ctypes.c_double()
+        isotopes = []
+        k = 0
+        while _crapidd.nuclear_target_isotope(i, k, ctypes.byref(A), ctypes.byref(Z), ctypes.byref(f)):
+            isotopes.append((Z.value, A.value, f.value))
+            k += 1
+        targets[_crapidd.nuclear_target_name(i).decode()] = tuple(isotopes)
+    return targets
+
+
+NUCLEAR_TARGET_ISOTOPES = _read_nuclear_targets()
 
 nuclear_resp_dir = os.path.join(base_dir, '..', 'lib', 'nuclear_responses')
 
@@ -489,8 +525,8 @@ def read_nuclear_responses(path=nuclear_resp_dir):
     Parameters
     ----------
     path : str
-        Directory containing pn_Fitz.txt, pn_SN100PN.txt, iso_Fitz.txt, iso_GCN5082.txt,
-        iso_GCN5082_MEN.txt and iso_GCN5082_MEN_WimPy.txt.
+        Directory containing <model>.txt for each model of VALID_NUCLEAR_MODELS (Fitz2012.txt,
+        Anand2013.txt, McElvain2022.txt, Khaleq2023.txt).
     '''
     err = _read_nuclear_responses(path.encode())
     if err != 0:
@@ -501,17 +537,20 @@ def read_nuclear_responses(path=nuclear_resp_dir):
 read_nuclear_responses()
 
 def check_nuclear_model(target, basis):
-    '''Raise a ValueError if basis is not a valid nuclear model or if its form factors are
-    not tabulated for all the isotopes of target (difrate_dER would silently return 0)'''
+    '''Raise a ValueError if target is not a DM-nucleus target (NUCLEAR_TARGET_ISOTOPES), if basis is not a valid
+    nuclear model (VALID_NUCLEAR_MODELS) or if its form factors are not tabulated for all the isotopes of
+    target (difrate_dER would silently return 0)'''
+    if target not in NUCLEAR_TARGET_ISOTOPES:
+        raise ValueError(f"Unknown DM-nucleus target {target}: choose from {tuple(NUCLEAR_TARGET_ISOTOPES)}")
     if basis not in VALID_NUCLEAR_MODELS:
-        raise ValueError(f"Nuclear model must be one of {VALID_NUCLEAR_MODELS}")
+        raise ValueError(f"Unknown nuclear model {basis}: the nuclear model must be one of {VALID_NUCLEAR_MODELS}")
     if (target, basis) not in _supported_targets:
         _supported_targets[(target, basis)] = bool(_nuclear_model_supports_target(basis.encode(), target.encode()))
     if not _supported_targets[(target, basis)]:
         raise ValueError(f"The nuclear model {basis} has no form factors for (all the isotopes of) the target {target}")
 
 @np.vectorize
-def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis="iso_GCN5082", delta=0.0):
+def difrate_dER(rhoDM, mDM, ER, model="None", target="Xe", basis=DEFAULT_NUCLEAR_MODEL, delta=0.0):
     check_nuclear_model(target, basis)
     return _difrate_dER_python(rhoDM, mDM, np.log10(ER), model.encode(), target.encode(), basis.encode(), delta)
 

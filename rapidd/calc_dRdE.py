@@ -4,8 +4,8 @@ from .core import (halo_path, reset_coefficients, isofromneuc, set_any_Ncoeff, r
                    ELECTRON_TARGETS)
 import numpy as np
 
-# DM-nucleus targets and nuclear form factors of the MadDM rates
-NUCLEAR_TARGETS = (("Xe", "iso_GCN5082"), ("Ar", "pn_Fitz"), ("Ge", "pn_Fitz"))
+# DM-nucleus targets and nuclear models (NREFT form factors) of the MadDM rates
+NUCLEAR_TARGETS = (("Xe", "McElvain2022"), ("Ar", "Fitz2012"), ("Ge", "Fitz2012"), ("F", "McElvain2022"))
 NUCLEAR_TARGET_NAMES = tuple(t for t, _ in NUCLEAR_TARGETS)
 # nuclear structure of the DM-nucleus spectra: chiral EFT (rapidd.chiral_eft) or the one-body NREFT responses above
 NUCLEAR_MODELS = ("chiral_eft", "nreft")
@@ -30,7 +30,7 @@ def select_targets(targets, allowed, kind="target"):
 
 
 def _nuclear_rates(rhoDM, dmmass, energies, targets=NUCLEAR_TARGET_NAMES):
-    '''dR/dE [events/kg/day/keV] of the targets (Xe, Ar, Ge) with the halo table currently loaded'''
+    '''dR/dE [events/kg/day/keV] of the targets (Xe, Ar, Ge, F) with the halo table currently loaded'''
     basis = dict(NUCLEAR_TARGETS)
     return {target: difrate_dER(rhoDM, dmmass, energies, target=target, basis=basis[target])
             for target in targets}
@@ -60,7 +60,7 @@ def equivalent_sigma_mdm(card, alphaq, dmmass, halo_path=halo_path):
 def DDrate_save(card, alphaq, dmmass, output_path, targets=NUCLEAR_TARGET_NAMES, halo_path=halo_path,
                 modulation=False, modulation_halo_dir=None, day_bins=12, verbose=False,
                 save_rates_per_bin=True, save_npz=False, nuclear_model="chiral_eft"):
-    '''Compute and save the DM-nucleus scattering spectra in Xenon, Argon and/or Germanium
+    '''Compute and save the DM-nucleus scattering spectra in Xenon, Argon, Germanium and/or Fluorine
     (dRdE_nucleon.dat: E_R [keV] and one column dR/dE [events/kg/day/keV] per target) for the
     MadDM couplings.
 
@@ -68,7 +68,7 @@ def DDrate_save(card, alphaq, dmmass, output_path, targets=NUCLEAR_TARGET_NAMES,
     of the MadDM alphas, SS and VV (SI, Hoferichter, Klos, Menendez, Schwenk 2019, with the two-body pion couplings
     of SS) and AA and TT (SD, Hoferichter, Menendez, Schwenk 2020 central, with the two-body currents of AA only),
     see alpha_map.chiral_couplings_mdm. Argon has no SD rate (J = 0).
-    nuclear_model = "nreft": the one-body NREFT responses of NUCLEAR_TARGETS (GCN5082 for Xe, Fitzpatrick et al.
+    nuclear_model = "nreft": the one-body NREFT responses of NUCLEAR_TARGETS (McElvain2022 for Xe and F, Fitz2012
     for Ar and Ge) with the coefficients c1, c4 of O_1 and O_4 (c1_dirac_mdm, c4_dirac_mdm).
 
     Parameters
@@ -77,7 +77,7 @@ def DDrate_save(card, alphaq, dmmass, output_path, targets=NUCLEAR_TARGET_NAMES,
     alphaq : MadDM quark alphas
     dmmass : DM mass [GeV]
     output_path : directory where the files are written
-    targets : targets among "Xe", "Ar", "Ge" (case insensitive; columns in this order)
+    targets : targets among "Xe", "Ar", "Ge", "F" (case insensitive; columns in this order)
     halo_path : annual-average halo table (Earth velocity vector of March 9, Eq. 12 of arXiv:2105.00599)
     modulation : if True, also compute the annual modulation (see rapidd.modulation): the year is
         divided in day_bins bins of width dt = 365.24/day_bins days and the halo and the spectrum are

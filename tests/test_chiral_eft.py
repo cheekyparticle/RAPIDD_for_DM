@@ -106,11 +106,11 @@ def test_deltas_at_q0():
     assert np.allclose(d2, -ce.G_PI_NN * ce.F_PION / (ce.G_A * ce.M_N) * q**2 / (q**2 + ce.M_PI**2) + da + daP, atol=1e-5)
 
 
-@pytest.mark.parametrize("target,basis,tol,tol0", [("Xe", "iso_GCN5082", 0.02, 1e-3), ("Ge", "pn_Fitz", 0.025, 0.02),
-                                                    ("Ar", "pn_Fitz", 0.005, 1e-3), ("F", "pn_Fitz", 0.005, 1e-3)])
+@pytest.mark.parametrize("target,basis,tol,tol0", [("Xe", "McElvain2022", 0.02, 1e-3), ("Ge", "Fitz2012", 0.025, 0.02),
+                                                    ("Ar", "Fitz2012", 0.005, 1e-3), ("F", "Fitz2012", 0.005, 1e-3)])
 def test_standard_SI_matches_one_body_NREFT(target, basis, tol, tol0):
     """Standard SI (c^M only): the chiral EFT and the NREFT shell-model O_1 rates of RAPIDD agree within 2%
-    (shell-model shapes); at q = 0 both are normalized to A^2, except the Ge responses of pn_Fitz, whose F_M(0) are
+    (shell-model shapes); at q = 0 both are normalized to A^2, except the Ge responses of Fitz2012, whose F_M(0) are
     the values of arXiv:1203.3542 rounded to 2 digits (e.g. 1000 instead of Z^2 = 1024 for 70Ge p p)"""
     E = np.array([0.5, 5., 20., 60.])
     c = 1e-8

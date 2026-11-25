@@ -93,91 +93,39 @@ const char* write_header(char* header){
 void write_difrate_line(char* result_file, double rhochi, void * input_difcros, double line, char* model){
 	struct difcros_params * val_difcros = (struct difcros_params *)input_difcros;
 	char * target = (val_difcros->target);
-	double isotopes[10];
-	double prefact[10];
-	int atomic_numbers[10]; 
-	int num_isos, znum;
+	/* Isotopes of the target (table nuclear_targets of phys_consts.c) and their weights (mass fractions for an
+	element, see isotope_mass_fractions) */
+	double isotopes[MAX_TARGET_ISOTOPES];
+	double prefact[MAX_TARGET_ISOTOPES];
+	int atomic_numbers[MAX_TARGET_ISOTOPES];
+	int znumarr[MAX_TARGET_ISOTOPES];
 	char result[256];
 	double energy = pow(10., line);
 	val_difcros->Er = energy;
 	copy_trace();
-	if (strncmp(target, "Xe", 10) == 0){
-		num_isos = 7;
-		znum = 54;
-		for (int l = 0; l < num_isos; l++){
-			isotopes[l]=isotopes_Xe[l];	
-			atomic_numbers[l]=atomic_numbers_Xe[l];	
-			if (strncmp(model, "Light_Med", 10)==0){
-				double med_mass = give_med_mass();
-				printf("Here we are, mass =%lf\n", med_mass );
-				prefact[l] = 1./(2*nucleus_mass(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
-			}
-			else{
-				prefact[l] = 1.0;
-			}
+	int num_isos = nuclear_target_isotopes(target, atomic_numbers, znumarr, isotopes);
+	if (num_isos == 0) {
+		printf("I haven't written the code for this detector yet!\n");
+		return;
+	}
+	for (int l = 0; l < num_isos; l++){
+		if (strncmp(model, "Light_Med", 10)==0){
+			double med_mass = give_med_mass();
+			printf("Here we are, mass =%lf\n", med_mass );
+			prefact[l] = 1./(2*nucleus_mass(atomic_numbers[l],znumarr[l])*energy*1.e-6 + med_mass*med_mass);
+		}
+		else{
+			prefact[l] = 1.0;
 		}
 	}
-	if (strncmp(target, "Ge", 10) == 0){
-		num_isos = 5;
-		znum = 32; 
-		for (int l = 0; l < num_isos; l++){
-			isotopes[l]=isotopes_Ge[l];	
-			atomic_numbers[l]=atomic_numbers_Ge[l];	
-			if (strncmp(model, "Light_Med", 10)==0){
-				double med_mass = give_med_mass();
-				printf("Here we are, mass =%lf\n", med_mass );
-				prefact[l] = 1./(2*nucleus_mass(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
-			}
-			else{
-				prefact[l] = 1.0;
-			}
-		}
-	}
-	if (strncmp(target, "Ar", 10) == 0){
-		num_isos = 1;
-		znum = 18; 
-		for (int l = 0; l < num_isos; l++){
-			isotopes[l]=isotopes_Ar[l];	
-			atomic_numbers[l]=atomic_numbers_Ar[l];	
-			if (strncmp(model, "Light_Med", 10)==0){
-				double med_mass = give_med_mass();
-				printf("Here we are, mass =%lf\n", med_mass );
-				prefact[l] = 1./(2*nucleus_mass(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
-			}
-			else{
-				prefact[l] = 1.0;
-			}
-		}
-	}
-	if (strncmp(target, "F", 10) == 0){
-		num_isos = 1;
-		znum = 9; 
-		for (int l = 0; l < num_isos; l++){
-			isotopes[l]=isotopes_F[l];	
-			atomic_numbers[l]=atomic_numbers_F[l];	
-			if (strncmp(model, "Light_Med", 10)==0){
-				double med_mass = give_med_mass();
-				printf("Here we are, mass =%lf\n", med_mass );
-				prefact[l] = 1./(2*nucleus_mass(atomic_numbers[l],znum)*energy*1.e-6 + med_mass*med_mass);
-			}
-			else{
-				prefact[l] = 1.0;
-			}
-		}
-	}
-
-	/* Xe, Ge: the abundances are mole fractions, the rate of each isotope is per kg of that isotope:
-	weight the isotopes with their mass fractions (see isotope_mass_fractions). */
-	if (strncmp(target, "Xe", 10) == 0) isotope_mass_fractions(atomic_numbers_Xe, 54, isotopes_Xe, 7, isotopes);
-	if (strncmp(target, "Ge", 10) == 0) isotope_mass_fractions(atomic_numbers_Ge, 32, isotopes_Ge, 5, isotopes);
 	// Output file name
 	double counts[16];
 
 	counts[0]=0.0;
 	char result_tot[256];
 	for (int l = 0; l< num_isos; l++){
-		printf("check %i, %lf , %i, %lf\n", l, isotopes[l], atomic_numbers[l],total_difrate_isotope_dEr(atomic_numbers[l],znum, rhochi, val_difcros));
-		counts[0] +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znum, rhochi, val_difcros);
+		printf("check %i, %lf , %i, %lf\n", l, isotopes[l], atomic_numbers[l],total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros));
+		counts[0] +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 	}
 	//printf("the result %lf %lf\n", energy, counts[0]);
 	snprintf(result, sizeof result, "%.5E %.5E", energy, counts[0]);
@@ -194,7 +142,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 			set_any_Ncoeff(Cn_trace(k), k, "n");
 			counts[k]=0.0;
 			for (int l = 0; l< num_isos; l++){
-				counts[k] +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],32, rhochi,val_difcros);
+				counts[k] +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi,val_difcros);
 			}
 			snprintf(reselement, sizeof reselement, " %.5E", counts[k]);
 			printf("\n test %s %s \n", result, reselement);
@@ -212,7 +160,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 		set_any_Ncoeff(Cn_trace(3), 3, "n");
 		double counts13=0.0;
 		for (int l = 0; l< num_isos; l++){
-			counts13 +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],32, rhochi, val_difcros);
+			counts13 +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		double int13 = counts13 - counts[1] - counts[3];
 		snprintf(reselement, sizeof reselement, " %.5E", int13);
@@ -228,7 +176,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 		set_any_Ncoeff(Cn_trace(5), 5, "n");
 		double counts45=0.0;
 		for (int l = 0; l< num_isos; l++){
-			counts45 +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],32, rhochi, val_difcros);
+			counts45 +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		double int45 = counts45 - counts[4] - counts[5];
 		snprintf(reselement, sizeof reselement, " %.5E", int45);
@@ -244,7 +192,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 		set_any_Ncoeff(Cn_trace(6), 6, "n");
 		double counts46=0.0;
 		for (int l = 0; l< num_isos; l++){
-			counts46 +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],32, rhochi, val_difcros);
+			counts46 +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		double int46 = counts46 - counts[4] - counts[6];
 		snprintf(reselement, sizeof reselement, " %.5E", int46);
@@ -260,7 +208,7 @@ void write_difrate_line(char* result_file, double rhochi, void * input_difcros, 
 		set_any_Ncoeff(Cn_trace(9), 9, "n");
 		double counts89=0.0;
 		for (int l = 0; l< num_isos; l++){
-			counts89 +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],32, rhochi, val_difcros);
+			counts89 +=  prefact[l]*prefact[l]*isotopes[l]*total_difrate_isotope_dEr(atomic_numbers[l],znumarr[l], rhochi, val_difcros);
 		}
 		double int89 = counts89 - counts[8] - counts[9];
 		snprintf(reselement, sizeof reselement, " %.5E", int89);
@@ -298,56 +246,20 @@ void write_difrate (char* coefficients, char* path, char* halo_path, double rhoc
 	char header_fin[256];
 	snprintf( header_fin, sizeof(header_fin), "%s", write_header(header));
 
-	if (strncmp(target, "Ge", 10) == 0){
-		printf("here3\n");
-		set_coeffs();
-		snprintf(binned_data, sizeof binned_data, "%s/GERMANIUMspec.dat", path);
-		FILE* resultsfile;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-		for(i=startpoint;i<endpoint;i+=interval){
-			write_difrate_line(binned_data, rhochi, val_difcros, i, model);
-		}
+	const char *file_name = nuclear_target_file_name(target);
+	if (file_name == NULL) {
+		printf("I haven't written the code for this detector yet!\n");
+		return;
 	}
-
-	if (strncmp(target, "Xe", 10) == 0){
-		set_coeffs();
-        printf("Yes \n");
-		snprintf(binned_data, sizeof binned_data, "%s/XENONspec.dat", path);
-		FILE* resultsfile;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-		for(i=startpoint;i<endpoint;i+=interval){
-			write_difrate_line(binned_data, rhochi, val_difcros, i, model);
-		}
+	set_coeffs();
+	snprintf(binned_data, sizeof binned_data, "%s/%sspec.dat", path, file_name);
+	FILE* resultsfile;
+	resultsfile = fopen(binned_data, "w+");
+	fprintf(resultsfile, "%s \r\n", header_fin);
+	fclose(resultsfile);
+	for(i=startpoint;i<endpoint;i+=interval){
+		write_difrate_line(binned_data, rhochi, val_difcros, i, model);
 	}
-	if (strncmp(target, "Ar", 10) == 0){
-		set_coeffs();
-        printf("Yes \n");
-		snprintf(binned_data, sizeof binned_data, "%s/ARGONspec.dat", path);
-		FILE* resultsfile;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-		for(i=startpoint;i<endpoint;i+=interval){
-			write_difrate_line(binned_data, rhochi, val_difcros, i, model);
-		}
-	}
-	if (strncmp(target, "F", 10) == 0){
-		set_coeffs();
-        printf("Yes \n");
-		snprintf(binned_data, sizeof binned_data, "%s/FLUORINEspec.dat", path);
-		FILE* resultsfile;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-		for(i=startpoint;i<endpoint;i+=interval){
-			write_difrate_line(binned_data, rhochi, val_difcros, i, model);
-		}
-	}
-
 }
 
 void write_difrate_total(char* coefficients, char* path, char* halo_path, double rhochi, void* input_difcros, char* model){
@@ -372,62 +284,20 @@ void write_difrate_total(char* coefficients, char* path, char* halo_path, double
 	char header_fin[256];
 	snprintf( header_fin, sizeof(header_fin), "Er counts");
 
-	if (strncmp(target, "Ge", 10) == 0){
-		snprintf(binned_data, sizeof binned_data, "%s/GERMANIUMspec.dat", path);
-		FILE* resultsfile;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		for(i=startpoint;i<endpoint;i+=interval){
-			fprintf(resultsfile,"%.5E %.5E\r\n",
-				pow(10.0,i), difrate_dER(rhochi, val_difcros, i, model));
-		}
+	const char *file_name = nuclear_target_file_name(target);
+	if (file_name == NULL) {
+		printf("I haven't written the code for this detector yet!\n");
+		return;
 	}
-
-	if (strncmp(target, "Xe", 10) == 0){
-        printf("Yes \n");
-		snprintf(binned_data, sizeof binned_data, "%s/XENONspec.dat", path);
-		FILE* resultsfile;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		for(i=startpoint;i<endpoint;i+=interval){
-			fprintf(resultsfile,"%.5E %.5E\r\n",
-				pow(10.0,i), difrate_dER( rhochi, val_difcros, i, model));
-		}
+	snprintf(binned_data, sizeof binned_data, "%s/%sspec.dat", path, file_name);
+	FILE* resultsfile;
+	resultsfile = fopen(binned_data, "w+");
+	fprintf(resultsfile, "%s \r\n", header_fin);
+	for(i=startpoint;i<endpoint;i+=interval){
+		fprintf(resultsfile,"%.5E %.5E\r\n",
+			pow(10.0,i), difrate_dER(rhochi, val_difcros, i, model));
 	}
-	if (strncmp(target, "Ar", 10) == 0){
-        printf("Yes \n");
-		snprintf(binned_data, sizeof binned_data, "%s/ARGONspec.dat", path);
-		FILE* resultsfile;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		for(i=startpoint;i<endpoint;i+=interval){
-			fprintf(resultsfile,"%.5E %.5E\r\n",
-				pow(10.0,i), difrate_dER(rhochi, val_difcros, i, model));
-		}
-	}
-	if (strncmp(target, "F", 10) == 0){
-        printf("Yes \n");
-		snprintf(binned_data, sizeof binned_data, "%s/FLUORINEspec.dat", path);
-		FILE* resultsfile;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		for(i=startpoint;i<endpoint;i+=interval){
-			fprintf(resultsfile,"%.5E %.5E\r\n",
-				pow(10.0,i), difrate_dER(rhochi, val_difcros, i, model));
-		}
-	}
-
-	if (strncmp(target, "CaWO4", 10) == 0){
-        printf("Yes \n");
-		snprintf(binned_data, sizeof binned_data, "%s/CaWO4spec.dat", path);
-		FILE* resultsfile;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		for(i=startpoint;i<endpoint;i+=interval){
-			fprintf(resultsfile,"%.5E %.5E\r\n",
-				pow(10.0,i), difrate_dER(rhochi, val_difcros, i, model));
-		}
-	}
+	fclose(resultsfile);
 }
 
 void write_binned_data( char* coefficients, char* exp_path, char* path, char * halo_path, double rhochi, void * input_difcros, char* model){
@@ -446,121 +316,35 @@ void write_binned_data( char* coefficients, char* exp_path, char* path, char * h
 	char * target = (val_difcros->target);
 	snprintf(header, sizeof header, "#EL ER counts") ;
 
-	if (strncmp(target, "Ge", 10) == 0){
-	    //read experiment card
-	    snprintf(experimental_card, sizeof experimental_card, "%s/GERMANIUM.dat", exp_path);
-	    FILE* exp_card;
-	    if (!(exp_card = fopen(experimental_card, "r"))){
-		printf("\nopening experiment card failed... make one!\n");
-	    }
-	    fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    double dE = (E_max - E_th)/(N_bins*1.);
-          // Output file name
-            snprintf(binned_data, sizeof binned_data, "%s/GERMANIUM.dat", path);
-            FILE* resultsfile;
-            int j;
-            resultsfile = fopen(binned_data, "w+");
-			fprintf(resultsfile, "%s \r\n", header);
-            for(j=0;j<N_bins;j++){
-                    E1 = E_th + j*dE;
-                    E2 = E_th + (j+1)*dE;
-                    //printf("Yes %.5E \n", E1);
-                    counts = counts_bin(halo_path, rhochi, input_difcros, exposure, E1, E2, model);
-                    fprintf(resultsfile, "%.5E %.5E %.5E \r\n", E1, E2, counts);
-
-            }
-            fclose(resultsfile);
-            printf("Output written to %s\n", binned_data);
-
-	}
-	else if (strncmp(target, "Xe", 10) == 0){
-
-	    	//read experiment card
-	    	snprintf(experimental_card, sizeof experimental_card, "%s/XENON.dat", exp_path);
-	   	FILE* exp_card;
-	    	if (!(exp_card = fopen(experimental_card, "r"))){
-			printf("\n opening experiment card failed... make one!\n");
-	    	}
-	    	fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    	double dE = (E_max - E_th)/(N_bins*1.);
-		snprintf(binned_data, sizeof binned_data, "%s/XENON.dat", path);
-
-		FILE* resultsfile;
-		int j;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header);
-		for(j=0;j<N_bins;j++){
-			E1 = E_th + j*dE;
-			E2 = E_th + (j+1)*dE;
-			//printf("Yes %.5E \n", E1);
-			counts = counts_bin(halo_path, rhochi, input_difcros, exposure, E1, E2, model);
-			fprintf(resultsfile, "%.5E %.5E %.5E \r\n", E1, E2, counts);
-
-		}
-		fclose(resultsfile);
-		printf("Output written to %s\n", binned_data);
-	}
-
-	else if (strncmp(target, "Ar", 10) == 0){
-
-	    	//read experiment card
-	    	snprintf(experimental_card, sizeof experimental_card, "%s/ARGON.dat", exp_path);
-	   	FILE* exp_card;
-	    	if (!(exp_card = fopen(experimental_card, "r"))){
-			printf("\n opening experiment card failed... make one!\n");
-	    	}
-	    	fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    	double dE = (E_max - E_th)/(N_bins*1.);
-		snprintf(binned_data, sizeof binned_data, "%s/ARGON.dat", path);
-
-		FILE* resultsfile;
-		int j;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header);
-		for(j=0;j<N_bins;j++){
-			E1 = E_th + j*dE;
-			E2 = E_th + (j+1)*dE;
-			//printf("Yes %.5E \n", E1);
-			counts = counts_bin(halo_path, rhochi, input_difcros, exposure, E1, E2, model);
-			fprintf(resultsfile, "%.5E %.5E %.5E \r\n", E1, E2, counts);
-
-		}
-		fclose(resultsfile);
-		printf("Output written to %s\n", binned_data);
-	}
-
-	else if (strncmp(target, "CaWO4", 10) == 0){
-
-	    	//read experiment card
-	    	snprintf(experimental_card, sizeof experimental_card, "%s/CaWO4.dat", exp_path);
-	   	FILE* exp_card;
-	    	if (!(exp_card = fopen(experimental_card, "r"))){
-			printf("\n opening experiment card failed... make one!\n");
-	    	}
-	    	fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    	double dE = (E_max - E_th)/(N_bins*1.);
-		snprintf(binned_data, sizeof binned_data, "%s/CaWO4.dat", path);
-
-		FILE* resultsfile;
-		int j;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header);
-		for(j=0;j<N_bins;j++){
-			E1 = E_th + j*dE;
-			E2 = E_th + (j+1)*dE;
-			//printf("Yes %.5E \n", E1);
-			counts = counts_bin(halo_path, rhochi, input_difcros, exposure, E1, E2, model);
-			fprintf(resultsfile, "%.5E %.5E %.5E \r\n", E1, E2, counts);
-
-		}
-		fclose(resultsfile);
-		printf("Output written to %s\n", binned_data);
-	}
-
-	else if (strncmp(target, "Xe", 10) != 0 && strncmp(target, "Ge", 10) != 0 && strncmp(target, "Ar", 10) != 0){
+	const char *file_name = nuclear_target_file_name(target);
+	if (file_name == NULL) {
 		printf("I haven't written the code for this detector yet!\n");
+		return;
 	}
-
+	//read experiment card
+	snprintf(experimental_card, sizeof experimental_card, "%s/%s.dat", exp_path, file_name);
+	FILE* exp_card;
+	if (!(exp_card = fopen(experimental_card, "r"))){
+		printf("\nopening experiment card failed... make one!\n");
+		return;
+	}
+	fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
+	fclose(exp_card);
+	double dE = (E_max - E_th)/(N_bins*1.);
+	// Output file name
+	snprintf(binned_data, sizeof binned_data, "%s/%s.dat", path, file_name);
+	FILE* resultsfile;
+	int j;
+	resultsfile = fopen(binned_data, "w+");
+	fprintf(resultsfile, "%s \r\n", header);
+	for(j=0;j<N_bins;j++){
+		E1 = E_th + j*dE;
+		E2 = E_th + (j+1)*dE;
+		counts = counts_bin(halo_path, rhochi, input_difcros, exposure, E1, E2, model);
+		fprintf(resultsfile, "%.5E %.5E %.5E \r\n", E1, E2, counts);
+	}
+	fclose(resultsfile);
+	printf("Output written to %s\n", binned_data);
 }
 
 void write_binned_rate_line(char* result_file, double rhochi, char* halo_path, void * input_difcros, double E1, double E2, double exposure, char* model){
@@ -678,87 +462,34 @@ void write_binned_data_each( char* coefficients, char* exp_path, char* path, cha
 	char header_fin[256];
 	snprintf( header_fin, sizeof(header_fin), "%s", write_header(header));
 
-	if (strncmp(target, "Ge", 10) == 0){
-	    //read experiment card
-	    snprintf(experimental_card, sizeof experimental_card, "%s/GERMANIUM.dat", exp_path);
-	    FILE* exp_card;
-	    if (!(exp_card = fopen(experimental_card, "r"))){
-			printf("\nopening experiment card failed... make one!\n");
-	    }
-	    fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    double dE = (E_max - E_th)/(N_bins*1.);
-        // Output file name
-        snprintf(binned_data, sizeof binned_data, "%s/GERMANIUM.dat", path);
-        FILE* resultsfile;
-        int j;
-        resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-        for(j=0;j<N_bins;j++){
-            E1 = E_th + j*dE;
-            E2 = E_th + (j+1)*dE;
-            //printf("Yes %.5E \n", E1);
-            write_binned_rate_line(binned_data, rhochi, halo_path, input_difcros, E1, E2, exposure, model);
-        }
-        printf("Output written to %s\n", binned_data);
-
-	}
-	else if (strncmp(target, "Xe", 10) == 0){
-
-	    //read experiment card
-	    snprintf(experimental_card, sizeof experimental_card, "%s/XENON.dat", exp_path);
-	   	FILE* exp_card;
-	    if (!(exp_card = fopen(experimental_card, "r"))){
-			printf("\n opening experiment card failed... make one!\n");
-	    }
-	    fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    double dE = (E_max - E_th)/(N_bins*1.);
-		snprintf(binned_data, sizeof binned_data, "%s/XENON.dat", path);
-
-		FILE* resultsfile;
-		int j;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-		for(j=0;j<N_bins;j++){
-			E1 = E_th + j*dE;
-			E2 = E_th + (j+1)*dE;
-			//printf("Yes %.5E \n", E1);
-			write_binned_rate_line(binned_data, rhochi, halo_path, input_difcros, E1, E2, exposure, model);
-		}
-		printf("Output written to %s\n", binned_data);
-	}
-
-	else if (strncmp(target, "Ar", 10) == 0){
-
-	    //read experiment card
-	    snprintf(experimental_card, sizeof experimental_card, "%s/ARGON.dat", exp_path);
-	   	FILE* exp_card;
-	    if (!(exp_card = fopen(experimental_card, "r"))){
-			printf("\n opening experiment card failed... make one!\n");
-	    }
-	    fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    double dE = (E_max - E_th)/(N_bins*1.);
-		snprintf(binned_data, sizeof binned_data, "%s/ARGON.dat", path);
-
-		FILE* resultsfile;
-		int j;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-		for(j=0;j<N_bins;j++){
-			E1 = E_th + j*dE;
-			E2 = E_th + (j+1)*dE;
-			//printf("Yes %.5E \n", E1);
-			write_binned_rate_line(binned_data, rhochi, halo_path, input_difcros, E1, E2, exposure, model);
-
-		}
-		printf("Output written to %s\n", binned_data);
-	}
-	else if (strncmp(target, "Xe", 10) != 0 && strncmp(target, "Ge", 10) != 0 && strncmp(target, "Ar", 10) != 0){
+	const char *file_name = nuclear_target_file_name(target);
+	if (file_name == NULL) {
 		printf("I haven't written the code for this detector yet!\n");
+		return;
 	}
-
+	//read experiment card
+	snprintf(experimental_card, sizeof experimental_card, "%s/%s.dat", exp_path, file_name);
+	FILE* exp_card;
+	if (!(exp_card = fopen(experimental_card, "r"))){
+		printf("\nopening experiment card failed... make one!\n");
+		return;
+	}
+	fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
+	fclose(exp_card);
+	double dE = (E_max - E_th)/(N_bins*1.);
+	// Output file name
+	snprintf(binned_data, sizeof binned_data, "%s/%s.dat", path, file_name);
+	FILE* resultsfile;
+	int j;
+	resultsfile = fopen(binned_data, "w+");
+	fprintf(resultsfile, "%s \r\n", header_fin);
+	fclose(resultsfile);
+	for(j=0;j<N_bins;j++){
+		E1 = E_th + j*dE;
+		E2 = E_th + (j+1)*dE;
+		write_binned_rate_line(binned_data, rhochi, halo_path, input_difcros, E1, E2, exposure, model);
+	}
+	printf("Output written to %s\n", binned_data);
 }
 
 const char* write_header_NP(char* header){
@@ -1160,85 +891,32 @@ void write_binned_data_NP( char* coefficients, char* exp_path, char* path, char 
 	char header_fin[256];
 	snprintf( header_fin, sizeof(header_fin), "%s", write_header_NP(header));
 
-	if (strncmp(target, "Ge", 10) == 0){
-	    //read experiment card
-	    snprintf(experimental_card, sizeof experimental_card, "%s/GERMANIUM.dat", exp_path);
-	    FILE* exp_card;
-	    if (!(exp_card = fopen(experimental_card, "r"))){
-			printf("\nopening experiment card failed... make one!\n");
-	    }
-	    fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    double dE = (E_max - E_th)/(N_bins*1.);
-        // Output file name
-        snprintf(binned_data, sizeof binned_data, "%s/GERMANIUM.dat", path);
-        FILE* resultsfile;
-        int j;
-        resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-        for(j=0;j<N_bins;j++){
-            E1 = E_th + j*dE;
-            E2 = E_th + (j+1)*dE;
-            //printf("Yes %.5E \n", E1);
-            write_binned_rate_line_NP(binned_data, rhochi, halo_path, input_difcros, E1, E2, exposure, model);
-        }
-        printf("Output written to %s\n", binned_data);
-
-	}
-	else if (strncmp(target, "Xe", 10) == 0){
-
-	    //read experiment card
-	    snprintf(experimental_card, sizeof experimental_card, "%s/XENON.dat", exp_path);
-	   	FILE* exp_card;
-	    if (!(exp_card = fopen(experimental_card, "r"))){
-			printf("\n opening experiment card failed... make one!\n");
-	    }
-	    fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    double dE = (E_max - E_th)/(N_bins*1.);
-		snprintf(binned_data, sizeof binned_data, "%s/XENON.dat", path);
-
-		FILE* resultsfile;
-		int j;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-		for(j=0;j<N_bins;j++){
-			E1 = E_th + j*dE;
-			E2 = E_th + (j+1)*dE;
-			//printf("Yes %.5E \n", E1);
-			write_binned_rate_line_NP(binned_data, rhochi, halo_path, input_difcros, E1, E2, exposure, model);
-		}
-		printf("Output written to %s\n", binned_data);
-	}
-
-	else if (strncmp(target, "Ar", 10) == 0){
-
-	    //read experiment card
-	    snprintf(experimental_card, sizeof experimental_card, "%s/ARGON.dat", exp_path);
-	   	FILE* exp_card;
-	    if (!(exp_card = fopen(experimental_card, "r"))){
-			printf("\n opening experiment card failed... make one!\n");
-	    }
-	    fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
-	    double dE = (E_max - E_th)/(N_bins*1.);
-		snprintf(binned_data, sizeof binned_data, "%s/ARGON.dat", path);
-
-		FILE* resultsfile;
-		int j;
-		resultsfile = fopen(binned_data, "w+");
-		fprintf(resultsfile, "%s \r\n", header_fin);
-		fclose(resultsfile);
-		for(j=0;j<N_bins;j++){
-			E1 = E_th + j*dE;
-			E2 = E_th + (j+1)*dE;
-			//printf("Yes %.5E \n", E1);
-			write_binned_rate_line_NP(binned_data, rhochi, halo_path, input_difcros, E1, E2, exposure, model);
-
-		}
-		printf("Output written to %s\n", binned_data);
-	}
-	else if (strncmp(target, "Xe", 10) != 0 && strncmp(target, "Ge", 10) != 0 && strncmp(target, "Ar", 10) != 0){
+	const char *file_name = nuclear_target_file_name(target);
+	if (file_name == NULL) {
 		printf("I haven't written the code for this detector yet!\n");
+		return;
 	}
-
+	//read experiment card
+	snprintf(experimental_card, sizeof experimental_card, "%s/%s.dat", exp_path, file_name);
+	FILE* exp_card;
+	if (!(exp_card = fopen(experimental_card, "r"))){
+		printf("\nopening experiment card failed... make one!\n");
+		return;
+	}
+	fscanf(exp_card, "%lf %lf %lf %i", &exposure, &E_th, &E_max, &N_bins);
+	fclose(exp_card);
+	double dE = (E_max - E_th)/(N_bins*1.);
+	// Output file name
+	snprintf(binned_data, sizeof binned_data, "%s/%s.dat", path, file_name);
+	FILE* resultsfile;
+	int j;
+	resultsfile = fopen(binned_data, "w+");
+	fprintf(resultsfile, "%s \r\n", header_fin);
+	fclose(resultsfile);
+	for(j=0;j<N_bins;j++){
+		E1 = E_th + j*dE;
+		E2 = E_th + (j+1)*dE;
+		write_binned_rate_line_NP(binned_data, rhochi, halo_path, input_difcros, E1, E2, exposure, model);
+	}
+	printf("Output written to %s\n", binned_data);
 }

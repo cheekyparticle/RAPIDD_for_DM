@@ -44,26 +44,13 @@ const double static m_to_cm = 100.; // m -> cm
 const double static day_to_sec = 86400.; // day -> s
 const double static alpha_em = 7.2973525643e-3; // fine-structure constant (CODATA 2022), q_ref = alpha_em m_e
 
-/* Isotopic abundances: mole (number) fractions, IUPAC "Isotopic compositions of the elements 2013"
-(Meija et al., Pure Appl. Chem. 88, 293 (2016), ciaaw.org). The rate per kg of target weights each isotope
-with its mass fraction, computed from these by isotope_mass_fractions.
-Xe: 124Xe (0.00095) and 126Xe (0.00089) are not included (no nuclear form factors). */
-const double static isotopes_Ar[1] = {1.0};
-const int static atomic_numbers_Ar[1] = {40};
-
-const double static isotopes_F[1] = {1.0};
-const int static atomic_numbers_F[1] = {19};
-
-const double static isotopes_Ge[5] = {0.2052, 0.2745, 0.0776, 0.3652, 0.0775};
-const int static atomic_numbers_Ge[5] = {70,72,73,74,76};
-
-const double static isotopes_Xe[7] = {0.01910, 0.26401, 0.04071, 0.21232, 0.26909, 0.10436, 0.08857};
-const int static atomic_numbers_Xe[7] = {128,129,130,131,132,134,136};
-
-const double static isotopes_CaWO4[2] = {0.616, 0.0};
-//const double static isotopes_CaWO4[2] = {0.616, 0.384};
-const int static atomic_numbers_CaWO4[2] = {16,40};
-const int static Z_numbers_CaWO4[2] = {8,20};
+/* DM-nucleus targets (name, isotopes, abundances): table nuclear_targets in phys_consts.c */
+#define MAX_TARGET_ISOTOPES 10
+int n_nuclear_targets(void);
+const char * nuclear_target_name(int i);
+const char * nuclear_target_file_name(const char *target);
+int nuclear_target_isotopes(const char *target, int *A, int *Z, double *weight);
+int nuclear_target_isotope(int i, int k, int *A, int *Z, double *abundance);
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -75,23 +62,6 @@ void isotope_mass_fractions(const int *A, int Z, const double *abundance, int n,
 double sigma_to_f_11(double sigma, double mchi, double mnucleon);
 double sigma_to_a_44(double sigma, double mchi, double mnucleon);
 
-
-//double isotopes_Ar[1];
-//int atomic_numbers_Ar[1];
-
-//double isotopes_F[1];
-//int atomic_numbers_F[1];
-
-//double isotopes_Ge[5];
-//int atomic_numbers_Ge[5];
-
-//double isotopes_Xe[7];
-//int atomic_numbers_Xe[7];
-
-
-//double isotopes_CaWO4[2];
-//int atomic_numbers_CaWO4[2];
-//int Z_numbers_CaWO4[2];
 
 int countlines(char *filename);
 

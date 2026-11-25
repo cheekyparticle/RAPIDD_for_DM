@@ -16,12 +16,12 @@ and E. Gerstmayr.
 Using arXiv:1203.3542 and then the unit conventions of
 arXiv:1308.6288.
 
-responses coming from:
-  - arXiv:1308.6288v1
-  - arXiv:1605.08043
-  - arXiv:2510.25197
-  - arXiv:2106.06207
-The fit coefficients of the nuclear responses are read from RAPIDD_for_DM/lib/nuclear_responses
+nuclear models (lib/nuclear_responses/<model>.txt, sources in the README.md there):
+  - Fitz2012: arXiv:1203.3542
+  - Anand2013: DMFormFactor v6 of arXiv:1308.6288 with its default one-body density matrices
+  - McElvain2022: DMFormFactor v6 with the one-body density matrices of arXiv:2208.07945 (Elastic)
+  - Khaleq2023: arXiv:2311.15764
+The coefficients of the nuclear responses are read from RAPIDD_for_DM/lib/nuclear_responses
 (read_nuclear_responses).
   
 ##########################################*/
@@ -88,25 +88,6 @@ double f(double Er, int A, int Z, double a0, double a1, double a2, double a3, do
 }
 
 /*########################################################################################
-Generic polynomial function used to parametrize each nuclear response in arXiv:1605.08043
-########################################################################################*/
-double f_Men(double Er, int A, int Z, double a0, double a1, double a2, double a3, double a4,
-			 double a5){
-    double mn = nucleus_mass(A, Z);
-    double q = sqrt(2.*mn*Er*1.e-6);//GeV
-    double b =  1./(sqrt(938.919*1.0e-6*(45*pow(A,-1.0/3.0) - 25*pow(A,-2./3.))));
-	double qb2 = q*q*b*b;
-    double y = qb2/2.;
-	const double y2  = y*y;
-	const double y3  = y2*y;
-	const double y4  = y2*y2;
-	const double y5  = y2*y3;
-	double FormFact = exp(-y/2.0)*(a0+a1*y+a2*y2+a3*y3+a4*y4+a5*y5);
-
-return FormFact;
-}
-
-/*########################################################################################
 Nuclear responses
 The fit coefficients of the nuclear responses of each nuclear model are tabulated in
 RAPIDD_for_DM/lib/nuclear_responses/<model>.txt (format and sources in the README.md there)
@@ -117,13 +98,13 @@ Labels of the responses ("Symbol1" and "Symbol2"):
 - Spp = Sigma''
 - D = Delta
 - Ppp = Phi''
-- Pp = Phi', Pt (they enter O_12 and O_15 as Pp + Pt)
-Labels of the nucleons ("N1" and "N2"): p, n for the proton-neutron models (pn_*), +, - for
-the isospin models (iso_*), with +- = (p +- n)/2.
+- Pp = Phi', Pt (they enter O_12 and O_13 as Pp + Pt)
+Labels of the nucleons ("N1" and "N2"): p, n for the models in the proton-neutron basis, +, - for
+the models in the isospin basis, with +- = (p +- n)/2 (the basis of each model is declared in
+nuclear_tables and returned by nuclear_model_basis).
 ########################################################################################*/
 
 #define N_COEFF 11       /* a_0 ... a_10 of f */
-#define N_COEFF_MEN 6    /* a_0 ... a_5 of f_Men */
 #define LABEL_LEN 8      /* labels of at most 7 characters */
 #define LINE_LEN 4096
 
@@ -138,34 +119,22 @@ struct nuclear_response {
 	double a[N_COEFF];
 };
 
-/* one row of iso_GCN5082_MEN.txt: one-nucleon form factor F_O^tau = f_Men(E_R; a_0 ... a_5) */
-struct nuclear_amplitude {
-	int A;
-	int Z;
-	char o[LABEL_LEN], tau[LABEL_LEN];
-	double a[N_COEFF_MEN];
-};
-
 struct nuclear_table {
-	const char *name;           /* the file is <name>.txt */
+	const char *name;           /* name of the model (NR_framework of FF); the file is <name>.txt */
 	enum nuclear_basis basis;
-	int in_FF;                  /* 1 if FF accepts it as NR_framework */
 	struct nuclear_response *rows;
 	int n_rows;
 };
 
+/* The nuclear models: name and basis (proton-neutron or isospin) of the nucleon labels and of the column c */
 static struct nuclear_table nuclear_tables[] = {
-	{"pn_Fitz", BASIS_PN, 1, NULL, 0},
-	{"pn_SN100PN", BASIS_PN, 1, NULL, 0},
-	{"iso_Fitz", BASIS_ISO, 1, NULL, 0},
-	{"iso_GCN5082", BASIS_ISO, 1, NULL, 0},
-	{"iso_GCN5082_MEN_WimPy", BASIS_ISO, 0, NULL, 0},   /* used by FF_iso_GCN5082_MEN */
+	{"Fitz2012", BASIS_PN, NULL, 0},       /* arXiv:1203.3542 */
+	{"Anand2013", BASIS_ISO, NULL, 0},     /* DMFormFactor v6, default OBDMs */
+	{"McElvain2022", BASIS_ISO, NULL, 0},  /* DMFormFactor v6, OBDMs of the Elastic repository */
+	{"Khaleq2023", BASIS_PN, NULL, 0},     /* arXiv:2311.15764 */
 };
 #define N_NUCLEAR_TABLES ((int)(sizeof(nuclear_tables) / sizeof(nuclear_tables[0])))
-#define MEN_TABLE "iso_GCN5082_MEN"
 
-static struct nuclear_amplitude *men_rows = NULL;
-static int men_n_rows = 0;
 static int nuclear_loaded = 0;
 
 static int valid_nucleon(enum nuclear_basis basis, const char *label){
@@ -237,10 +206,6 @@ static int same_response(const struct nuclear_response *r, int A, int Z, const c
 		&& strcmp(N1, r->n1) == 0 && strcmp(N2, r->n2) == 0;
 }
 
-static int same_amplitude(const struct nuclear_amplitude *r, int A, int Z, const char *Symbol, const char *tau){
-	return r->A == A && r->Z == Z && strcmp(Symbol, r->o) == 0 && strcmp(tau, r->tau) == 0;
-}
-
 static int read_nuclear_table(const char *dir, const struct nuclear_table *t,
 							  struct nuclear_response **rows_out, int *n_out){
 	/*Reads <dir>/<t->name>.txt. Each data line is
@@ -291,63 +256,18 @@ static int read_nuclear_table(const char *dir, const struct nuclear_table *t,
 	return 0;
 }
 
-static int read_nuclear_amplitudes(const char *dir, struct nuclear_amplitude **rows_out, int *n_out){
-	/*Reads <dir>/iso_GCN5082_MEN.txt, whose data lines are
-	  A Z O tau a_0 ... a_5
-	with tau = +, -. Each row (A, Z, O, tau) must appear once. Output as read_nuclear_table.*/
-	char path[1024], line[LINE_LEN];
-	FILE *fp = open_table(dir, MEN_TABLE, path, sizeof(path));
-	if (fp == NULL) return 2;
-	struct nuclear_amplitude *rows = NULL;
-	int n_rows = 0, capacity = 0, line_number = 0, err = 0;
-	const char *s;
-	while ((s = next_row(fp, line, &line_number)) != NULL) {
-		struct nuclear_amplitude r;
-		int n = 0;
-		if (sscanf(s, "%d %d%n", &r.A, &r.Z, &n) != 2 || r.A < 1 || r.A > 199) { err = 3; break; }
-		s += n;
-		if (!read_label(&s, r.o) || !read_label(&s, r.tau) || !valid_nucleon(BASIS_ISO, r.tau)
-			|| !read_numbers(&s, r.a, N_COEFF_MEN) || !only_spaces(s)) { err = 3; break; }
-		for (int i = 0; i < n_rows && err == 0; i++) {
-			if (same_amplitude(&rows[i], r.A, r.Z, r.o, r.tau)) err = 5;
-		}
-		if (err != 0) break;
-		struct nuclear_amplitude *tmp = grow(rows, n_rows, &capacity, sizeof(*rows));
-		if (tmp == NULL) { err = 4; break; }
-		rows = tmp;
-		rows[n_rows++] = r;
-	}
-	if (err == 0 && line_number < 0) err = 3;
-	if (err == 3) fprintf(stderr, "read_nuclear_responses: %s, line %d is malformed\n", path, abs(line_number));
-	if (err == 5) {
-		fprintf(stderr, "read_nuclear_responses: %s, line %d repeats an earlier row\n", path, line_number);
-		err = 3;
-	}
-	fclose(fp);
-	if (err != 0) {
-		free(rows);
-		return err;
-	}
-	*rows_out = rows;
-	*n_out = n_rows;
-	return 0;
-}
-
 int read_nuclear_responses(const char *dir){
 	/*Reads the nuclear responses of all the nuclear models from dir (e.g. .../lib/nuclear_responses):
-	<model>.txt for pn_Fitz, pn_SN100PN, iso_Fitz, iso_GCN5082 and the two tables of
-	iso_GCN5082_MEN. The tables are replaced only if all the files are read (otherwise the
+	<model>.txt for each model of nuclear_tables (Fitz2012, Anand2013, McElvain2022, Khaleq2023). The tables are replaced only if all the files are read (otherwise the
 	previous ones, if any, are kept).
 	Output: 0 on success, 2 if a file is missing, 3 if a line is malformed, 4 if out of memory.*/
 	struct nuclear_response *rows[N_NUCLEAR_TABLES];
 	int n_rows[N_NUCLEAR_TABLES];
-	struct nuclear_amplitude *amplitudes = NULL;
-	int n_amplitudes = 0, err = 0, n_read = 0;
+	int err = 0, n_read = 0;
 	for (; n_read < N_NUCLEAR_TABLES; n_read++) {
 		err = read_nuclear_table(dir, &nuclear_tables[n_read], &rows[n_read], &n_rows[n_read]);
 		if (err != 0) break;
 	}
-	if (err == 0) err = read_nuclear_amplitudes(dir, &amplitudes, &n_amplitudes);
 	if (err != 0) {
 		for (int t = 0; t < n_read; t++) free(rows[t]);
 		return err;
@@ -357,9 +277,6 @@ int read_nuclear_responses(const char *dir){
 		nuclear_tables[t].rows = rows[t];
 		nuclear_tables[t].n_rows = n_rows[t];
 	}
-	free(men_rows);
-	men_rows = amplitudes;
-	men_n_rows = n_amplitudes;
 	nuclear_loaded = 1;
 	return 0;
 }
@@ -396,43 +313,27 @@ static double FF_table(const struct nuclear_table *t, int A, int Z, const char *
 	return 0.0;
 }
 
-static const struct nuclear_amplitude * find_amplitude(int A, int Z, const char *Symbol, const char *tau){
-	for (int i = 0; i < men_n_rows; i++) {
-		if (same_amplitude(&men_rows[i], A, Z, Symbol, tau)) return &men_rows[i];
-	}
-	return NULL;
-}
-
-double FF_iso_GCN5082_MEN(int A, int Z, char* Symbol1, char * Symbol2, char*tau1, char * tau2, double Er){
-	/*The fit coefficients of the form factors and the form factors parametrizations are taken from
-	arXiv:1605.08043 for SI (iso_GCN5082_MEN.txt) and from the WimPy software
-	https://github.com/bradkav/WIMpy_NREFT/tree/main for non-SI (iso_GCN5082_MEN_WimPy.txt). We use
-	the isospin basis +- = 1/2(p +- n). The form factors of arXiv:1605.08043 are not squared, so they
-	refer only to one nucleon and one type of interaction: the response is the product of the two.
-	The WimPy responses are instead squared. Not among the models of FF.*/
-	require_nuclear_responses();
-	const struct nuclear_amplitude *r1 = find_amplitude(A, Z, Symbol1, tau1);
-	const struct nuclear_amplitude *r2 = find_amplitude(A, Z, Symbol2, tau2);
-	if (r1 != NULL && r2 != NULL) {
-		double FF1 = f_Men(Er, A, Z, r1->a[0], r1->a[1], r1->a[2], r1->a[3], r1->a[4], r1->a[5]);
-		double FF2 = f_Men(Er, A, Z, r2->a[0], r2->a[1], r2->a[2], r2->a[3], r2->a[4], r2->a[5]);
-		return FF1*FF2;
-	}
-	return FF_table(nuclear_table("iso_GCN5082_MEN_WimPy"), A, Z, Symbol1, Symbol2, tau1, tau2, Er);
-}
-
 /*########################################################################################
 Form factor function for all isotopes: response of the nucleus (A, Z).
 NR_framework (nuclear model):
-- pn_Fitz: fits of arXiv:1203.3542 (outdated, they diverge at E_R > 100 keV)
-- pn_SN100PN: fits of arXiv:2510.25197
-- iso_Fitz: DMFormFactor v6 of arXiv:1308.6288v1
-- iso_GCN5082: DMFormFactor v6 with the GCN5082 shell model
+- Fitz2012: fits of arXiv:1203.3542 (p, n basis; outdated, they diverge at E_R > 100 keV)
+- Anand2013: DMFormFactor v6 (arXiv:1308.6288) with its default one-body density matrices (+, - basis)
+- McElvain2022: DMFormFactor v6 with the one-body density matrices of the Elastic repository
+  (arXiv:2208.07945) (+, - basis)
+- Khaleq2023: fits of arXiv:2311.15764 (SN100PN interaction, Xe only; p, n basis)
 ########################################################################################*/
+int nuclear_model_basis(const char* NR_framework){
+	/*Basis of the nuclear model: 0 proton-neutron (labels p, n), 1 isospin (labels +, -),
+	-1 if NR_framework is not a nuclear model.*/
+	const struct nuclear_table *t = nuclear_table(NR_framework);
+	if (t == NULL) return -1;
+	return (t->basis == BASIS_ISO) ? 1 : 0;
+}
+
 double FF(char* NR_framework, int A, int Z, char* Symbol1, char * Symbol2, char*N1, char * N2, double Er){
 	const struct nuclear_table *t = nuclear_table(NR_framework);
-	if (t == NULL || !t->in_FF) {
-		printf("Error: NR_framework %s not recognized. Please use pn_Fitz, iso_Fitz, pn_SN100PN or iso_GCN5082.\n", NR_framework);
+	if (t == NULL) {
+		printf("Error: NR_framework %s not recognized. Please use Fitz2012, Anand2013, McElvain2022 or Khaleq2023.\n", NR_framework);
 		exit(1);
 	}
 	require_nuclear_responses();

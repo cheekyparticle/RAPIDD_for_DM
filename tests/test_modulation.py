@@ -142,7 +142,7 @@ def test_nuclear_modulation_physics(tmp_path):
     DDrate_save(CARD, ALPHAQ, 100., str(tmp_path), modulation=True, day_bins=day_bins, save_npz=True)
     npz = np.load(tmp_path / "dRdE_nucleon.npz")
     E = npz['energies']
-    _check_common_outputs(npz, ("Xe", "Ar", "Ge"), day_bins, E, trapezoid_weights(E), None)
+    _check_common_outputs(npz, ("Xe", "Ar", "Ge", "F"), day_bins, E, trapezoid_weights(E), None)
     t, dt = modulation_times(day_bins)
     w = 2 * np.pi / 365.24
     M = np.c_[np.ones_like(t), np.cos(w * t), np.sin(w * t)]
@@ -158,7 +158,7 @@ def test_nuclear_modulation_physics(tmp_path):
     # files
     rt = np.loadtxt(tmp_path / "rate_vs_time_nucleon.dat")
     np.testing.assert_allclose(rt[:, 0], t, rtol=1e-10)
-    np.testing.assert_allclose(rt[:, 2:], np.c_[npz['rate_Xe_bin'], npz['rate_Ar_bin'], npz['rate_Ge_bin']],
+    np.testing.assert_allclose(rt[:, 2:], np.c_[npz['rate_Xe_bin'], npz['rate_Ar_bin'], npz['rate_Ge_bin'], npz['rate_F_bin']],
                                rtol=1e-10)
     sp = np.loadtxt(tmp_path / "dRdE_modulation_nucleon.dat")
     np.testing.assert_allclose(sp[:, 1], npz['drde_Xe_avg'], rtol=1e-10)

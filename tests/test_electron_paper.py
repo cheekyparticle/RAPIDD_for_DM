@@ -39,8 +39,8 @@ Findings (see examples/checks_ER_rates.ipynb):
       large q: with 8 shells and q <= 1 MeV the ratios become O_6 0.970, O_13/O_14 0.971, O_3+ 0.972,
       O_5 0.976, O_15 0.865, while O_1, O_4, O_7-O_12 change by < 1%;
   (2) the paper's q integral extends effectively up to q ~ 1.05 MeV (evaluated with DarkART tables
-      extended beyond 1 MeV, generated outside the repository and not shipped, see
-      lib/atomic_responses/README.md; these numbers are not recomputed by the tests): with 8 shells and q_max = 1.05 MeV the O_6, O_13/O_14, O_3+ bars and the
+      extended beyond 1 MeV, generated outside the repository and not shipped; these numbers are not
+      recomputed by the tests): with 8 shells and q_max = 1.05 MeV the O_6, O_13/O_14, O_3+ bars and the
       O_13 spectrum at 1 GeV agree within 0.3%.
   The remaining O_5 (+2%) and O_15 (+11%) are the difference of R_3 W_3 and R_4 W_4, up to ~400 times
   larger than the result in Xenon (~1100 for Argon 2s at 1 MeV): most likely a numerical inaccuracy of

@@ -30,7 +30,7 @@ def test_select_targets():
 
 
 def test_nuclear_targets(tmp_path):
-    '''one column per target, in the order Xe, Ar, Ge, independent of the other targets'''
+    '''one column per target, in the order Xe, Ar, Ge, F, independent of the other targets'''
     (tmp_path / "all").mkdir()
     (tmp_path / "ge").mkdir()
     DDrate_save(CARD, ALPHAQ, 100., str(tmp_path / "all"), halo_path=rapidd.halo_path)
@@ -38,10 +38,13 @@ def test_nuclear_targets(tmp_path):
     assert sorted(os.listdir(tmp_path / "ge")) == ["dRdE_nucleon.dat"]
     full = np.loadtxt(tmp_path / "all" / "dRdE_nucleon.dat")
     sel = np.loadtxt(tmp_path / "ge" / "dRdE_nucleon.dat")
-    assert full.shape == (1000, 4) and sel.shape == (1000, 3)
+    assert full.shape == (1000, 5) and sel.shape == (1000, 3)
     np.testing.assert_array_equal(sel, full[:, [0, 1, 3]])
     with open(tmp_path / "ge" / "dRdE_nucleon.dat") as f:
         assert f.readline().split()[1:6:2] == ["E_R", "drde_Xe", "drde_Ge"]
+    with open(tmp_path / "all" / "dRdE_nucleon.dat") as f:
+        assert f.readline().split()[1:10:2] == ["E_R", "drde_Xe", "drde_Ar", "drde_Ge", "drde_F"]
+    assert np.all(full[:, 4] > 0)
 
 
 def test_electron_targets(tmp_path):

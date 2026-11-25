@@ -35,7 +35,7 @@ def vmin_kms(mchi, E, delta, A=A_AR, Z=Z_AR):
     return C_KMS * abs(q / (2. * mu) + delta * 1e-6 / q)
 
 
-def rate(mchi, E, target="Ar", basis="pn_Fitz", delta=0.):
+def rate(mchi, E, target="Ar", basis="Fitz2012", delta=0.):
     return float(rapidd.difrate_dER(RHO, mchi, E, model="SHM", target=target, basis=basis, delta=delta))
 
 
@@ -98,7 +98,7 @@ def test_rate_depends_on_re_c_cstar(default_halo, delta):
         for op, (cp, cn) in coeffs.items():
             rapidd.set_any_Ncoeff(cp, op, "p")
             rapidd.set_any_Ncoeff(cn, op, "n")
-        return rate(mchi, E, target="Xe", basis="iso_GCN5082", delta=delta)
+        return rate(mchi, E, target="Xe", basis="McElvain2022", delta=delta)
 
     for i, j in [(1, 3), (4, 6)]:
         a, b = (0.7, -0.2), (1.3, 0.4)

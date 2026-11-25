@@ -1,14 +1,9 @@
-# RAPIDD nuclear responses: pn_SN100PN
-# Fit coefficients of the nuclear responses of arXiv:2510.25197 (SN100PN shell-model interaction),
-#   with the polynomial parametrization of arXiv:1308.6288v1.
+# RAPIDD nuclear responses: Khaleq2023
+# Nuclear responses of 128-136Xe of arXiv:2311.15764 (R. Abdel Khaleq, G. Busoni, C. Simenel, A. E. Stuchbery,
+#   Phys. Rev. D 109, 075036 (2024), App. E.7), shell model with the SN100PN interaction.
 #
-# F_{O1,O2}^{N1,N2}(E_R) = prefactor * exp(-2y) * sum_{k=0}^{10} a_k y^k,  y = (q b / 2)^2,  q^2 = 2 m_T E_R,
-#   with b^2 the harmonic-oscillator length squared of the nucleus (B2 in lib/source/effFormFact.c) and
-#   m_T the mass of the nucleus (A, Z). Proton-neutron basis: N1, N2 = p, n.
-# Responses (O1, O2): M = M, Sp = Sigma', Spp = Sigma'', D = Delta, Ppp = Phi'', Pp = Phi', Pt (Pp and Pt
-#   enter O_12 and O_15 as Pp + Pt); O1 != O2 are the interferences (M-Ppp, Sp-D).
-# Lookup: the row with the same A, Z, O1, O2 and nucleon labels (each row appears once); a response
-#   without a row is 0. Lines starting with # are comments. Format: lib/nuclear_responses/README.md.
+# F_{O1,O2}^{N1,N2}(E_R) = prefactor * exp(-2y) * sum_{k=0}^{10} a_k y^k,  y = (q b / 2)^2,  q^2 = 2 m_T E_R;
+#   proton-neutron basis, N1, N2 = p, n. A missing row is 0. Responses and format: lib/nuclear_responses/README.md.
 #
 #   A   Z  O1   O2   N1  N2          prefactor         a0         a1        a2         a3         a4         a5         a6         a7         a8         a9       a10
 
@@ -80,7 +75,7 @@
   130  54  M    Ppp  p   n                 1.0     -917.0     3070.0   -3990.0     2590.0     -926.0      185.0      -20.1       1.09    -0.0235   4.72e-05         0
   130  54  M    Ppp  n   p                 1.0     -742.0     2480.0   -3170.0     2020.0     -703.0      136.0      -14.2        0.7    -0.0114   4.72e-05         0
 
-# 131Xe (Z = 54), prefactor = 2 pi (Pp-Pp)
+# 131Xe (Z = 54)
   131  54  M    M    p   p                 1.0     2920.0   -10500.0   14600.0   -10100.0     3780.0     -782.0       87.6      -4.86      0.112  -0.000509  6.51e-07
   131  54  M    M    n   n                 1.0     5920.0   -25400.0   43200.0   -37700.0    18800.0    -5540.0      972.0      -97.9       5.17     -0.118  0.000937
   131  54  M    M    p   n                 1.0     4160.0   -16400.0   25300.0   -19800.0     8600.0    -2150.0      307.0      -23.6      0.859    -0.0112  2.47e-05
@@ -101,10 +96,10 @@
   131  54  D    D    p   n                 1.0     0.0588     -0.143     0.156    -0.0918     0.0293   -0.00466   0.000298  -1.53e-06    1.9e-09          0         0
   131  54  D    D    n   p                 1.0     0.0588     -0.143     0.156    -0.0918     0.0293   -0.00466   0.000298  -1.53e-06    1.9e-09          0         0
 
-  131  54  Pp   Pp   p   p   6.283185307179586   0.000333   3.42e-05  8.16e-05  -1.94e-05   3.28e-06  -2.87e-06   3.66e-07   1.43e-08   1.24e-10          0         0
-  131  54  Pp   Pp   n   n   6.283185307179586     0.0164    -0.0503    0.0582    -0.0335     0.0111   -0.00211   0.000209  -5.88e-06   4.95e-08          0         0
-  131  54  Pp   Pp   p   n   6.283185307179586    0.00234   -0.00346    0.0015  -0.000686   0.000286  -7.62e-05   8.16e-06   3.53e-09  -2.48e-09          0         0
-  131  54  Pp   Pp   n   p   6.283185307179586    0.00234   -0.00346    0.0015  -0.000686   0.000286  -7.62e-05   8.16e-06   3.53e-09  -2.48e-09          0         0
+  131  54  Pt   Pt   p   p                   1   0.000333   3.42e-05  8.16e-05  -1.94e-05   3.28e-06  -2.87e-06   3.66e-07   1.43e-08   1.24e-10          0         0
+  131  54  Pt   Pt   n   n                   1     0.0164    -0.0503    0.0582    -0.0335     0.0111   -0.00211   0.000209  -5.88e-06   4.95e-08          0         0
+  131  54  Pt   Pt   p   n                   1    0.00234   -0.00346    0.0015  -0.000686   0.000286  -7.62e-05   8.16e-06   3.53e-09  -2.48e-09          0         0
+  131  54  Pt   Pt   n   p                   1    0.00234   -0.00346    0.0015  -0.000686   0.000286  -7.62e-05   8.16e-06   3.53e-09  -2.48e-09          0         0
 
   131  54  Ppp  Ppp  p   p                 1.0       86.5     -211.0     192.0      -82.8       18.2       -2.0     0.0959   -0.00116   4.07e-06          0         0
   131  54  Ppp  Ppp  n   n                 1.0      339.0    -1060.0    1290.0     -788.0      266.0      -50.7       5.34     -0.283    0.00586          0         0

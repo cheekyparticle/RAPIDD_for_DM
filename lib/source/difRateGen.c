@@ -107,17 +107,16 @@ double difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcros, in
 	char n_name[2] = "";
 	int isospin_basis;
 
-	// Check the nuclear framework and set the names for basis accordingly (pn: proton/neutron, iso: isospin (+/-))
-	if (strncmp(nuclear_framework, "pn", 2) == 0) {
-		strcpy(p_name, "p");
-		strcpy(n_name, "n");
-		isospin_basis = 0;
-	} else if (strncmp(nuclear_framework, "iso", 3) == 0) {
+	// Basis of the nuclear model (nuclear_tables of effFormFact.c): proton/neutron (p, n) or isospin (+, -)
+	isospin_basis = nuclear_model_basis(nuclear_framework);
+	if (isospin_basis == 1) {
 		strcpy(p_name, "+");
 		strcpy(n_name, "-");
-		isospin_basis = 1;
+	} else if (isospin_basis == 0) {
+		strcpy(p_name, "p");
+		strcpy(n_name, "n");
 	} else {
-		fprintf(stderr, "nuclear_framework must start with 'pn' or 'iso' to be valid: %s\n", nuclear_framework);
+		fprintf(stderr, "Error: NR_framework %s not recognized. Please use Fitz2012, Anand2013, McElvain2022 or Khaleq2023.\n", nuclear_framework);
 		exit(1);
 	}
 
@@ -212,94 +211,50 @@ double total_difrate_isotope_dEr(int A, int Z, double rhochi, void * input_difcr
 
 int nuclear_model_supports_target(char* NR_framework, char* target){
 	/*Checks that the nuclear form factors of NR_framework are tabulated for every isotope
-	of target used by difrate_dER (isotopes with zero abundance are skipped). Each tabulated
+	of target used by difrate_dER (isotopes with zero weight are skipped). Each tabulated
 	isotope has the M-M response, so the check evaluates it at a small recoil energy.
 	Without this check difrate_dER silently returns 0 for a missing isotope.
 	Parameters:
-	- NR_framework: nuclear model, e.g. "iso_GCN5082", "pn_Fitz"
-	- target: "Xe", "Ge", "Ar", "F" or "CaWO4"
-	Output: 1 if all the isotopes are available, 0 otherwise (also for an unknown target).*/
-	const int *A_list;
-	const int *Z_list = NULL;   /* NULL: all the isotopes have Z = Z_target */
-	const double *abundance;
-	int num_isos, Z_target = 0;
-	if (strncmp(target, "Xe", 10) == 0) { A_list = atomic_numbers_Xe; abundance = isotopes_Xe; num_isos = 7; Z_target = 54; }
-	else if (strncmp(target, "Ge", 10) == 0) { A_list = atomic_numbers_Ge; abundance = isotopes_Ge; num_isos = 5; Z_target = 32; }
-	else if (strncmp(target, "Ar", 10) == 0) { A_list = atomic_numbers_Ar; abundance = isotopes_Ar; num_isos = 1; Z_target = 18; }
-	else if (strncmp(target, "F", 10) == 0) { A_list = atomic_numbers_F; abundance = isotopes_F; num_isos = 1; Z_target = 9; }
-	else if (strncmp(target, "CaWO4", 10) == 0) { A_list = atomic_numbers_CaWO4; abundance = isotopes_CaWO4; num_isos = 2; Z_list = Z_numbers_CaWO4; }
-	else return 0;
-	char * nucleon = (strncmp(NR_framework, "pn", 2) == 0) ? "p" : "+";
+	- NR_framework: nuclear model, e.g. "McElvain2022", "Fitz2012"
+	- target: a target of the table nuclear_targets (phys_consts.c), e.g. "Xe", "Ge", "Ar", "F", "Si"
+	Output: 1 if all the isotopes are available, 0 otherwise (also for an unknown target or model).*/
+	int A_list[MAX_TARGET_ISOTOPES], Z_list[MAX_TARGET_ISOTOPES];
+	double weight[MAX_TARGET_ISOTOPES];
+	int num_isos = nuclear_target_isotopes(target, A_list, Z_list, weight);
+	int basis = nuclear_model_basis(NR_framework);
+	if (num_isos == 0 || basis < 0) return 0;
+	char * nucleon = (basis == 1) ? "+" : "p";
 	for (int l = 0; l < num_isos; l++) {
-		if (abundance[l] == 0.) continue;
-		int Z = (Z_list != NULL) ? Z_list[l] : Z_target;
-		if (FF(NR_framework, A_list[l], Z, "M", "M", nucleon, nucleon, 0.1) == 0.) return 0;
+		if (weight[l] == 0.) continue;
+		if (FF(NR_framework, A_list[l], Z_list[l], "M", "M", nucleon, nucleon, 0.1) == 0.) return 0;
 	}
 	return 1;
+}
+
+static int target_isotopes_or_exit(const char *target, int *atomic_numbers, int *znumarr, double *isotopes){
+	/*Isotopes of the target (nuclear_target_isotopes); exits for an unknown target.*/
+	int num_isos = nuclear_target_isotopes(target, atomic_numbers, znumarr, isotopes);
+	if (num_isos == 0) {
+		fprintf(stderr, "Error: unknown DM-nucleus target %s.\n", target);
+		exit(1);
+	}
+	return num_isos;
 }
 
 double difrate_dER(double rhochi, void * input_difcros, double logenergy, char* model){
 	struct difcros_params * val_difcros = (struct difcros_params *)input_difcros;
 	char * target = (val_difcros->target);
-	double isotopes[10];
-	double znumarr[10];
-	int atomic_numbers[10]; 
-	int num_isos, znum;
-	if (strncmp(target, "Xe", 10) == 0){
-		num_isos = 7;
-		znum = 54;
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=znum;
-			isotopes[l]=isotopes_Xe[l];	
-			atomic_numbers[l]=atomic_numbers_Xe[l];	
-		}
-	}
-	if (strncmp(target, "Ge", 10) == 0){
-		num_isos = 5;
-		znum = 32; 
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=znum;
-			isotopes[l]=isotopes_Ge[l];	
-			atomic_numbers[l]=atomic_numbers_Ge[l];	
-		}
-	}
-	if (strncmp(target, "Ar", 10) == 0){
-		num_isos = 1;
-		znum = 18; 
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=znum;
-			isotopes[l]=isotopes_Ar[l];	
-			atomic_numbers[l]=atomic_numbers_Ar[l];	
-		}
-	}
-	if (strncmp(target, "F", 10) == 0){
-		num_isos = 1;
-		znum = 9; 
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=znum;
-			isotopes[l]=isotopes_F[l];	
-			atomic_numbers[l]=atomic_numbers_F[l];	
-		}
-	}
-	if (strncmp(target, "CaWO4", 10) == 0){
-		num_isos = 2;
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=Z_numbers_CaWO4[l];
-			isotopes[l]=isotopes_CaWO4[l];	
-			atomic_numbers[l]=atomic_numbers_CaWO4[l];
-			printf("Z %i A %i number %f\n", Z_numbers_CaWO4[l],atomic_numbers[l],isotopes[l]);
-
-		}
-	}
-	/* Xe, Ge: the abundances are mole fractions, the rate of each isotope is per kg of that isotope:
-	weight the isotopes with their mass fractions (see isotope_mass_fractions). */
-	if (strncmp(target, "Xe", 10) == 0) isotope_mass_fractions(atomic_numbers_Xe, 54, isotopes_Xe, 7, isotopes);
-	if (strncmp(target, "Ge", 10) == 0) isotope_mass_fractions(atomic_numbers_Ge, 32, isotopes_Ge, 5, isotopes);
+	/* Isotopes of the target (table nuclear_targets of phys_consts.c) and their weights: for an element the
+	abundances are mole fractions and the rate of each isotope is per kg of that isotope, so the isotopes are
+	weighted with their mass fractions (see isotope_mass_fractions). */
+	double isotopes[MAX_TARGET_ISOTOPES];
+	int znumarr[MAX_TARGET_ISOTOPES];
+	int atomic_numbers[MAX_TARGET_ISOTOPES];
+	int num_isos = target_isotopes_or_exit(target, atomic_numbers, znumarr, isotopes);
 	double counts=0.0;
 	double energy = pow(10., logenergy);
 	val_difcros->Er = energy;
 	for (int l = 0; l< num_isos; l++){
-		//printf("check %i, %lf , %i, %lf\n", l, isotopes[l], atomic_numbers[l],total_difrate_isotope_dEr(atomic_numbers[l],znum, rhochi, val_difcros));
 		if (strncmp(model, "Light_Med", 10)==0)
 		{
 			double med_mass = give_med_mass();
@@ -362,65 +317,17 @@ double difrate_dER_2(double rhochi, void * input_difcros, double energy, char* m
 
 	struct difcros_params * val_difcros = (struct difcros_params *)input_difcros;
 	char * target = (val_difcros->target);
-	double isotopes[10];
-	double znumarr[10];
-	int atomic_numbers[10]; 
-	int num_isos, znum;
-	if (strncmp(target, "Xe", 10) == 0){
-		num_isos = 7;
-		znum = 54;
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=znum;
-			isotopes[l]=isotopes_Xe[l];	
-			atomic_numbers[l]=atomic_numbers_Xe[l];	
-		}
-	}
-	if (strncmp(target, "Ge", 10) == 0){
-		num_isos = 5;
-		znum = 32; 
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=znum;
-			isotopes[l]=isotopes_Ge[l];	
-			atomic_numbers[l]=atomic_numbers_Ge[l];	
-		}
-	}
-	if (strncmp(target, "Ar", 10) == 0){
-		num_isos = 1;
-		znum = 18; 
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=znum;
-			isotopes[l]=isotopes_Ar[l];	
-			atomic_numbers[l]=atomic_numbers_Ar[l];	
-		}
-	}
-	if (strncmp(target, "F", 10) == 0){
-		num_isos = 1;
-		znum = 9; 
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=znum;
-			isotopes[l]=isotopes_F[l];	
-			atomic_numbers[l]=atomic_numbers_F[l];	
-		}
-	}
-	if (strncmp(target, "CaWO4", 10) == 0){
-		num_isos = 2;
-		for (int l = 0; l < num_isos; l++){
-			znumarr[l]=Z_numbers_CaWO4[l];
-			isotopes[l]=isotopes_CaWO4[l];	
-			atomic_numbers[l]=atomic_numbers_CaWO4[l];
-			printf("Z %i A %i number %f\n", Z_numbers_CaWO4[l],atomic_numbers[l],isotopes[l]);
-
-		}
-	}
-	/* Xe, Ge: the abundances are mole fractions, the rate of each isotope is per kg of that isotope:
-	weight the isotopes with their mass fractions (see isotope_mass_fractions). */
-	if (strncmp(target, "Xe", 10) == 0) isotope_mass_fractions(atomic_numbers_Xe, 54, isotopes_Xe, 7, isotopes);
-	if (strncmp(target, "Ge", 10) == 0) isotope_mass_fractions(atomic_numbers_Ge, 32, isotopes_Ge, 5, isotopes);
+	/* Isotopes of the target (table nuclear_targets of phys_consts.c) and their weights: for an element the
+	abundances are mole fractions and the rate of each isotope is per kg of that isotope, so the isotopes are
+	weighted with their mass fractions (see isotope_mass_fractions). */
+	double isotopes[MAX_TARGET_ISOTOPES];
+	int znumarr[MAX_TARGET_ISOTOPES];
+	int atomic_numbers[MAX_TARGET_ISOTOPES];
+	int num_isos = target_isotopes_or_exit(target, atomic_numbers, znumarr, isotopes);
 	double counts=0.0;
 	//double energy = pow(10., logenergy);
 	val_difcros->Er = energy;
 	for (int l = 0; l< num_isos; l++){
-		//printf("check %i, %lf , %i, %lf\n", l, isotopes[l], atomic_numbers[l],total_difrate_isotope_dEr(atomic_numbers[l],znum, rhochi, val_difcros));
 		if (strncmp(model, "Light_Med", 10)==0)
 		{
 			double med_mass = give_med_mass();

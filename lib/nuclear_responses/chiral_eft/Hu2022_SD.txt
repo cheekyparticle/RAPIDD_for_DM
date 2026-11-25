@@ -9,7 +9,7 @@
 # F_O^tau(u) = exp(-u/2) * sum_{k=0}^{5} a_k u^k,  u = (q b)^2 / 2, b = hbar c / sqrt(m_N hbar omega) [fm] with
 #   the hbar omega = 16 MeV of the IMSRG basis (as in the notebook; not the A-dependent formula of HKMS and HMS)
 #   and m_N = (m_p + m_n)/2 = 938.9187 MeV.
-# Isospin basis tau = +, - with F_+- = F_p +- F_n (not divided by 2, unlike the iso_* tables). Responses:
+# Isospin basis tau = +, - with F_+- = F_p +- F_n (not divided by 2, unlike the isospin NREFT tables). Responses:
 #   Sp = Sigma', Spp = Sigma''; L the multipole; J the spin of the nucleus. Spin expectation values of each
 #   interaction in spin_expectation.txt. The corrections delta', delta'' (two-body currents with the
 #   low-energy constants of each interaction) are computed in rapidd/chiral_eft.py as in the notebook.
