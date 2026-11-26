@@ -55,3 +55,10 @@ def poisson_upper_limit(observed, cl=0.9):
     '''Classical upper limit mu_up on the mean of a Poisson counting experiment (no background
     subtraction): P(n <= observed | mu_up) = 1 - cl, i.e. mu_up = chi2.ppf(cl, 2(observed+1))/2'''
     return 0.5 * chi2.ppf(cl, 2 * (np.asarray(observed) + 1))
+
+
+def poisson_upper_limit_signal(observed, background, cl=0.9):
+    '''Classical upper limit s_up on the signal of a Poisson counting experiment with known background:
+    P(n <= observed | s_up + background) = 1 - cl, i.e. s_up = poisson_upper_limit(observed, cl) - background
+    (0 if the background alone is excluded)'''
+    return np.maximum(poisson_upper_limit(observed, cl) - np.asarray(background, dtype=float), 0.)
