@@ -1,7 +1,9 @@
 import os
 
+import warnings
+
 from .core import (halo_path, reset_coefficients, isofromneuc, set_any_Ncoeff, read_halo, difrate_dER, vev,
-                   ELECTRON_TARGETS)
+                   ELECTRON_TARGETS, CRYSTAL_TARGETS)
 import numpy as np
 
 # DM-nucleus targets and nuclear models (NREFT form factors) of the MadDM rates
@@ -197,10 +199,20 @@ def electron_cross_section(alphas, dm_spin, m_e, dmmass):
     return {'DM_response': dm_resp, 'sigma_e': dm_resp/(16.*np.pi*(dmmass + m_e)**2)}
 
 
+# DM-electron targets of the rate files: atoms (dRdE_electron.dat) and crystals (dRdE_electron_<target>.dat)
+ELECTRON_RATE_TARGETS = ELECTRON_TARGETS + CRYSTAL_TARGETS
+# numbers of electron-hole pairs of dRdQ_electron_<crystal>.dat
+CRYSTAL_Q_MAX = 10
+
+
+class CrystalTargetSkippedWarning(UserWarning):
+    '''A crystal target is skipped because the couplings set need crystal responses that are not available'''
+
+
 def DDrate_electron_save(card, alphas, dm_spin, m_e, dmmass, output_path, targets=("Xe",), halo_path=halo_path,
                          modulation=False, modulation_halo_dir=None, day_bins=12, verbose=False,
                          save_rates_per_bin=True, save_npz=False):
-    '''Compute and save the DM-electron scattering rates in Xenon and/or Argon and, for Xenon, the
+    '''Compute and save the DM-electron scattering rates in Xenon, Argon and/or silicon and, for Xenon, the
     XENON10 / XENON1T S2 signals (port of the legacy MadDM electron_recoil_signal.f).
 
     Parameters
@@ -211,7 +223,9 @@ def DDrate_electron_save(card, alphas, dm_spin, m_e, dmmass, output_path, target
     m_e : electron mass [GeV]
     dmmass : DM mass [GeV]
     output_path : directory where the files are written
-    targets : targets among "Xe", "Ar" (case insensitive; columns in this order)
+    targets : targets among "Xe", "Ar", "Si" (case insensitive; columns in this order). "Si" (crystal, QCDark2
+        response, RPA screening) is skipped with a CrystalTargetSkippedWarning if the coefficients set need the
+        crystal responses W_2 ... W_5 (rapidd.electron.check_crystal_couplings)
     halo_path : annual-average halo table (Earth velocity vector of March 9, Eq. 12 of arXiv:2105.00599)
     modulation, modulation_halo_dir, day_bins, verbose, save_rates_per_bin : annual modulation,
         as in DDrate_save. With modulation it also writes rate_vs_time_electron.dat and
@@ -220,29 +234,71 @@ def DDrate_electron_save(card, alphas, dm_spin, m_e, dmmass, output_path, target
         and drde_<target>_bin), for the spectra summed over the shells.
     save_npz : also save all the arrays in dRdE_electron.npz
 
-    Files: dRdE_electron.dat (k [keV], E [keV], dR/dE [events/kg/day/keV] summed over the shells for
-    each target, then per shell for each target); if Xenon is a target, dRdS2_electron_XENON10.dat
+    Files: dRdE_electron.dat if an atom is a target (k [keV], E [keV], dR/dE [events/kg/day/keV] summed over
+    the shells for each atom, then per shell for each atom); for silicon, dRdE_electron_Si.dat (deposited energy
+    Delta E [keV], dR/dDelta E [events/kg/day/keV], on its own grid 0.1 ... 50 eV) and dRdQ_electron_Si.dat
+    (number Q = 1 ... CRYSTAL_Q_MAX of electron-hole pairs, dR/dQ [events/kg/day], Ramanathan-Kurinsky
+    100 K); if Xenon is a target, dRdS2_electron_XENON10.dat
     (S2, dN/dS2 [events] and its shell contributions), dRdS2_electron_XENON1T.dat (S2, dN/dS2 [events])
     and signal_e_recoil.dat (signal per XENON10 S2 bin).
 
-    Returns a dict with DM_response, sigma_e and, if Xenon is a target, Xenon10_bins, Xenon10_signal,
-    Xenon10_obs, Xenon1T_signal, Xenon1T_bkg, Xenon1T_obs (DM_response = -1 if the DM spin is not
-    implemented).
+    Returns a dict with DM_response, sigma_e, skipped_targets (target -> reason), if Xenon is a target,
+    Xenon10_bins, Xenon10_signal, Xenon10_obs, Xenon1T_signal, Xenon1T_bkg, Xenon1T_obs and, for silicon,
+    dRdQ_Si (rates per e-h pair, Q = 1 ... CRYSTAL_Q_MAX) (DM_response = -1 if the DM spin is not implemented).
     '''
     from .core import read_atomic_responses, difrate_dS2, xenon10_bins, ELECTRON_TARGET_SHELLS, XE_SHELLS
     from .alpha_map import jchi_from_dm_spin
+    from .electron import difrate_electron, difrate_dQ, check_crystal_couplings, UnsupportedCrystalCouplingError
 
-    names = select_targets(targets, ELECTRON_TARGETS, "DM-electron target")
+    selected = select_targets(targets, ELECTRON_RATE_TARGETS, "DM-electron target")
     # sets the DM-electron coefficients
     result = electron_cross_section(alphas, dm_spin, m_e, dmmass)
     if result['DM_response'] == -1:
         return result
     jchi = jchi_from_dm_spin(dm_spin)
+    result['skipped_targets'] = {}
+    crystals = []
+    for t in selected:
+        if t not in CRYSTAL_TARGETS:
+            continue
+        try:
+            check_crystal_couplings(t)
+            crystals.append(t)
+        except UnsupportedCrystalCouplingError as err:
+            result['skipped_targets'][t] = str(err)
+            warnings.warn("%s skipped: %s" % (t, err), CrystalTargetSkippedWarning, stacklevel=2)
+    names = tuple(t for t in selected if t in ELECTRON_TARGETS)
 
     rhoDM = card['rhoDM']
     read_halo(halo_path)
     for t in names:
         read_atomic_responses(target=t)
+
+    npz = {}
+    for t in crystals:
+        r = difrate_electron(rhoDM, dmmass, jchi, m_e=m_e, target=t)
+        dq = difrate_dQ(r, Q_max=CRYSTAL_Q_MAX)
+        result['dRdQ_' + t] = [float(x) for x in dq['dRdQ']]
+        np.savetxt(os.path.join(output_path, 'dRdE_electron_%s.dat' % t), np.column_stack([r['E'], r['dRdE']]),
+                   fmt=TXT_FMT, header="DeltaE [keV] drde_%s [events/kg/day/keV] (deposited energy, %s crystal, "
+                                       "RPA screening)" % (t, t))
+        np.savetxt(os.path.join(output_path, 'dRdQ_electron_%s.dat' % t), np.column_stack([dq['Q'], dq['dRdQ']]),
+                   fmt=['%d', TXT_FMT], header="Q [e-h pairs] drdq_%s [events/kg/day] (Ramanathan-Kurinsky 100 K)" % t)
+        npz.update({'DeltaE_keV_' + t: r['E'], 'drde_' + t: r['dRdE'], 'Q_' + t: dq['Q'], 'drdq_' + t: dq['dRdQ']})
+        if modulation:
+            from .modulation import run_modulation
+
+            def crystal_fn(t=t):
+                return {t: difrate_electron(rhoDM, dmmass, jchi, m_e=m_e, target=t)['dRdE']}
+
+            npz.update(run_modulation(crystal_fn, card, output_path, r['E'], np.full(r['E'].size, r['E'][1] - r['E'][0]),
+                                      (t,), "_electron_" + t, modulation_halo_dir=modulation_halo_dir,
+                                      day_bins=day_bins, verbose=verbose, save_rates_per_bin=save_rates_per_bin,
+                                      restore_halo=halo_path))
+    if not names:
+        if save_npz:
+            np.savez(os.path.join(output_path, 'dRdE_electron.npz'), **npz)
+        return result
 
     rate_shell = {}
     for t in names:
@@ -250,7 +306,7 @@ def DDrate_electron_save(card, alphas, dm_spin, m_e, dmmass, output_path, target
     k_keV, E_keV = k[:-1]*1e6, E[:-1]*1e6
     drde = {t: rate_shell[t].sum(axis=0)/1e6 for t in names}
 
-    npz = dict(k_keV=k_keV, E_keV=E_keV)
+    npz.update(k_keV=k_keV, E_keV=E_keV)
     for t in names:
         npz['drde_' + t] = drde[t]
         npz['drde_%s_shell' % t] = rate_shell[t]/1e6

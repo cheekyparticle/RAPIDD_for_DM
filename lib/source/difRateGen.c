@@ -28,6 +28,7 @@ and E. Gerstmayr.
 #include "coeffs_eft.h"
 #include "effFormFact.h"
 #include "atomic_resp.h"
+#include "crystal_resp.h"
 
 #define SQR(X) ((X)*(X))
 #define ABS(X) ((X) > 0 ? (X) : (-(X)))
@@ -830,6 +831,160 @@ int difrate_electron_dEr_all(double rhochi, double mchi, double jchi, double m_e
 	Output: 0 on success, 1 if a needed atomic response W_j has not been read (W_1 is always
 	needed), 2 if the halo table has no halo(vmin, 2) column while needed.*/
 	return difrate_electron_dEr_resp(rhochi, mchi, jchi, m_e, 15, k_out, E_out, rate_shell_out);
+}
+
+/*########################################################################################
+DM-electron scattering in crystals (silicon): rate of R. Catena, T. Emken, M. Matas, N. A. Spaldin, E. Urdshals,
+arXiv:2105.02233 (Eq. R_crystal_2D) with the unit cell as
+target, the deposited energy Delta E in v_min = Delta E/q + q/(2 mchi) and the first crystal response W_1 only
+(crystal_resp.c, from the QCDark2 dielectric functions of C. Dreyer, R. Essig, M. Fernandez-Serra, M. Hott,
+A. Singal, arXiv:2603.12326). Only the couplings whose DM response
+involves W_1 alone are supported: c_1, c_4, c_6, c_9, c_10, c_11 (contact and long-range). Following R. Catena and
+N. A. Spaldin, arXiv:2402.06817, R_1 is split into the coupling to the electron density (c_1, c_11), screened by
+1/|eps|^2 in the RPA (W_1 from Im[-1/eps], with local field effects as in QCDark2), and the coupling to the electron
+spin (c_4, c_6, c_9, c_10): in a non-spin-polarised material it is not screened and its response is the
+independent-particle one (W_1 from Im eps without local field effects, which arXiv:2402.06817 neglects); there is no
+density-spin interference in R_1.
+########################################################################################*/
+
+#define CRYSTAL_Q_SUBDIV 4        // Simpson sub-intervals per cell of the q grid of the crystal tables
+#define CRYSTAL_Q_EDGE_CELLS 125  // last cells of the q grid (q > 22.51 alpha m_e) counted in rate_qedge_out
+
+int crystal_unsupported_coeffs(int *ops_out){
+	/*Fills ops_out (can be NULL, size >= 8) with the operators set (contact or long-range) whose DM responses need
+	the crystal responses W_2 ... W_5 (O_3, O_5, O_7, O_8, O_12 ... O_15), not available. Returns their number.*/
+	static const int ops[8] = {3, 5, 7, 8, 12, 13, 14, 15};
+	int n = 0;
+	for (int i = 0; i < 8; i++) {
+		if (coeff_e_set(ops[i])) {
+			if (ops_out != NULL) ops_out[n] = ops[i];
+			n++;
+		}
+	}
+	return n;
+}
+
+static void dm_response_crystal(double q, double mchi, double jchi, double m_e, double *R_dens, double *R_spin){
+	/*R_1 of arXiv:1912.08204 for c_1, c_4, c_6, c_9, c_10, c_11 (no v dependence), split into the electron density
+	part (c_1, c_11) and the electron spin part (c_4, c_6, c_9, c_10), without unit factors.*/
+	(void)mchi;
+	double jj = jchi * (jchi + 1.);
+	double q2 = SQR(q / m_e);
+	double c1 = ce_q(1, q, m_e), c4 = ce_q(4, q, m_e), c6 = ce_q(6, q, m_e), c9 = ce_q(9, q, m_e);
+	double c10 = ce_q(10, q, m_e), c11 = ce_q(11, q, m_e);
+	*R_dens = SQR(c1) + jj / 3. * SQR(c11) * q2;
+	*R_spin = jj / 4. * SQR(c4) + SQR(c10) / 4. * q2
+			  + jj / 12. * (SQR(c6) * q2 * q2 + (2. * SQR(c9) + 2. * c4 * c6) * q2);
+}
+
+static double crystal_q_integrand(double q, double dE, double mchi, double jchi, double m_e, double Wd, double Ws,
+								  int parts, gsl_interp_accel *ga, gsl_spline *gs){
+	/*q eta(vmin) [R_dens Wd + R_spin Ws] (GeV s/cm), Wd and Ws: W_1 for the density and spin parts.*/
+	if (Wd == 0. && Ws == 0.) return 0.;
+	double vmin = (dE / q + q / (2. * mchi)) * c_light_cms;
+	double eta = halo_w(vmin * 1.e-5, ga, gs) * 1.e-5;
+	if (eta == 0.) return 0.;
+	double Rd, Rs;
+	dm_response_crystal(q, mchi, jchi, m_e, &Rd, &Rs);
+	double sum = 0.;
+	if (parts & 1) sum += Rd * Wd;
+	if (parts & 2) sum += Rs * Ws;
+	return q * eta * sum;
+}
+
+static double crystal_interp(double w0, double w1, double t, double x0, double x1){
+	/*Interpolation of W between (x0, w0) and (x1, w1) at x = x0 + t (x1 - x0): log-log if w0, w1 > 0, linear otherwise.*/
+	if (w0 > 0. && w1 > 0.) {
+		double x = x0 + t * (x1 - x0);
+		return w0 * pow(w1 / w0, log(x / x0) / log(x1 / x0));
+	}
+	return w0 + t * (w1 - w0);
+}
+
+int difrate_electron_crystal(int target, double rhochi, double mchi, double jchi, double m_e, int screening,
+							 int parts, double *E_out, double *rate_out, double *rate_qedge_out){
+	/*Differential rate dR/dDelta E of the crystal target (CRYSTAL_TARGET_SI) on the Delta E grid of the crystal
+	tables, using the coefficients Ce(i), Ce_LR(i), the tables read with read_crystal_responses and the halo
+	read with read_halo:
+	    dR/dlnDE = n_chi/(128 pi mchi^2 m_e^2 M_cell) int dq q eta(vmin) [R_dens W_1^(scr) + R_spin W_1^(noLFE)],
+	with the q integral over the tabulated range (0.01 ... 25.01 alpha m_e), Simpson's rule on CRYSTAL_Q_SUBDIV
+	sub-intervals per cell, W_1 interpolated log-log in q (linearly where it vanishes).
+	Parameters:
+	- target: CRYSTAL_TARGET_SI
+	- rhochi (GeV/cm^3), mchi (GeV), jchi (DM spin), m_e (GeV)
+	- screening: 1 RPA screening of the density couplings (W_1 from Im[-1/eps]), 0 no screening (Im eps); the spin
+	  couplings always use W_1 from Im eps without local field effects
+	- parts: bit 0 density couplings (c_1, c_11), bit 1 spin couplings (c_4, c_6, c_9, c_10); 3: both
+	- E_out: Delta E in GeV [CRYSTAL_NE]
+	- rate_out: dR/dDelta E in events/(kg day GeV) [CRYSTAL_NE] (0 at Delta E = 0)
+	- rate_qedge_out: (can be NULL) the part of rate_out from the last CRYSTAL_Q_EDGE_CELLS cells of the q grid
+	Output: 0 on success, 1 if the tables have not been read, 3 for a wrong parts, 4 for an unknown target,
+	5 if a coefficient needing W_2 ... W_5 is set (crystal_unsupported_coeffs).*/
+	int iE, iq, n;
+	if (crystal_target_name(target) == NULL) {
+		fprintf(stderr, "difrate_electron_crystal: unknown target %d\n", target);
+		return 4;
+	}
+	if (parts < 1 || parts > 3) {
+		fprintf(stderr, "difrate_electron_crystal: parts must be 1, 2 or 3\n");
+		return 3;
+	}
+	if (!crystal_responses_loaded(target)) {
+		fprintf(stderr, "difrate_electron_crystal: call read_crystal_responses first\n");
+		return 1;
+	}
+	if (crystal_unsupported_coeffs(NULL) > 0) {
+		fprintf(stderr, "difrate_electron_crystal: the crystal rate supports only c_1, c_4, c_6, c_9, c_10, c_11\n");
+		return 5;
+	}
+	gsl_interp_accel *ga;
+	gsl_spline *gs = electron_halo_spline(0, &ga);
+	double nDM = rhochi / mchi; // cm^-3
+	double const_integral = nDM / (128. * M_PI * SQR(mchi * GeV_to_kg) * SQR(m_e * GeV_to_kg));
+	double conv = GeV_to_J * SQR(m_to_cm) / c_light_cms;
+	double units = const_integral * SQR(conv) * gev_to_pb * pb_to_cm2 * SQR(GeV_to_kg)
+				   / (crystal_cell_mass_au(target) * atomic_mass_unit_kg) * day_to_sec;
+	int scr = screening ? CRYSTAL_SCREENED : CRYSTAL_UNSCREENED;
+	double q[CRYSTAL_NQ];
+	for (iq = 0; iq < CRYSTAL_NQ; iq++) q[iq] = crystal_q_gev(iq, m_e);
+	double h = (q[1] - q[0]) / CRYSTAL_Q_SUBDIV;
+	for (iE = 0; iE < CRYSTAL_NE; iE++) {
+		double dE = crystal_dE_gev(iE);
+		E_out[iE] = dE;
+		rate_out[iE] = 0.;
+		if (rate_qedge_out != NULL) rate_qedge_out[iE] = 0.;
+		if (iE == 0) continue;
+		double total = 0., edge = 0.;
+		double Wd0 = crystal_response(target, scr, iE, 0), Ws0 = crystal_response(target, CRYSTAL_NOLFE, iE, 0);
+		double f0 = crystal_q_integrand(q[0], dE, mchi, jchi, m_e, Wd0, Ws0, parts, ga, gs);
+		for (iq = 0; iq < CRYSTAL_NQ - 1; iq++) {
+			double Wd1 = crystal_response(target, scr, iE, iq + 1);
+			double Ws1 = crystal_response(target, CRYSTAL_NOLFE, iE, iq + 1);
+			double f1 = crystal_q_integrand(q[iq + 1], dE, mchi, jchi, m_e, Wd1, Ws1, parts, ga, gs);
+			// Simpson's rule on the cell [q_iq, q_iq+1] with CRYSTAL_Q_SUBDIV (even) sub-intervals
+			double cell = f0 + f1;
+			if (!(Wd0 == 0. && Wd1 == 0. && Ws0 == 0. && Ws1 == 0.)) {
+				for (n = 1; n < CRYSTAL_Q_SUBDIV; n++) {
+					double t = (double)n / CRYSTAL_Q_SUBDIV;
+					double qn = q[iq] + n * h;
+					double Wd = crystal_interp(Wd0, Wd1, t, q[iq], q[iq + 1]);
+					double Ws = crystal_interp(Ws0, Ws1, t, q[iq], q[iq + 1]);
+					cell += ((n % 2 == 1) ? 4. : 2.) * crystal_q_integrand(qn, dE, mchi, jchi, m_e, Wd, Ws, parts, ga, gs);
+				}
+			}
+			cell *= h / 3.;
+			total += cell;
+			if (iq >= CRYSTAL_NQ - 1 - CRYSTAL_Q_EDGE_CELLS) edge += cell;
+			Wd0 = Wd1;
+			Ws0 = Ws1;
+			f0 = f1;
+		}
+		rate_out[iE] = units * total / dE;
+		if (rate_qedge_out != NULL) rate_qedge_out[iE] = units * edge / dE;
+	}
+	gsl_spline_free(gs);
+	gsl_interp_accel_free(ga);
+	return 0;
 }
 
 static void binomial_probs(int n, double p, int kmax, double *out){

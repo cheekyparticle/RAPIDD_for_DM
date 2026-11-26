@@ -27,6 +27,10 @@ int difrate_electron_dEr_resp(double rhochi, double mchi, double jchi, double m_
 int difrate_electron_dEr_resp_target(int target, double rhochi, double mchi, double jchi, double m_e, int resp_mask,
 									 double *k_out, double *E_out, double *rate_shell_out);
 int difrate_electron_dEr_all(double rhochi, double mchi, double jchi, double m_e, double *k_out, double *E_out, double *rate_shell_out);
+// DM-electron scattering in crystals (silicon, crystal_resp.c)
+int crystal_unsupported_coeffs(int *ops_out);
+int difrate_electron_crystal(int target, double rhochi, double mchi, double jchi, double m_e, int screening,
+							 int parts, double *E_out, double *rate_out, double *rate_qedge_out);
 int xenon10_bins(int *bins_out);
 #define ER_ENERGY_ELECTRON 0   // XENON1T response at E_e + de-excitation photon (default)
 #define ER_ENERGY_DEPOSITED 1  // XENON1T response at E_e + E_b

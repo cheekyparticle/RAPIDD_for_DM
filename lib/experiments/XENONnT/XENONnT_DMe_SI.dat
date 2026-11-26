@@ -1,5 +1,6 @@
 # 90% CL upper limit (PCL) on the DM-electron reference cross section sigma_e from XENONnT,
-# heavy mediator (F_DM = 1), spin-independent fermionic DM. Extracted from the vector paths of the published plot.
+# heavy mediator (F_DM = 1), spin-independent fermionic DM: XENONnT Collaboration, arXiv:2601.11296,
+# PRL 137, 051003 (2026), black curves of Fig. 4(d). Extracted from the vector paths of the published plot.
 # DM mass [GeV]          sigma_e [cm^2]
 3.999979e-02 1.416483e-40
 4.999976e-02 4.658597e-41

@@ -780,6 +780,88 @@ def difrate_electron_dEr_all(rhoDM, mDM, jchi, m_e, resp_mask=15, target="Xe"):
                            % (err, _electron_rate_errors.get(err, "unknown error")))
     return k, E, rate.reshape(n_shell, GRIDSIZE_K)
 
+########################################################################################
+# DM-electron scattering in crystals (silicon): crystal response W_1 from the QCDark2 dielectric function
+########################################################################################
+CRYSTAL_TARGETS = ("Si",)
+CRYSTAL_NQ = 1251
+CRYSTAL_NE = 501
+CRYSTAL_Q_AME = (0.01, 0.02)   # q grid of the tables: q = 0.01 + 0.02 j [alpha m_e], j < CRYSTAL_NQ
+CRYSTAL_DE_EV = 0.1            # Delta E grid of the tables: Delta E = 0.1 i [eV], i < CRYSTAL_NE
+CRYSTAL_Q_EDGE_AME = 22.51     # rate_qedge of difrate_electron_crystal: q > 22.51 alpha m_e (last 10% of the grid)
+# couplings supported by the crystal rate (W_1 only): density (screened) and spin (not screened) couplings
+CRYSTAL_DENSITY_OPERATORS = (1, 11)
+CRYSTAL_SPIN_OPERATORS = (4, 6, 9, 10)
+CRYSTAL_OPERATORS = (1, 4, 6, 9, 10, 11)
+crystal_resp_dir = os.path.join(base_dir, '..', 'lib', 'crystal_responses')
+
+_crapidd.crystal_cell_mass_au.argtypes = [ctypes.c_int]
+_crapidd.crystal_cell_mass_au.restype = ctypes.c_double
+# unit cell mass [u] of the crystal targets (rate per kg of target)
+CRYSTAL_CELL_MASS_AU = {t: _crapidd.crystal_cell_mass_au(i) for i, t in enumerate(CRYSTAL_TARGETS)}
+_crapidd.read_crystal_responses.argtypes = [ctypes.c_char_p, ctypes.c_int]
+_crapidd.read_crystal_responses.restype = ctypes.c_int
+_crapidd.crystal_responses_loaded.argtypes = [ctypes.c_int]
+_crapidd.crystal_responses_loaded.restype = ctypes.c_int
+_crapidd.crystal_unsupported_coeffs.argtypes = [_int_p]
+_crapidd.crystal_unsupported_coeffs.restype = ctypes.c_int
+_crapidd.difrate_electron_crystal.argtypes = [ctypes.c_int] + [ctypes.c_double] * 4 + [ctypes.c_int] * 2 + [_dbl_p] * 3
+_crapidd.difrate_electron_crystal.restype = ctypes.c_int
+
+_crystal_rate_errors = {1: "the crystal responses have not been read (read_crystal_responses)", 3: "wrong parts",
+                        4: "unknown target",
+                        5: "a coupling needing the crystal responses W_2 ... W_5 is set (only c_1, c_4, c_6, c_9, "
+                           "c_10, c_11 are supported)"}
+
+
+def crystal_target_index(target):
+    '''Index of the crystal DM-electron target ("Si") in the C library'''
+    if target not in CRYSTAL_TARGETS:
+        raise ValueError(f"Unknown crystal target {target}: choose from {CRYSTAL_TARGETS}")
+    return CRYSTAL_TARGETS.index(target)
+
+
+def read_crystal_responses(path=crystal_resp_dir, target="Si"):
+    '''
+    Read the crystal response W_1(q, Delta E) of the target, unscreened (<target>_W1.txt, Im eps), RPA screened
+    (<target>_W1_screened.txt, Im[-1/eps]) and without local field effects (<target>_W1_nolfe.txt, Im eps_noLFE,
+    used for the spin couplings), from path (default lib/crystal_responses, see its README).
+    '''
+    err = _crapidd.read_crystal_responses(path.encode(), crystal_target_index(target))
+    if err != 0:
+        raise IOError("Could not read the crystal responses of %s in %s (error %i)" % (target, path, err))
+
+
+def crystal_responses_loaded(target="Si"):
+    return bool(_crapidd.crystal_responses_loaded(crystal_target_index(target)))
+
+
+def crystal_unsupported_coeffs():
+    '''Operators set (contact or long-range) that the crystal rate does not support (O_3, O_5, O_7, O_8, O_12-O_15)'''
+    ops = np.zeros(8, dtype=np.int32)
+    n = _crapidd.crystal_unsupported_coeffs(ops.ctypes.data_as(_int_p))
+    return tuple(int(o) for o in ops[:n])
+
+
+def difrate_electron_crystal(rhoDM, mDM, jchi, m_e, screening=True, parts=3, target="Si"):
+    '''
+    Delta E [GeV] (CRYSTAL_NE), dR/dDelta E [events/kg/day/GeV] and its part from q > CRYSTAL_Q_EDGE_AME of the
+    crystal target. screening: RPA screening of the density couplings c_1, c_11. parts: 1 density couplings,
+    2 spin couplings (c_4, c_6, c_9, c_10: never screened, independent-particle response without local field
+    effects as in arXiv:2402.06817), 3 both.
+    '''
+    t = crystal_target_index(target)
+    E = np.zeros(CRYSTAL_NE)
+    rate = np.zeros(CRYSTAL_NE)
+    edge = np.zeros(CRYSTAL_NE)
+    err = _crapidd.difrate_electron_crystal(t, rhoDM, mDM, jchi, m_e, int(bool(screening)), int(parts),
+                                            E.ctypes.data_as(_dbl_p), rate.ctypes.data_as(_dbl_p),
+                                            edge.ctypes.data_as(_dbl_p))
+    if err != 0:
+        raise RuntimeError("difrate_electron_crystal failed (error %i): %s"
+                           % (err, _crystal_rate_errors.get(err, "unknown error")))
+    return E, rate, edge
+
 _xenon10_bins = _crapidd.xenon10_bins
 _xenon10_bins.argtypes = [_int_p]
 _xenon10_bins.restype = ctypes.c_int

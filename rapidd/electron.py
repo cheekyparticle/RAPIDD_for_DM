@@ -19,14 +19,39 @@ Conventions
 - The halo table must contain halo(vmin, 2) (i >= 2) for the operators depending on v_el^perp.
 - W_2: by default with the sign corrected in arXiv:2405.04855 (Liang et al.); set_w2_sign("Catena")
   uses the sign of arXiv:1912.08204 (affects O_7, O_8, O_12, O_13, O_14).
+
+Silicon (target="Si", crystal)
+------------------------------
+- Rate of R. Catena, T. Emken, M. Matas, N. A. Spaldin, E. Urdshals, arXiv:2105.02233 (Eq. R_crystal_2D): the
+  atomic formula with the unit cell (2 Si atoms) as target, the deposited energy Delta E in
+  vmin = Delta E/q + q/(2 mchi) and the first crystal response W_1 only, from the QCDark2 RPA dielectric functions
+  (C. Dreyer, R. Essig, M. Fernandez-Serra, M. Hott, A. Singal, arXiv:2603.12326, github.com/meganhott/QCDark2):
+  W_1 = Delta E q^2 V_cell Im eps/(pi^2 alpha), with the normalization of DarkELF (S. Knapen, J. Kozaczuk, T. Lin,
+  arXiv:2104.12786, Eq. 16) (lib/crystal_responses, read with read_crystal_responses). Grid: q = 0.01 ... 25.01 alpha m_e (93 keV),
+  Delta E = 0 ... 50 eV (valence and 3s, 3p bands; no Si 2p).
+- Couplings: only c_1, c_4, c_6, c_9, c_10, c_11 (contact and long-range), whose DM response is R_1 alone. The other
+  operators need the crystal responses W_2 ... W_5, not available: UnsupportedCrystalCouplingError.
+- Screening, following R. Catena and N. A. Spaldin, arXiv:2402.06817 (RPA, non-spin-polarised material): the
+  couplings to the electron density (c_1, c_11) are screened, W_1 from Im[-1/eps] with local field effects (as in
+  QCDark2); the couplings to the electron spin (c_4, c_6, c_9, c_10) are not screened and use the
+  independent-particle response, W_1 from Im eps without local field effects (neglected in arXiv:2402.06817).
+  screening=False uses Im eps (with local field effects) for the density couplings (unscreened literature).
+- Truncation: CrystalTruncationWarning when the rate near q = 25 alpha m_e or Delta E = 50 eV is not negligible.
+- Ionization: number Q of electron-hole pairs with the probabilities p_Q(Delta E) of K. Ramanathan and N. Kurinsky
+  (arXiv:2004.10709, 100 K, table p100K.dat of the arXiv source), see difrate_dQ.
 """
 import warnings
 
 import numpy as np
 
+import os
+
 from .core import (set_any_Ecoeff, set_w2_sign, w2_sign, read_atomic_responses, difrate_electron_dEr_all, difrate_dS2,
                    calc_halo, read_halo, Ce_val, M_ELECTRON, XE_SHELLS, N_SHELL_XE, N_ATOMIC_RESP,
-                   ELECTRON_OPERATORS, ELECTRON_INTERACTIONS, ELECTRON_TARGETS, ELECTRON_TARGET_SHELLS, AR_SHELLS)
+                   ELECTRON_OPERATORS, ELECTRON_INTERACTIONS, ELECTRON_TARGETS, ELECTRON_TARGET_SHELLS, AR_SHELLS,
+                   CRYSTAL_TARGETS, CRYSTAL_OPERATORS, CRYSTAL_DENSITY_OPERATORS, CRYSTAL_SPIN_OPERATORS,
+                   CRYSTAL_Q_EDGE_AME, CRYSTAL_DE_EV, crystal_resp_dir, crystal_unsupported_coeffs,
+                   difrate_electron_crystal, read_crystal_responses, crystal_responses_loaded)
 from .stats import poisson_upper_limit
 
 _trapezoid = getattr(np, "trapezoid", None) or np.trapz  # numpy < 2 has only trapz
@@ -120,6 +145,124 @@ def check_qmax_truncation(mDM, target="Xe"):
     return ops
 
 
+########################################################################################
+# Silicon (crystal) target
+########################################################################################
+ELECTRON_RATE_TARGETS = ELECTRON_TARGETS + CRYSTAL_TARGETS
+# Ramanathan-Kurinsky ionization probabilities at 100 K (arXiv:2004.10709, supplemental p100K.dat): Delta E [eV],
+# p_n for n = 1 ... 20 electron-hole pairs
+SI_IONIZATION_TABLE = os.path.join(crystal_resp_dir, "Si_ionization_p100K.dat")
+CRYSTAL_EDGE_WARNING = 0.02    # CrystalTruncationWarning above this fraction of the rate at the q or Delta E edge
+CRYSTAL_E_EDGE_EV = 45.        # Delta E edge region: 45 < Delta E <= 50 eV
+
+
+class UnsupportedCrystalCouplingError(ValueError):
+    '''A coupling needing the crystal responses W_2 ... W_5 (not available) is set for a crystal target'''
+
+
+class CrystalTruncationWarning(UserWarning):
+    '''The crystal rate misses q > 25 alpha m_e or Delta E > 50 eV (end of the tables)'''
+
+
+_crystal_warned = set()
+
+
+def check_crystal_couplings(target="Si"):
+    '''
+    Raise UnsupportedCrystalCouplingError if a coefficient (contact or long-range) of O_3, O_5, O_7, O_8, O_12 ...
+    O_15 is set: their DM responses need the crystal responses W_2 ... W_5 (arXiv:2105.02233), not available for
+    the QCDark2 silicon response (only W_1, which cannot be combined with other W_j without breaking their
+    cancellations). Supported: c_1, c_4, c_6, c_9, c_10, c_11.
+    '''
+    ops = crystal_unsupported_coeffs()
+    if ops:
+        raise UnsupportedCrystalCouplingError(
+            "DM-electron rate in %s: the couplings %s need the crystal responses W_2 ... W_5, not available (only "
+            "W_1 from the QCDark2 dielectric function). Supported: %s."
+            % (target, ", ".join("c_%d" % o for o in ops), ", ".join("c_%d" % o for o in CRYSTAL_OPERATORS)))
+
+
+def crystal_edge_fractions(rate):
+    '''
+    Fractions of the total rate of difrate_electron (crystal target) from the last 10% of the q grid
+    (q > 22.5 alpha m_e) and from 45 < Delta E <= 50 eV: indicators of the rate lost at q > 25 alpha m_e and
+    Delta E > 50 eV (not computed). Returns (q_fraction, E_fraction).
+    '''
+    tot = np.sum(rate['dRdE'])
+    if tot <= 0:
+        return 0., 0.
+    return (float(np.sum(rate['dRdE_qedge']) / tot),
+            float(np.sum(rate['dRdE'][rate['E'] * 1e3 > CRYSTAL_E_EDGE_EV]) / tot))
+
+
+def check_crystal_truncation(rate, mDM):
+    '''
+    Warn (CrystalTruncationWarning) if more than CRYSTAL_EDGE_WARNING of the crystal rate comes from the edge of the
+    tables (crystal_edge_fractions): the rate from q > 25 alpha m_e ~ 93 keV and Delta E > 50 eV (Si 2p and
+    above) is missing (heavy mediator, large mDM; e.g. contact c_6, growing as q^4, has 22% of its rate from
+    q > 22.5 alpha m_e at 1 GeV, while contact c_1 has 0.8% and 1.6% at the q and Delta E edges). The fractions
+    are indicators, not estimates of the missing rate. Issued once per (target, edge, quarter decade of mDM).
+    Returns (q_fraction, E_fraction).
+    '''
+    fq, fE = crystal_edge_fractions(rate)
+    for kind, f, what in (("q", fq, "q in [22.5, 25] alpha m_e (the tables stop at q = 25 alpha m_e ~ 93 keV)"),
+                          ("E", fE, "Delta E in [45, 50] eV (the tables stop at Delta E = 50 eV, no Si 2p; the rate per "
+                                    "e-h pair for Q <= 10 is not affected)")):
+        if f <= CRYSTAL_EDGE_WARNING:
+            continue
+        key = (rate['target'], kind, int(np.floor(4. * np.log10(mDM))))
+        if key in _crystal_warned:
+            continue
+        _crystal_warned.add(key)
+        warnings.warn("DM-electron rate in %s for mDM = %g GeV: %.2g%% of the rate comes from %s; the rate beyond "
+                      "the end of the tables is not included (indicatively of the same order)."
+                      % (rate['target'], mDM, 100. * f, what), CrystalTruncationWarning, stacklevel=4)
+    return fq, fE
+
+
+def _difrate_crystal(rhoDM, mDM, jchi, shells, resp, m_e, target, screening):
+    if shells is not None:
+        raise ValueError(f"{target} is a crystal target: shells must be None")
+    if resp not in (None, 1) and list(np.atleast_1d(resp)) != [1]:
+        raise ValueError(f"{target} is a crystal target: only R_1 W_1 (resp = 1 or None)")
+    check_crystal_couplings(target)
+    if not crystal_responses_loaded(target):
+        read_crystal_responses(target=target)
+    E, rate, edge = difrate_electron_crystal(rhoDM, mDM, jchi, m_e, screening=screening, target=target)
+    E_keV = E[1:] * 1e6
+    dRdE = rate[1:] / 1e6
+    res = {'E': E_keV, 'dRdE': dRdE, 'dRdlnE': E_keV * dRdE, 'dRdE_qedge': edge[1:] / 1e6,
+           'E_GeV': E[1:], 'target': target, 'screening': bool(screening)}
+    check_crystal_truncation(res, mDM)
+    return res
+
+
+def read_ionization_table(path=SI_IONIZATION_TABLE):
+    '''Ionization probabilities: Delta E [eV] (n_E) and p_Q(Delta E) (Q_max x n_E), Q = 1 ... Q_max'''
+    t = np.loadtxt(path)
+    return t[:, 0], t[:, 1:].T
+
+
+def difrate_dQ(rate, Q_max=10, table=SI_IONIZATION_TABLE):
+    '''
+    Rate per number Q of electron-hole pairs [events/kg/day], Q = 1 ... Q_max, from dR/dDelta E of difrate_electron
+    (crystal target): R_Q = sum_i dR/dDelta E(Delta E_i) dDelta E p_Q(Delta E_i) on the Delta E grid (0.1 eV), with
+    p_Q linearly interpolated in the ionization table (default: Ramanathan-Kurinsky 100 K, arXiv:2004.10709) and
+    Delta E restricted to its range (1.1 ... 50 eV), as recoil_spectrum of QCDark2.
+    Returns {'Q': array, 'dRdQ': array}.
+    '''
+    if rate.get('target') not in CRYSTAL_TARGETS:
+        raise ValueError("difrate_dQ needs the rate of a crystal target (target='Si')")
+    Et, p = read_ionization_table(table)
+    if Q_max > p.shape[0]:
+        raise ValueError("Q_max must be <= %d (columns of the ionization table)" % p.shape[0])
+    E_eV = np.round(rate['E'] * 1e3, 5)
+    sel = (E_eV >= Et.min()) & (E_eV <= Et.max())
+    w = rate['dRdE'][sel] * 1e-3 * CRYSTAL_DE_EV   # events/kg/day/eV * eV
+    dRdQ = np.array([np.sum(w * np.interp(E_eV[sel], Et, p[n])) for n in range(Q_max)])
+    return {'Q': np.arange(1, Q_max + 1), 'dRdQ': dRdQ}
+
+
 def q_ref(m_e=M_ELECTRON):
     '''Reference momentum q_ref = alpha m_e [GeV] of the long-range couplings'''
     return ALPHA_EM * m_e
@@ -141,7 +284,7 @@ def write_paper_halo(table_path, profile="SHM", i=2):
 
 def _shell_indices(shells, target="Xe"):
     if target not in ELECTRON_TARGETS:
-        raise ValueError(f"Unknown DM-electron target {target}: choose from {ELECTRON_TARGETS}")
+        raise ValueError(f"Unknown DM-electron target {target}: choose from {ELECTRON_RATE_TARGETS}")
     names = ELECTRON_TARGET_SHELLS[target]
     if shells is None:
         return list(range(len(names)))
@@ -171,9 +314,9 @@ def resp_mask(resp=None):
     return mask
 
 
-def difrate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRON, target="Xe"):
+def difrate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRON, target="Xe", screening=True):
     '''
-    Differential ionization rate of Xenon (or Argon) for the DM-electron coefficients set with
+    Differential ionization rate of Xenon, Argon or silicon for the DM-electron coefficients set with
     set_any_Ecoeff (contact and long-range). Requires read_halo and read_atomic_responses (with
     the same target). For mDM > 0.3 GeV and contact O_3, O_5, O_6, O_13, O_14, O_15 a
     QMaxTruncationWarning is issued (q <= 1 MeV, see check_qmax_truncation).
@@ -194,12 +337,18 @@ def difrate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRO
         Keep only the terms R_j W_j with j in resp (None: all). Single terms can be negative.
     m_e : float
         Electron mass [GeV].
-    target : {"Xe", "Ar"}
-        Target atom (default Xenon).
+    target : {"Xe", "Ar", "Si"}
+        Target (default Xenon). "Si": silicon crystal (see the module docstring), with the deposited energy
+        Delta E in place of E, no shells, only c_1, c_4, c_6, c_9, c_10, c_11 (UnsupportedCrystalCouplingError
+        otherwise); the crystal responses are read if needed.
+    screening : bool
+        Silicon only: RPA screening of the density couplings c_1, c_11 (default); False: unscreened.
 
     Returns
     -------
-    dict with
+    For "Si": dict with E (Delta E [keV], 0.1 ... 50 eV), dRdE [events/kg/day/keV], dRdlnE, dRdE_qedge (part of
+    dRdE from q > 22.5 alpha m_e), E_GeV, target, screening (see difrate_dQ for the rate per e-h pair).
+    For "Xe" and "Ar": dict with
         k, E : outgoing electron momentum and energy [keV] (GRIDSIZE_K points)
         dRdE, dRdlnE : total over the selected shells [events/kg/day/keV], [events/kg/day]
         dRdE_shell, dRdlnE_shell : dict shell name -> array, for the selected shells
@@ -210,6 +359,8 @@ def difrate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELECTRO
     '''
     if mDM <= 0 or rhoDM < 0:
         raise ValueError("mDM must be > 0 and rhoDM >= 0")
+    if target in CRYSTAL_TARGETS:
+        return _difrate_crystal(rhoDM, mDM, jchi, shells, resp, m_e, target, screening)
     idx = _shell_indices(shells, target)
     check_qmax_truncation(mDM, target)
     names = ELECTRON_TARGET_SHELLS[target]
@@ -233,10 +384,12 @@ def total_rate_electron(rhoDM, mDM, jchi=0.5, shells=None, resp=None, m_e=M_ELEC
     If rate (the output of difrate_electron) is given, the other arguments are ignored.
     The XENON10 response integrates the same spectrum (power-law interpolation between the grid
     points, from the first to the last point of the grid).
-    target: "Xe" (default) or "Ar".
+    target: "Xe" (default), "Ar" or "Si" (trapezoidal rule in Delta E for silicon).
     '''
     if rate is None:
         rate = difrate_electron(rhoDM, mDM, jchi=jchi, shells=shells, resp=resp, m_e=m_e, target=target)
+    if rate.get('target') in CRYSTAL_TARGETS:  # linear Delta E grid: trapezoidal rule in Delta E
+        return float(_trapezoid(rate['dRdE'], rate['E']))
     return float(_trapezoid(rate['dRdlnE'], np.log(rate['E'])))
 
 

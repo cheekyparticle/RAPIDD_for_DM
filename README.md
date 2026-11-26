@@ -20,6 +20,38 @@ The recent RAPIDD version works both in standalone mode and as a plugin of [MadD
 - M. Peiro
 - E. Gerstmayr
 
+## Citation
+
+If you use RAPIDD, please cite
+
+- D. G. Cerdeño, A. Cheek, E. Reid, H. Schulz, *Surrogate Models for Direct Dark Matter Detection*, JCAP 08 (2018) 011, [arXiv:1802.03174](https://arxiv.org/abs/1802.03174).
+
+RAPIDD uses formalisms, codes and data of other authors: please cite also the works below for the parts you use (the data files and the code give the details).
+
+**DM-nucleus scattering**
+- Non-relativistic EFT and nuclear responses: A. L. Fitzpatrick, W. Haxton, E. Katz, N. Lubbers, Y. Xu, JCAP 02 (2013) 004, [arXiv:1203.3542](https://arxiv.org/abs/1203.3542) (also the `Fitz2012` responses); N. Anand, A. L. Fitzpatrick, W. C. Haxton, Phys. Rev. C 89, 065501 (2014), [arXiv:1308.6288](https://arxiv.org/abs/1308.6288) (DMFormFactor, `Anand2013` and `McElvain2022` responses).
+- `McElvain2022` density matrices: W. C. Haxton, E. Rule, K. McElvain, M. J. Ramsey-Musolf, Phys. Rev. C 107, 035504 (2023), [arXiv:2208.07945](https://arxiv.org/abs/2208.07945) ([Elastic](https://github.com/Berkeley-Electroweak-Physics/Elastic) repository).
+- `Khaleq2023` responses: R. Abdel Khaleq, G. Busoni, C. Simenel, A. E. Stuchbery, Phys. Rev. D 109, 075036 (2024), [arXiv:2311.15764](https://arxiv.org/abs/2311.15764).
+- Inelastic scattering: G. Barello, S. Chang, C. A. Newby, Phys. Rev. D 90, 094027 (2014), [arXiv:1409.0536](https://arxiv.org/abs/1409.0536).
+- Chiral EFT: M. Hoferichter, P. Klos, J. Menéndez, A. Schwenk, Phys. Rev. D 99, 055031 (2019), [arXiv:1812.05617](https://arxiv.org/abs/1812.05617) and Phys. Rev. D 94, 063505 (2016), [arXiv:1605.08043](https://arxiv.org/abs/1605.08043); M. Hoferichter, J. Menéndez, A. Schwenk, Phys. Rev. D 102, 074018 (2020), [arXiv:2007.08529](https://arxiv.org/abs/2007.08529); B. S. Hu, J. Padua-Argüelles, S. Leutheusser, T. Miyagi, S. R. Stroberg, J. D. Holt, Phys. Rev. Lett. 128, 072502 (2022), [arXiv:2109.00193](https://arxiv.org/abs/2109.00193); P. Klos, J. Menéndez, D. Gazit, A. Schwenk, Phys. Rev. D 88, 083516 (2013), [arXiv:1304.7684](https://arxiv.org/abs/1304.7684); F. Bishara, J. Brod, B. Grinstein, J. Zupan, JHEP 11 (2017) 059, [arXiv:1707.06998](https://arxiv.org/abs/1707.06998).
+
+**DM-electron scattering**
+- Non-relativistic EFT and atomic responses: R. Catena, T. Emken, N. A. Spaldin, W. Tarantino, Phys. Rev. Research 2, 033195 (2020), [arXiv:1912.08204](https://arxiv.org/abs/1912.08204); the atomic response tables are computed with DarkART, T. Emken, [doi:10.5281/zenodo.6046225](https://doi.org/10.5281/zenodo.6046225); sign of W_2: J.-H. Liang, Y. Liao, X.-D. Ma, H.-L. Wang, Phys. Rev. D 110, L091701 (2024), [arXiv:2405.04855](https://arxiv.org/abs/2405.04855).
+- Silicon: crystal responses, R. Catena, T. Emken, M. Matas, N. A. Spaldin, E. Urdshals, Phys. Rev. Research 3, 033149 (2021), [arXiv:2105.02233](https://arxiv.org/abs/2105.02233); screening of general interactions, R. Catena, N. A. Spaldin, Phys. Rev. Research 6, 033230 (2024), [arXiv:2402.06817](https://arxiv.org/abs/2402.06817); dielectric functions, QCDark2, C. Dreyer, R. Essig, M. Fernandez-Serra, M. Hott, A. Singal, Phys. Rev. D 114, 035003 (2026), [arXiv:2603.12326](https://arxiv.org/abs/2603.12326), [github.com/meganhott/QCDark2](https://github.com/meganhott/QCDark2); normalization, DarkELF, S. Knapen, J. Kozaczuk, T. Lin, Phys. Rev. D 105, 015014 (2022), [arXiv:2104.12786](https://arxiv.org/abs/2104.12786); ionization yield, K. Ramanathan, N. Kurinsky, Phys. Rev. D 102, 063026 (2020), [arXiv:2004.10709](https://arxiv.org/abs/2004.10709).
+- XENON10 analysis and DM-electron rate conventions: R. Essig, T. Volansky, T.-T. Yu, Phys. Rev. D 96, 043017 (2017), [arXiv:1703.00910](https://arxiv.org/abs/1703.00910); R. Essig, M. Fernandez-Serra, J. Mardon, A. Soto, T. Volansky, T.-T. Yu, JHEP 05 (2016) 046, [arXiv:1509.01598](https://arxiv.org/abs/1509.01598).
+
+**Halo**
+- D. Baxter et al., Eur. Phys. J. C 81, 907 (2021), [arXiv:2105.00599](https://arxiv.org/abs/2105.00599) (standard halo conventions); C. Savage, K. Freese, P. Gondolo, Phys. Rev. D 74, 043531 (2006), [astro-ph/0607121](https://arxiv.org/abs/astro-ph/0607121); C. McCabe, Phys. Rev. D 82, 023530 (2010), [arXiv:1005.0579](https://arxiv.org/abs/1005.0579); SHM + LMC: N. L. Rodd, B. R. Safdi, T. R. Slatyer, W. L. Xu, [arXiv:2609.04175](https://arxiv.org/abs/2609.04175).
+
+**Experimental results** (`lib/experiments`)
+- XENON1T: E. Aprile et al. (XENON), Phys. Rev. Lett. 123, 251801 (2019), [arXiv:1907.11485](https://arxiv.org/abs/1907.11485) ([data release](https://github.com/XENON1T/s2only_data_release)).
+- XENONnT: E. Aprile et al. (XENON), Phys. Rev. Lett. 137, 051003 (2026), [arXiv:2601.11296](https://arxiv.org/abs/2601.11296).
+- DAMIC-M: K. Aggarwal et al. (DAMIC-M), Phys. Rev. Lett. 135, 071002 (2025), [arXiv:2503.14617](https://arxiv.org/abs/2503.14617) ([limits](https://github.com/DAMIC-M/LBC_2025_HSBenchmark_Limits)); the rescaled limit also uses QCDark, C. E. Dreyer, R. Essig, M. Fernandez-Serra, A. Singal, C. Zhen, Phys. Rev. D 109, 115008 (2024), [arXiv:2306.14944](https://arxiv.org/abs/2306.14944), and the screening model of G. Cappellini, R. Del Sole, L. Reining, F. Bechstedt, Phys. Rev. B 47, 9892 (1993).
+- DarkSide-50: P. Agnes et al. (DarkSide-50), Phys. Rev. Lett. 130, 101002 (2023), [arXiv:2207.11968](https://arxiv.org/abs/2207.11968); Phys. Rev. Lett. 121, 111303 (2018), [arXiv:1802.06998](https://arxiv.org/abs/1802.06998).
+- LZ: J. Aalbers et al. (LZ), Phys. Rev. Lett. 135, 011802 (2025), [arXiv:2410.17036](https://arxiv.org/abs/2410.17036).
+- PICO-60: C. Amole et al. (PICO), Phys. Rev. D 100, 022001 (2019), [arXiv:1902.04031](https://arxiv.org/abs/1902.04031).
+- XLZD: J. Aalbers et al. (XLZD), Eur. Phys. J. C 85, 1192 (2025), [arXiv:2410.17137](https://arxiv.org/abs/2410.17137) (curves from [DirectDetectionPlots](https://github.com/cajohare/DirectDetectionPlots), C. A. J. O'Hare); J. Aalbers et al., J. Phys. G 50, 013001 (2023), [arXiv:2203.02309](https://arxiv.org/abs/2203.02309).
+
 ## Requirements
 
 Before installing, make sure the following are available on your system:
@@ -117,7 +149,7 @@ Worked examples are in `examples/evaluate_NR_rates.ipynb` (nuclear recoils) and 
 
 ### DM-electron scattering
 
-RAPIDD computes the ionization rate of Xenon and Argon (`target="Xe"` or `"Ar"`) for the non-relativistic effective theory of DM-electron interactions of [arXiv:1912.08204](https://arxiv.org/abs/1912.08204) (Catena, Emken, Spaldin, Tarantino): operators $\mathcal{O}_1, \mathcal{O}_3, \dots, \mathcal{O}_{15}$ with contact and long-range couplings, $\mathcal{M} = \sum_i (c_i^s + (q_\text{ref}/q)^2 c_i^\ell) \langle\mathcal{O}_i\rangle$ with $q_\text{ref} = \alpha m_e$, and the atomic responses of `lib/atomic_responses` (computed with [DarkART](https://github.com/temken/DarkART)).
+RAPIDD computes the ionization rate of Xenon and Argon (`target="Xe"` or `"Ar"`) and the excitation rate of silicon (`target="Si"`, see below) for the non-relativistic effective theory of DM-electron interactions of [arXiv:1912.08204](https://arxiv.org/abs/1912.08204) (Catena, Emken, Spaldin, Tarantino): operators $\mathcal{O}_1, \mathcal{O}_3, \dots, \mathcal{O}_{15}$ with contact and long-range couplings, $\mathcal{M} = \sum_i (c_i^s + (q_\text{ref}/q)^2 c_i^\ell) \langle\mathcal{O}_i\rangle$ with $q_\text{ref} = \alpha m_e$, and the atomic responses of `lib/atomic_responses` (computed with [DarkART](https://github.com/temken/DarkART)).
 
 - **$q_\text{max} = 1$ MeV**: the $q$ integral stops at the end of the tables, beyond which the non-relativistic treatment is not valid. For $m_\chi > 0.3$ GeV and a contact coefficient of $\mathcal{O}_3$, $\mathcal{O}_5$, $\mathcal{O}_6$, $\mathcal{O}_{13}$, $\mathcal{O}_{14}$ or $\mathcal{O}_{15}$, `difrate_electron` issues a `QMaxTruncationWarning` with the fraction of the rate that is lost. $\mathcal{O}_1$ and $\mathcal{O}_4$, the only operators used by MadDM, are not affected.
 - **Sign of $W_2$**: by default RAPIDD uses the sign corrected in [arXiv:2405.04855](https://arxiv.org/abs/2405.04855); `rapidd.set_w2_sign("Catena")` restores the sign of arXiv:1912.08204.
@@ -144,7 +176,7 @@ limit = rapidd.electron_limit(signal, coupling=1e-5)     # 90% CL on g/Lambda
 | Function | Purpose |
 |----------|---------|
 | `set_any_Ecoeff(c, op, interaction)`, `Ce_val`, `Ce_LR_val`, `reset_coefficients` | contact / long-range coefficients |
-| `difrate_electron`, `total_rate_electron` | spectra (total, per shell, per term $R_j W_j$) and total rate; `target="Xe"` (default) or `"Ar"` |
+| `difrate_electron`, `total_rate_electron` | spectra (total, per shell, per term $R_j W_j$) and total rate; `target="Xe"` (default), `"Ar"` or `"Si"` |
 | `QMaxTruncationWarning`, `qmax_lost_fraction`, `QMAX_LOST_FRACTION` | truncation of the $q$ integral at 1 MeV for heavy DM |
 | `electron_signal`, `difrate_dS2` | XENON10 / XENON1T S2 spectra and signals |
 | `set_dark_photon_coeff`, `set_any_E_EFT_coeff`, `electron_model_coeffs` | dark photon (from $\bar\sigma_e$), anapole, magnetic and electric dipole ($g_e = 2$) |
@@ -154,7 +186,26 @@ limit = rapidd.electron_limit(signal, coupling=1e-5)     # 90% CL on g/Lambda
 | `set_er_energy_convention`, `er_energy_convention` | energy of the XENON1T response: $E_e$ + de-excitation photon ("electron", default) or $E_e + E_b$ ("deposited") |
 | `dm_response_electron` | DM responses $R_j$ (legacy normalization, used by MadDM for `sigma_e`) |
 
-MadDM only uses the SI/SD path ($c_1^s$, $c_4^s$ at $q = 0$) through `rapidd.calc_dRdE.DDrate_electron_save`. The comparisons with arXiv:1912.08204 and with the XENON1T and XENONnT data releases are in `examples/checks_ER_rates.ipynb` and in the tests.
+#### Silicon (crystal target)
+
+`target="Si"` gives the DM-electron rate in silicon with the crystal formalism of [arXiv:2105.02233](https://arxiv.org/abs/2105.02233) (the atomic formula with the unit cell as target and the deposited energy $\Delta E$), using the first crystal response $W_1 = \Delta E\, q^2 V_\text{cell} \,\text{Im}\,\epsilon/(\pi^2\alpha)$ obtained from the RPA dielectric function with local field effects of [QCDark2](https://github.com/meganhott/QCDark2) ([arXiv:2603.12326](https://arxiv.org/abs/2603.12326)); data and sources in `lib/crystal_responses/README.md`.
+
+- **Couplings**: only $c_1, c_4, c_6, c_9, c_{10}, c_{11}$ (contact and long-range), whose DM response is $R_1$ alone; the others need the crystal responses $W_2 \dots W_5$, not available, and raise `UnsupportedCrystalCouplingError`.
+- **Screening**, following Catena and Spaldin ([arXiv:2402.06817](https://arxiv.org/abs/2402.06817)): the couplings to the electron density ($c_1$, $c_{11}$) are screened in the RPA, $W_1$ from $\text{Im}[-1/\epsilon]$ with local field effects (as in QCDark2); the spin couplings ($c_4$, $c_6$, $c_9$, $c_{10}$) are not screened in a non-spin-polarised material and use the independent-particle response, $W_1$ from $\text{Im}\,\epsilon$ without local field effects (neglected in arXiv:2402.06817). `screening=False` uses $\text{Im}\,\epsilon$ with local field effects for the density couplings.
+- **Range**: $\Delta E \le 50$ eV (no Si 2p), $q \le 25\,\alpha m_e$; `CrystalTruncationWarning` when more than 2% of the rate comes from the edge of the tables.
+- **Ionization**: `difrate_dQ` gives the rate per number of electron-hole pairs $Q = 1 \dots 10$ with the probabilities of [Ramanathan and Kurinsky](https://arxiv.org/abs/2004.10709) at 100 K.
+
+```python
+rapidd.read_halo(rapidd.halo_path)
+rapidd.reset_coefficients()
+rapidd.set_any_Ecoeff(rapidd.coeff_from_sigma_e(1e-38, 0.01), 1)    # heavy mediator, sigma_e = 1e-38 cm^2
+rate = rapidd.difrate_electron(0.3, 0.01, target="Si")              # Delta E [keV], dRdE [events/kg/day/keV]
+per_Q = rapidd.difrate_dQ(rate)                                     # Q, dRdQ [events/kg/day]
+```
+
+The QCDark2 heavy- and light-mediator rates are reproduced to $10^{-5}$ with the same quadrature, and within 0.4% (2.6% at 1 MeV) for the total rate and the rate per electron-hole pair with the log-log interpolation in $q$ of RAPIDD (`tests/test_electron_silicon.py`). `examples/damicm_dme_limit_rapidd.py` rescales the DAMIC-M limit (QCDark1 with analytic screening) to this response (`lib/experiments/DAMIC-M/DAMIC-M_2025_DMe_heavy_QCDark_RAPIDD.dat`).
+
+MadDM only uses the SI/SD path ($c_1^s$, $c_4^s$ at $q = 0$) through `rapidd.calc_dRdE.DDrate_electron_save` (targets `Xe`, `Ar`, `Si`; for silicon `dRdE_electron_Si.dat` and `dRdQ_electron_Si.dat`). The comparisons with arXiv:1912.08204 and with the XENON1T and XENONnT data releases are in `examples/checks_ER_rates.ipynb` and in the tests.
 
 ## Tests
 
@@ -174,6 +225,7 @@ RAPIDD_for_DM/
 │   ├── source/              # core C routines (halo, form factors, cross sections, ...)
 │   ├── nuclear_responses/   # fit coefficients of the nuclear responses of each nuclear model (DM-nucleus scattering)
 │   ├── atomic_responses/    # Xenon and Argon atomic responses W_1 ... W_4 (DM-electron scattering)
+│   ├── crystal_responses/   # silicon crystal response W_1 (QCDark2) and ionization probabilities
 │   ├── efficiency_tables/   # detector efficiency data
 │   ├── experiments/         # experiment-specific data
 │   ├── halo_table/          # halo integral tables
@@ -184,7 +236,8 @@ RAPIDD_for_DM/
 │   ├── checks_NR_rates.ipynb     # nuclear models, modulation, chiral EFT and LZ limits, 19F responses
 │   ├── evaluate_ER_rates.ipynb   # DM-electron scattering rates, signals and limits (tutorial)
 │   ├── checks_ER_rates.ipynb     # arXiv:1912.08204, XENON1T release, wimprates and XENONnT limits
-│   └── xenonnt_dme_limit_rapidd_ff.py  # XENONnT DM-electron limit rescaled to the RAPIDD atomic responses
+│   ├── xenonnt_dme_limit_rapidd_ff.py  # XENONnT DM-electron limit rescaled to the RAPIDD atomic responses
+│   └── damicm_dme_limit_rapidd.py      # DAMIC-M DM-electron limit rescaled to the RAPIDD silicon response
 └── tests/                  # pytest suite
     └── data/                # regression references, data extracted from arXiv:1912.08204
 ```

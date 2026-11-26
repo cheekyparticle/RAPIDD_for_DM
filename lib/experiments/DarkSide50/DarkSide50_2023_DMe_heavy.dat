@@ -1,0 +1,54 @@
+# 90% CL upper limit on the DM-electron reference cross section sigma_e from DarkSide-50
+# (liquid argon, 12306 kg d, 4-170 electrons), heavy mediator (F_DM = 1): arXiv:2207.11968, PRL 130, 101002
+# (2023). Argon ionization form factors of arXiv:1802.06998 (RHF bound states, continuum in the hydrogenic
+# potential with Z_eff: the same W_1 tables and binding energies as lib/atomic_responses/*/Ar_<shell>.txt),
+# standard halo of arXiv:2105.00599 (rho = 0.3 GeV/cm^3). No numerical release: digitized from the solid red
+# curve of Fig. 2 (top left) of the arXiv source (fig2_limits.png, 3324x3776 px; axes calibrated on the major
+# ticks, curve = centre of the red line in each pixel column), resampled in log mass. Within 10% (on average 3%
+# above) of the DarkSide-50 curve of the XENONnT S2-only paper (arXiv:2601.11296, Fig. 4(d), 34 MeV - 1 GeV).
+# DM mass [GeV]   sigma_e [cm^2]
+1.400000e-02 2.459618e-36
+1.542629e-02 4.307759e-37
+1.699789e-02 1.301511e-37
+1.872960e-02 5.185520e-38
+2.063773e-02 2.531717e-38
+2.274025e-02 1.407495e-38
+2.505698e-02 8.071437e-39
+2.760973e-02 5.320574e-39
+3.042255e-02 3.632384e-39
+3.352194e-02 2.782297e-39
+3.693708e-02 2.131156e-39
+4.070015e-02 1.655719e-39
+4.484660e-02 1.396402e-39
+4.941547e-02 1.177700e-39
+5.444981e-02 1.041223e-39
+5.999704e-02 9.329666e-40
+6.610941e-02 8.646209e-40
+7.284450e-02 8.116274e-40
+8.026574e-02 7.690683e-40
+8.844304e-02 7.386200e-40
+9.745343e-02 7.287408e-40
+1.073818e-01 7.287408e-40
+1.183216e-01 7.386200e-40
+1.303759e-01 7.386200e-40
+1.436584e-01 7.486331e-40
+1.582940e-01 7.690683e-40
+1.744206e-01 7.900614e-40
+1.921902e-01 8.226303e-40
+2.117701e-01 8.577144e-40
+2.333448e-01 9.039416e-40
+2.571175e-01 9.539644e-40
+2.833121e-01 1.014257e-39
+3.121753e-01 1.076871e-39
+3.439791e-01 1.151870e-39
+3.790229e-01 1.232109e-39
+4.176370e-01 1.329503e-39
+4.601849e-01 1.428798e-39
+5.070676e-01 1.547997e-39
+5.587265e-01 1.670362e-39
+6.156484e-01 1.802399e-39
+6.783693e-01 1.958011e-39
+7.474801e-01 2.127059e-39
+8.236318e-01 2.320049e-39
+9.075416e-01 2.527157e-39
+1.000000e+00 2.726921e-39

@@ -1,0 +1,29 @@
+# DAMIC-M DM-electron limit (arXiv:2503.14617, 90% CL, heavy mediator F_DM = 1, QCDark1 + analytic MTF
+# screening) rescaled to the RAPIDD silicon response (QCDark2 RPA dielectric function with local field
+# effects, arXiv:2603.12326): sigma_e = DAMIC-M_2025_DMe_heavy_QCDark.dat x S_DAMIC-M/S_RAPIDD, with
+# S = sum_{Q=2..4} eps_Q R_Q (eps_Q = 0.38, 0.65, 0.79 pattern efficiencies), Ramanathan-Kurinsky 100 K
+# charge yield and the same halo (SHM of arXiv:2105.00599) for both. S_DAMIC-M reimplements the QCDark1
+# rate with its published Si form factor (github.com/asingal14/QCDark efdb7d1, results/Si_final.hdf5).
+# Approximate: charge diffusion, pattern details, backgrounds and Earth shielding are not modelled.
+# Masses with (1/2) m (v_esc + v_E)^2 below the Q = 4 onset (6.75 eV, m < 1.9 MeV) are omitted: there the
+# signal comes from the kinematic end point and the ratio is not reliable.
+# Written by examples/damicm_dme_limit_rapidd.py.
+# DM mass [GeV]   sigma_e [cm^2]   S_RAPIDD/S_DAMIC-M   S_QCDark2-MTF/S_DAMIC-M (diagnostic)
+2.000000e-03 6.325440e-36 0.7159 0.9690
+2.682690e-03 4.560294e-37 0.8021 0.9757
+3.500000e-03 8.819735e-38 0.7716 0.8902
+4.393970e-03 3.953006e-38 0.7595 0.8534
+5.500000e-03 2.201190e-38 0.7532 0.8320
+7.196800e-03 1.371881e-38 0.7444 0.8109
+9.000000e-03 1.093509e-38 0.7379 0.7964
+1.178768e-02 9.537202e-39 0.7364 0.7872
+1.500000e-02 8.889742e-39 0.7415 0.7870
+1.930698e-02 8.883732e-39 0.7505 0.7917
+3.162277e-02 1.009454e-38 0.7675 0.8036
+5.179470e-02 1.352055e-38 0.7778 0.8114
+8.483429e-02 1.948420e-38 0.7825 0.8150
+1.389495e-01 3.059281e-38 0.7845 0.8165
+2.275846e-01 4.853576e-38 0.7853 0.8171
+3.727594e-01 7.734436e-38 0.7857 0.8173
+6.105402e-01 1.241775e-37 0.7859 0.8175
+1.000000e+00 2.020738e-37 0.7860 0.8175
