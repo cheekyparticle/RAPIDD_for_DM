@@ -88,6 +88,26 @@ def test_halo_path_from_card_ignores_vEarth_mod(tmp_path, monkeypatch):
     assert len(calls) == 1 and os.path.isfile(tmp_path / "SHM.dat")
 
 
+def test_halo_path_from_card_reads_the_profile(tmp_path, monkeypatch):
+    '''halo_velocity_profile and its parameters select the table <profile>.dat, which is not recomputed
+    for the same parameters; the parameters of the other profiles are not passed to calc_halo'''
+    calls = _count_calc_halo(monkeypatch)
+    card = dict(CARD, halo_velocity_profile='lisanti', halo_lisanti_k=2., halo_beta=0.4)
+    path = rapidd.halo_path_from_card(card, str(tmp_path))
+    assert path == str(tmp_path / "Lisanti.dat") and os.path.isfile(path)
+    assert len(calls) == 1 and calls[0]['profile'] == 'Lisanti' and calls[0]['k_lisanti'] == 2.
+    assert 'beta' not in calls[0] and 'w' not in calls[0]
+    assert rapidd.halo_path_from_card(card, str(tmp_path)) == path and len(calls) == 1
+    card['halo_lisanti_k'] = 2.5
+    rapidd.halo_path_from_card(card, str(tmp_path))
+    assert len(calls) == 2 and calls[1]['k_lisanti'] == 2.5
+    # the modulation tables use the same profile
+    pars = modulation.halo_pars_from_card(card)
+    assert pars['profile'] == 'Lisanti' and pars['k_lisanti'] == 2.5
+    with pytest.raises(ValueError):
+        rapidd.halo_path_from_card(dict(CARD, halo_velocity_profile='NFW'), str(tmp_path))
+
+
 def test_modulation_tables_vEarth_mod(tmp_path, monkeypatch):
     '''The modulation tables use vEarth_mod (default 29.8 if missing from the card); they are
     reused if already computed for the same parameters and recomputed if vEarth_mod changes'''

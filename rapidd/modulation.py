@@ -16,7 +16,7 @@ import os
 
 import numpy as np
 
-from .core import YEAR_DAYS, calc_halo, read_halo, halo_path, default_halo_v_earth
+from .core import YEAR_DAYS, calc_halo, read_halo, halo_path, default_halo_v_earth, halo_kwargs_from_card
 
 MODULATION_HALO_DIR = 'halo_table_modulation'
 _PARAMS_FILE = 'modulation_halo_params.json'
@@ -73,11 +73,10 @@ def modulation_halo_tables(table_dir, day_bins=12, profile="SHM", vesc=544., v0=
 
 
 def halo_pars_from_card(card):
-    '''SHM parameters of the MadDM card for modulation_halo_tables: vescape, vmp (as v0 and as the
-    LSR speed), (vSun_r, vSun_phi, vSun_theta) and vEarth_mod (core.default_halo_v_earth if missing)'''
-    return dict(profile="SHM", vesc=card['vescape'], v0=card['vmp'], v0_lsr=card['vmp'],
-                v_pec=(card['vSun_r'], card['vSun_phi'], card['vSun_theta']),
-                v_earth=_card_value(card, 'vEarth_mod', default_halo_v_earth))
+    '''Halo parameters of the MadDM card for modulation_halo_tables: those of the annual-average table
+    (core.halo_kwargs_from_card: halo_velocity_profile and its parameters, vescape, vmp as v0 and as the
+    LSR speed, (vSun_r, vSun_phi, vSun_theta)) and vEarth_mod (core.default_halo_v_earth if missing)'''
+    return dict(halo_kwargs_from_card(card), v_earth=_card_value(card, 'vEarth_mod', default_halo_v_earth))
 
 
 def modulation_halo_from_card(card, table_dir, day_bins=12, verbose=False):

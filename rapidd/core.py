@@ -192,25 +192,73 @@ def read_halo(path = halo_path):
     _read_halo(path.encode())
     return
 
+# MadDM card entries of the halo velocity distribution -> calc_halo arguments (with the calc_halo defaults,
+# except beta = 1, the smooth cutoff, as the MadDM default of halo_beta). The same entries define the
+# Galactic distribution of the MadDM annihilation rates (indirect/halo_model.py).
+CARD_HALO_PARAMETERS = (('halo_beta', 'beta', 1.), ('halo_lisanti_k', 'k_lisanti', 1.5),
+                        ('halo_lmc_fraction', 'w', 0.006), ('halo_lmc_vb', 'vb', 570.),
+                        ('halo_lmc_sigb', 'sigb', 100.), ('halo_lmc_vcut', 'vcut', 200.),
+                        ('halo_lmc_cosb', 'cosb', -0.71))
+
+
+def _card_get(card, key, default):
+    try:
+        return card[key]
+    except KeyError:
+        return default
+
+
+def halo_profile_from_card(card):
+    '''Name of the halo velocity profile of the card (halo_velocity_profile, case insensitive; SHM if missing)'''
+    raw = str(_card_get(card, 'halo_velocity_profile', 'SHM')).strip()
+    names = {p.casefold(): p for p in VALID_PROFILES}
+    if raw.casefold() not in names:
+        raise ValueError("halo_velocity_profile must be one of %s" % (VALID_PROFILES,))
+    return names[raw.casefold()]
+
+
+def halo_kwargs_from_card(card):
+    '''calc_halo arguments of the MadDM card: halo_velocity_profile, vescape, vmp (as v0 and as the LSR
+    speed), (vSun_r, vSun_phi, vSun_theta) and the parameters of the profile (CARD_HALO_PARAMETERS;
+    only those used by the selected profile are returned)'''
+    profile = halo_profile_from_card(card)
+    kwargs = dict(profile=profile, vesc=float(card['vescape']), v0=float(card['vmp']), v0_lsr=float(card['vmp']),
+                  v_pec=(float(card['vSun_r']), float(card['vSun_phi']), float(card['vSun_theta'])))
+    used = {'SHM_beta': ('beta',), 'Lisanti': ('k_lisanti',), 'SHM_wLMC': ('w', 'vb', 'sigb', 'vcut', 'cosb')}
+    for key, arg, default in CARD_HALO_PARAMETERS:
+        if arg in used.get(profile, ()):
+            kwargs[arg] = float(_card_get(card, key, default))
+    return kwargs
+
+
+# annual-average tables already written by halo_path_from_card: path -> calc_halo arguments
+_written_halo_tables = {}
+
+
 def halo_path_from_card(card, table_dir):
     """
-    Annual-average SHM table for the halo parameters of the MadDM card.
+    Annual-average halo table for the halo velocity distribution of the MadDM card
+    (halo_velocity_profile and its parameters, see halo_kwargs_from_card).
 
-    Returns halo_path if vescape, vmp and (vSun_r, vSun_phi, vSun_theta) are the
-    default ones, otherwise computes the table in table_dir/SHM.dat and returns
-    its path. vmp is used both as v0 and as the LSR speed.
+    Returns halo_path for the SHM with the default vescape, vmp and (vSun_r, vSun_phi, vSun_theta),
+    otherwise computes the table in table_dir/<profile>.dat (e.g. SHM.dat, Lisanti.dat) and returns its
+    path. A table is not recomputed if it was already written for the same parameters in this session.
+    vmp is used both as v0 and as the LSR speed.
 
     vEarth_mod is not used: the annual-average table uses the fixed Earth velocity vector
     of March 9 of arXiv:2105.00599 (Eq. 12), so it is never recomputed when only vEarth_mod
     changes. vEarth_mod enters only the modulation tables (modulation.modulation_halo_from_card),
     through the time-dependent Earth velocity of Eq. 11.
     """
-    card_pars = (card['vescape'], card['vmp'], card['vSun_r'], card['vSun_phi'], card['vSun_theta'])
-    if np.allclose(card_pars, (default_halo_vesc, default_halo_v0) + default_halo_v_pec, rtol=1e-9, atol=0.):
+    kwargs = halo_kwargs_from_card(card)
+    card_pars = (kwargs['vesc'], kwargs['v0']) + kwargs['v_pec']
+    if kwargs['profile'] == 'SHM' and np.allclose(card_pars, (default_halo_vesc, default_halo_v0) + default_halo_v_pec,
+                                                  rtol=1e-9, atol=0.):
         return halo_path
-    path = os.path.join(table_dir, 'SHM.dat')
-    calc_halo(path, profile="SHM", vesc=card['vescape'], v0=card['vmp'], v0_lsr=card['vmp'],
-              v_pec=(card['vSun_r'], card['vSun_phi'], card['vSun_theta']))
+    path = os.path.join(table_dir, '%s.dat' % kwargs['profile'])
+    if _written_halo_tables.get(path) != kwargs or not os.path.isfile(path):
+        calc_halo(path, **kwargs)
+        _written_halo_tables[path] = kwargs
     return path
 
 _nucleus_mass = _crapidd.nucleus_mass

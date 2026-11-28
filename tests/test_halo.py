@@ -51,3 +51,32 @@ def test_eta0_against_numerical_integral():
         g = fv[sel] / v[sel]
         ref = np.sum((g[1:] + g[:-1]) / 2 * np.diff(v[sel]))
         np.testing.assert_allclose(shm_halo(vmin, vesc, v0, ve, 0), ref, rtol=1e-3)
+
+
+_halo_f = rapidd.core._crapidd.halo_f
+_halo_f.argtypes = [ctypes.c_char_p] + [ctypes.c_double] * 6 + [ctypes.c_int] + [ctypes.c_double] * 5
+_halo_f.restype = ctypes.c_double
+
+
+def halo_f(profile, vmin, vesc, v0, beta, ve, i, k=1.5):
+    return _halo_f(profile.encode(), vmin, vesc, v0, beta, ve, k, i, 0.006, 570., -0.71, 100., 200.)
+
+
+@pytest.mark.parametrize("i", (0, 1, 2))
+def test_shm_beta_zero_is_the_hard_cutoff_shm(i):
+    '''SHM_beta at beta = 0 is the truncated Maxwellian of shm_halo (escape cutoff included)'''
+    for vesc, v0, ve in HALOS[:20]:
+        for vmin in (0., 150., vesc - ve, 0.97 * (vesc + ve)):
+            np.testing.assert_allclose(halo_f("SHM_beta", vmin, vesc, v0, 0., ve, i), shm_halo(vmin, vesc, v0, ve, i),
+                                       rtol=1e-9, atol=1e-16)
+
+
+@pytest.mark.parametrize("beta", (0.3, 1.))
+def test_shm_beta_normalized_and_positive(beta):
+    '''eta_1(0) = int f d^3v = 1 and eta_0 >= 0 decreasing up to vesc + ve, also with the smooth cutoff'''
+    vesc, v0, ve = 544., 238., 250.
+    assert halo_f("SHM_beta", 0., vesc, v0, beta, ve, 1) == pytest.approx(1., abs=1e-10)
+    v = np.linspace(0., vesc + ve, 120)
+    eta = np.array([halo_f("SHM_beta", x, vesc, v0, beta, ve, 0) for x in v])
+    assert np.all(eta >= 0.) and np.all(np.diff(eta) <= 1e-15)
+    assert halo_f("SHM_beta", vesc + ve + 1., vesc, v0, beta, ve, 0) == 0.

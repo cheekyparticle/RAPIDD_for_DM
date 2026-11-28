@@ -50,12 +50,15 @@ def equivalent_sigma_mdm(card, alphaq, dmmass, halo_path=halo_path):
     '''DM-nucleon cross sections [cm^2] equivalent to the MadDM model in LZ (rapidd.chiral_eft.equivalent_sigma),
     to be compared with the published LZ (and XLZD) SI, SD-n and SD-p limits: sigmaN_SI_eq, sigmaN_SD_n_eq,
     sigmaN_SD_p_eq. The couplings are those of alpha_map.chiral_couplings_mdm (Dirac DM, j_chi = 1/2) and the
-    expected LZ signal is computed with the chiral EFT structure factors and the halo table halo_path, whatever
-    the nuclear model of the saved spectra. Loads the halo table halo_path.'''
+    expected LZ signal of the model is computed with the chiral EFT structure factors and the halo table halo_path
+    (the halo of the card), whatever the nuclear model of the saved spectra, while the reference models of the
+    published curves use the standard SHM of the LZ analysis (core.halo_path): sigma_eq includes the effect of the
+    halo of the card. Leaves loaded the halo table halo_path.'''
     from .alpha_map import chiral_couplings_mdm
     from .chiral_eft import equivalent_sigma
-    read_halo(halo_path)
-    sig = equivalent_sigma(chiral_couplings_mdm(card, alphaq, dmmass), dmmass)
+    from .core import halo_path as standard_halo_path
+    sig = equivalent_sigma(chiral_couplings_mdm(card, alphaq, dmmass), dmmass, halo=halo_path,
+                           reference_halo=standard_halo_path)
     return {'sigmaN_%s_eq' % k: float(v) for k, v in sig.items()}
 
 

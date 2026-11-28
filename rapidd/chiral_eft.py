@@ -827,14 +827,16 @@ def _reference_couplings(mDM, sigma_ref=SIGMA_REF):
             np.sqrt(16. * np.pi * s / 3.) / mu(mproton))
 
 
-def equivalent_sigma(couplings, mDM, jchi=0.5, sigma_ref=SIGMA_REF):
+def equivalent_sigma(couplings, mDM, jchi=0.5, sigma_ref=SIGMA_REF, halo=None, reference_halo=None):
     """
     DM-nucleon cross sections [cm^2] equivalent to the model in LZ, one per published LZ limit:
 
       sigma_eq = sigma_ref N_model / N_ref(sigma_ref),
 
-    with N the expected LZ signal (spectrum times the LZ 2024 NR efficiency, lz_counts) at the same DM mass, halo
-    (the table loaded with read_halo) and density:
+    with N the expected LZ signal (spectrum times the LZ 2024 NR efficiency, lz_counts) at the same DM mass and
+    density. N_model uses the halo table halo (the table loaded with read_halo if None), N_ref the halo table
+    reference_halo (the same as N_model if None): the published curves assume the standard SHM (core.halo_path),
+    so with reference_halo = core.halo_path sigma_eq includes the effect of a different halo of the model.
       N_model : the full model (SI + SD, protons and neutrons, all the xenon isotopes), chiral EFT with HKMS (SI)
                 and the HMS central structure factors (SD);
       N_ref   : the reference model of each published curve at the cross section sigma_ref:
@@ -856,12 +858,22 @@ def equivalent_sigma(couplings, mDM, jchi=0.5, sigma_ref=SIGMA_REF):
     Returns {'SI': ..., 'SD_n': ..., 'SD_p': ...}: 0 for a model without signal, nan if the reference model has no
     signal in LZ (DM mass below threshold, or j_chi = 0 for SD).
     """
+    from .core import read_halo
     rho = 0.3
+    if halo is not None:
+        read_halo(halo)
     n_model = lz_counts(lambda E: difrate_chiral(rho, mDM, E, couplings, "Xe", jchi=jchi))
     c_si, c_n, c_p = _reference_couplings(mDM, sigma_ref)
-    n_ref = {"SI": lz_counts(lambda E: difrate_helm_SI(rho, mDM, E, c_si, "Xe")),
-             "SD_n": lz_counts(lambda E: difrate_chiral(rho, mDM, E, ChiralCouplings(c4A=(0., c_n)), "Xe", jchi=jchi)),
-             "SD_p": lz_counts(lambda E: difrate_chiral(rho, mDM, E, ChiralCouplings(c4A=(c_p, 0.)), "Xe", jchi=jchi))}
+    if reference_halo is not None:
+        read_halo(reference_halo)
+    try:
+        n_ref = {"SI": lz_counts(lambda E: difrate_helm_SI(rho, mDM, E, c_si, "Xe")),
+                 "SD_n": lz_counts(lambda E: difrate_chiral(rho, mDM, E, ChiralCouplings(c4A=(0., c_n)), "Xe", jchi=jchi)),
+                 "SD_p": lz_counts(lambda E: difrate_chiral(rho, mDM, E, ChiralCouplings(c4A=(c_p, 0.)), "Xe", jchi=jchi))}
+    finally:
+        # leave loaded the halo of the model
+        if reference_halo is not None and halo is not None:
+            read_halo(halo)
     out = {}
     for k in EQUIVALENT_SIGMA_KEYS:
         if not n_ref[k] > 0.:

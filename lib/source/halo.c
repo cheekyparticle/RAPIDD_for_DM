@@ -278,24 +278,58 @@ int f_shm_beta(unsigned ndim, const double *k, void *p, unsigned fdim, double *f
 	return 0;
 }
 
+struct shm_beta_radial_params { double vesc; double v0; double ve; double beta; int i; };
+
+double f_shm_beta_radial(double v, void *p){
+	/*Radial integrand of the smooth-cutoff SHM halo integral, after the analytic angular
+	integration over the escape sphere |v_lab + ve| < vesc of the Galactic distribution
+	    f(u) = [exp(-u^2/v0^2) - beta exp(-vesc^2/v0^2)] Theta(vesc - u)
+	(McCabe, arXiv:1005.0579, Eq. 2), u = Galactic speed.
+	Inputs: v (lab speed), p (shm_beta_radial_params).
+	Output: integrand value at v.*/
+	struct shm_beta_radial_params *par = (struct shm_beta_radial_params *)p;
+	double vesc = par->vesc, v0 = par->v0, ve = par->ve, beta = par->beta;
+	int i = par->i;
+	double expesc = exp(-vesc * vesc / (v0 * v0));
+
+	if (v < 1e-6) return 0.0;
+	/* isotropic limit (ve -> 0), avoids the cancellation of the general formula */
+	if (ve < 1e-3) return (v < vesc) ? 4. * M_PI * pow(v, i + 1.0) * (exp(-v * v / (v0 * v0)) - beta * expesc) : 0.;
+
+	double u_min_raw = (v * v + ve * ve - vesc * vesc) / (2. * v * ve);
+	if (u_min_raw >= 1.) return 0.;
+	double u_min = (u_min_raw > -1.) ? u_min_raw : -1.;
+
+	double exp_lower = exp(-(v - ve) * (v - ve) / (v0 * v0));
+	double exp_upper = exp(-(v * v + ve * ve - 2. * v * ve * u_min) / (v0 * v0));
+
+	return 2. * M_PI * pow(v, i + 1.0)
+	       * ((v0 * v0 / (2. * v * ve)) * (exp_lower - exp_upper) - beta * expesc * (1. - u_min));
+}
+
 double shm_halo_beta(double vmin, double vesc, double v0, double ve, double beta, int i){
-	/*SHM halo integral (smooth-cutoff form) via 2D cubature over angle and velocity.
+	/*Smooth-cutoff SHM halo integral (beta = 0: hard cutoff, same as shm_halo; beta = 1:
+	f continuous at vesc), radial 1D integral of f_shm_beta_radial, normalized with the
+	analytic norm_shm.
 	Inputs: vmin, vesc, v0, ve, beta, i (velocity power).
 	Output: value of the halo integral (0 if vmin > vesc+ve).*/
-	double val, err;
-	struct shm_params params = {vesc, v0, ve, beta, i};
-
-	// limits of integration
-	double xl[2] = {-1, vmin};
-	double xu[2] = {1, vesc + ve};
-
 	if (vmin > vesc + ve) return 0.;
-	else {
-		hcubature(1, &f_shm_beta, &params,
-		          2, xl, xu,
-		          0, 0, 1e-13, ERROR_INDIVIDUAL, &val, &err);
-		return val/norm_shm_num(vesc, v0, beta);;
-	}
+
+	double result, error;
+	gsl_integration_workspace *w = gsl_integration_workspace_alloc(1000);
+	gsl_function F;
+	struct shm_beta_radial_params params = {vesc, v0, ve, beta, i};
+	F.function = &f_shm_beta_radial;
+	F.params = &params;
+	/* the integrand has a kink at |vesc - ve| */
+	double pts[3] = {vmin, fabs(vesc - ve), vesc + ve};
+	if (pts[1] > vmin && pts[1] < vesc + ve)
+		gsl_integration_qagp(&F, pts, 3, 1e-12, 1e-10, 1000, w, &result, &error);
+	else
+		gsl_integration_qags(&F, vmin, vesc + ve, 1e-12, 1e-10, 1000, w, &result, &error);
+	gsl_integration_workspace_free(w);
+
+	return result / norm_shm(vesc, v0, beta);
 }
 
 struct shm_radial_params { double vesc; double v0; double ve; int i; };
@@ -554,7 +588,7 @@ int fv_v(char *profile, double vesc, double v0, double beta, double ve, double k
 	if (strncmp(profile, "SHM_wLMC", 10) == 0 && w > 0.) {
 		double vmax = MAX(vesc + ve, lmc_lab_bulk(vb, cosb, ve) + vcut);
 		int jj;
-		for (jj = 0; jj < length; jj++) vel[jj] = vmax * jj / length;
+		for (jj = 0; jj < length; jj++) vel[jj] = vmax * jj / (length - 1);
 	}
 	int m;
 	int j;
